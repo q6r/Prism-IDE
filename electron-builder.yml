@@ -1,0 +1,41 @@
+appId: com.prism.ide
+productName: Prism IDE
+directories:
+  buildResources: build
+  output: dist-app
+# node-pty ships prebuilt binaries and ssh2 is pure JS, so skip the native
+# rebuild — it otherwise fails trying to compile the optional `cpu-features`.
+npmRebuild: false
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # Development only: the Rust host's sources and build (tens of GB under
+  # target/; the binary ships through extraResources), tests, scripts and the
+  # QA screenshots.
+  - '!host{,/**}'
+  - '!{tests,scripts}{,/**}'
+  - '!out/qa{,/**}'
+asarUnpack:
+  - resources/**
+  - node_modules/@homebridge/node-pty-prebuilt-multiarch/**
+  - node_modules/@anthropic-ai/claude-agent-sdk/**
+  - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**
+  - node_modules/ssh2/**
+win:
+  executableName: prism-ide
+  icon: build/icon.png
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+extraResources:
+  - from: resources
+    to: resources
+  # The Rust host (`npm run host:build`), started by the app from
+  # `<resources>/host/` (src/main/host/supervisor.ts).
+  - from: host/target/release/prism-host.exe
+    to: host/prism-host.exe

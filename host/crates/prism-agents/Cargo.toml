@@ -1,0 +1,21 @@
+[package]
+name = "prism-agents"
+description = "Prism host agent sessions: Claude Code native CLI protocol and the Codex app-server client (filled in by T05/T06)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+prism-proc = { version = "0.3.2", path = "../prism-proc" }
+rusqlite = { workspace = true }
+serde ={ version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+tokio = { version = "1.53.2", features = ["process", "io-util", "sync", "time", "rt", "macros", "fs"] }
+tracing = "0.1.44"
+uuid = { version = "1.27.0", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.53.2", features = ["process", "io-util", "sync", "time", "rt-multi-thread", "macros", "fs", "test-util"] }

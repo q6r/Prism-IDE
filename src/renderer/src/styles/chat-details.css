@@ -1,0 +1,21 @@
+.acd-changes { flex: none; margin: 0; font: 12px/18px var(--tr-font-ui); color: var(--tr-muted-foreground); }
+.acd-summary, .acd-file { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; background: transparent; color: inherit; border: 0; cursor: pointer; text-align: left; }
+.acd-file > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.acd-summary:hover, .acd-file:hover { color: var(--tr-foreground); }
+.acd-summary { gap: 6px; }
+.acd-summary > span:first-of-type { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; color: color-mix(in oklab, var(--tr-foreground) 85%, transparent); }
+.acd-summary > svg { flex-shrink: 0; color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); }
+.acd-summary > svg.collapsed { transform: rotate(-90deg); }
+.acd-summary-spacer { flex: 1; }
+.acd-summary:focus-visible, .acd-file:focus-visible { outline: 2px solid var(--tr-ring); outline-offset: -2px; }
+.acd-files { max-height: min(40dvh, 24rem); overflow: auto; padding: 6px 8px; border-top: 1px solid color-mix(in oklab, var(--tr-border) 50%, transparent); }
+.acd-file { padding: 5px 8px; border-radius: var(--tr-radius-md); }
+.acd-file:hover { background: var(--tr-muted); }
+.acd-added { color: var(--tr-success-foreground); font-variant-numeric: tabular-nums; }
+.acd-deleted { color: var(--tr-destructive); font-variant-numeric: tabular-nums; }
+.acd-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: 100%; max-width: 800px; margin: 4px auto 0; padding: 0 16px; font: 11px/18px var(--tr-font-ui); color: var(--tr-muted-foreground); flex: none; }
+.acd-footer > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.acd-footer .acd-workspace { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 550px) { .acd-footer { gap: 8px; } }
+
+.tcm-queue + .acd-changes { border-top: 1px solid color-mix(in oklab, var(--tr-border) 50%, transparent); }

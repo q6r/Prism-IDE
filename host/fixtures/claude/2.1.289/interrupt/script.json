@@ -1,0 +1,39 @@
+{
+  "scenario": "interrupt",
+  "cwd": "C:\\work\\interrupt",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-interrupt",
+        "chat": {
+          "id": "chat-interrupt"
+        },
+        "cwd": "C:\\work\\interrupt",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Escreva os números de 1 a 300 por extenso, um por linha, sem usar ferramentas."
+      }
+    }
+  ],
+  "actions": [
+    {
+      "on": {
+        "channel": "agent:text",
+        "nth": 0
+      },
+      "do": {
+        "type": "abort",
+        "id": "turn-1"
+      }
+    }
+  ],
+  "end": {
+    "channel": "agent:done",
+    "nth": 0
+  },
+  "calls": []
+}

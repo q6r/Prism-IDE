@@ -1,0 +1,99 @@
+{
+  "scenario": "permission-allow",
+  "cwd": "C:\\work\\permission-allow",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-permission-allow",
+        "chat": {
+          "id": "chat-permission-allow"
+        },
+        "cwd": "C:\\work\\permission-allow",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Use a ferramenta Write para criar o arquivo a.txt nesta pasta com o conteúdo \"um\". Não faça mais nada."
+      }
+    },
+    {
+      "after": {
+        "channel": "agent:done",
+        "nth": 0
+      },
+      "payload": {
+        "permissionScope": "chat-permission-allow",
+        "chat": {
+          "id": "chat-permission-allow"
+        },
+        "cwd": "C:\\work\\permission-allow",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-2",
+        "prompt": "Agora use a ferramenta Write para criar b.txt com o conteúdo \"dois\". Não faça mais nada.",
+        "resume": "$session"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "on": {
+        "channel": "agent:permission",
+        "nth": 0
+      },
+      "do": {
+        "type": "permission",
+        "decision": "allow_always"
+      }
+    },
+    {
+      "on": {
+        "channel": "agent:permission",
+        "nth": 1
+      },
+      "do": {
+        "type": "permission",
+        "decision": "allow"
+      }
+    }
+  ],
+  "end": {
+    "channel": "agent:done",
+    "nth": 1
+  },
+  "calls": [
+    {
+      "method": "checkpointIds",
+      "args": {
+        "sessionId": "$session"
+      }
+    },
+    {
+      "method": "rewind",
+      "args": {
+        "sessionId": "$session",
+        "userMessageId": "$checkpoint[1]",
+        "cwd": "$cwd",
+        "dryRun": true
+      }
+    },
+    {
+      "method": "rewind",
+      "args": {
+        "sessionId": "$session",
+        "userMessageId": "$checkpoint[1]",
+        "cwd": "$cwd"
+      }
+    },
+    {
+      "method": "fork",
+      "args": {
+        "sessionId": "$session",
+        "upToMessageId": "$checkpoint[0]"
+      }
+    }
+  ]
+}

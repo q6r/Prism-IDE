@@ -1,0 +1,67 @@
+{
+  "cliVersion": "2.1.289",
+  "sdkVersion": "0.3.295",
+  "recordedAt": "2026-10-09",
+  "platform": "win32-x64",
+  "processes": [
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--no-session-persistence"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--setting-sources=user,project,local",
+        "--no-session-persistence"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--setting-sources=user",
+        "--no-session-persistence"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": ""
+    }
+  ]
+}

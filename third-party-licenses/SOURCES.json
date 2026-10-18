@@ -1,0 +1,4396 @@
+{
+  "recordedAt": "2026-10-17",
+  "scope": "Installed production npm dependency notices and explicitly identified source/asset references. Package metadata is recorded without replacing the license text.",
+  "packages": [
+    {
+      "name": "@anthropic-ai/claude-agent-sdk",
+      "version": "0.3.295",
+      "declaredLicense": "SEE LICENSE IN README.md",
+      "files": [
+        {
+          "path": "npm/anthropic-ai__claude-agent-sdk@0.3.295/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+        }
+      ]
+    },
+    {
+      "name": "@anthropic-ai/claude-agent-sdk-win32-x64",
+      "version": "0.3.177",
+      "declaredLicense": "SEE LICENSE IN LICENSE.md",
+      "files": [
+        {
+          "path": "npm/anthropic-ai__claude-agent-sdk-win32-x64@0.3.177/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+        }
+      ]
+    },
+    {
+      "name": "@anthropic-ai/claude-agent-sdk-win32-x64",
+      "version": "0.3.295",
+      "declaredLicense": "SEE LICENSE IN LICENSE.md",
+      "files": [
+        {
+          "path": "npm/anthropic-ai__claude-agent-sdk-win32-x64@0.3.295/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+        }
+      ]
+    },
+    {
+      "name": "@anthropic-ai/sdk",
+      "version": "0.104.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/anthropic-ai__sdk@0.104.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "8bf96984ff8bcfae7e48cae76a529e8a25317ba9e02abf7fd3cc64fdf95657a6"
+        }
+      ]
+    },
+    {
+      "name": "@babel/runtime",
+      "version": "7.29.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/babel__runtime@7.29.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76"
+        }
+      ]
+    },
+    {
+      "name": "@discordjs/collection",
+      "version": "2.1.1",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/discordjs__collection@2.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5924242341702248e38114e62af453a788d6fdfe33d6565f146a574348dcd46f"
+        }
+      ]
+    },
+    {
+      "name": "@discordjs/rest",
+      "version": "2.6.1",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/discordjs__rest@2.6.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2bb13d0bcfeef666dfde8e6c31ecfc73be645459381657efac37036732689044"
+        }
+      ]
+    },
+    {
+      "name": "@discordjs/util",
+      "version": "1.2.0",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/discordjs__util@1.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "ddc6cf61b1bc0088468181b7d503af0b71b56681ce9005c5030217d1fd66db4b"
+        }
+      ]
+    },
+    {
+      "name": "@electron-internal/extract-zip",
+      "version": "1.0.3",
+      "declaredLicense": "BSD-2-Clause",
+      "files": [],
+      "note": "Package metadata declares BSD-2-Clause. Neither this installed tarball nor its npm gitHead source commit contains a standalone license text. No code or native binary from this helper is vendored in this source repository.",
+      "sourceCommit": "https://github.com/electron/extract-zip/tree/f4a8781fbf813bb066642aac19713973aa5a24df"
+    },
+    {
+      "name": "@electron-toolkit/preload",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/electron-toolkit__preload@3.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "14e3f2932ddf62cc5ee8f65f24a74b223a31f164709ca19a731b39ce60874d32"
+        }
+      ]
+    },
+    {
+      "name": "@electron-toolkit/utils",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/electron-toolkit__utils@4.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "14e3f2932ddf62cc5ee8f65f24a74b223a31f164709ca19a731b39ce60874d32"
+        }
+      ]
+    },
+    {
+      "name": "@electron/get",
+      "version": "5.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/electron__get@5.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "edab8abb78d9c5b36944c3e00aebf6a90eb32378993f49ac8a3904007029c629"
+        }
+      ]
+    },
+    {
+      "name": "@fontsource-variable/figtree",
+      "version": "5.3.0",
+      "declaredLicense": "OFL-1.1",
+      "files": [
+        {
+          "path": "npm/fontsource-variable__figtree@5.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "ee23e6c84000126692e112ff067b456470493349f993ceaa8b4d3766dd6fad5d"
+        }
+      ]
+    },
+    {
+      "name": "@homebridge/node-pty-prebuilt-multiarch",
+      "version": "0.13.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/homebridge__node-pty-prebuilt-multiarch@0.13.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a3d60eaf32d2fb09c9d82ef39f14bd6e2c0f3ca7de30daa827486c0d6f8b6e9f"
+        }
+      ]
+    },
+    {
+      "name": "@hono/node-server",
+      "version": "2.1.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hono__node-server@2.1.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "6895190430d809c4c57a7582ecc2f99acbc2ea39a5dfad20262a41d5b3e91733"
+        }
+      ]
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "version": "1.32.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/modelcontextprotocol__sdk@1.32.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d"
+        }
+      ]
+    },
+    {
+      "name": "@monaco-editor/loader",
+      "version": "1.7.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/monaco-editor__loader@1.7.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4798fdbac1cbcc37a0261bf164271dfd742eb79dbc13d9e33ad1f2b234c33cc3"
+        }
+      ]
+    },
+    {
+      "name": "@monaco-editor/react",
+      "version": "4.7.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/monaco-editor__react@4.7.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "da0f19a87a0a014e0f6e1de99bff8073771b5b6204d8b2671d2648ab8b32cf01"
+        }
+      ]
+    },
+    {
+      "name": "@pierre/diffs",
+      "version": "1.3.1",
+      "declaredLicense": "apache-2.0",
+      "files": [
+        {
+          "path": "npm/pierre__diffs@1.3.1/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "13d92be18d5ceac526f33cc96b6902a14d168f3e1d4b16be738f0fa70da7fe98"
+        }
+      ]
+    },
+    {
+      "name": "@pierre/theme",
+      "version": "2.0.0",
+      "declaredLicense": "apache-2.0",
+      "files": [
+        {
+          "path": "npm/pierre__theme@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "13d92be18d5ceac526f33cc96b6902a14d168f3e1d4b16be738f0fa70da7fe98"
+        },
+        {
+          "path": "npm/pierre__theme@2.0.0/NOTICE.md",
+          "source": "installed npm package",
+          "sha256": "d64db9acda54bde8eb5ca1a679166b9376fc8bd8059967a396a156b3db8a1983"
+        }
+      ]
+    },
+    {
+      "name": "@pierre/theming",
+      "version": "1.0.0",
+      "declaredLicense": "apache-2.0",
+      "files": [
+        {
+          "path": "npm/pierre__theming@1.0.0/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "13d92be18d5ceac526f33cc96b6902a14d168f3e1d4b16be738f0fa70da7fe98"
+        }
+      ]
+    },
+    {
+      "name": "@pierre/trees",
+      "version": "1.0.0-beta.6",
+      "declaredLicense": "apache-2.0",
+      "files": [
+        {
+          "path": "npm/pierre__trees@1.0.0-beta.6/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "13d92be18d5ceac526f33cc96b6902a14d168f3e1d4b16be738f0fa70da7fe98"
+        },
+        {
+          "path": "npm/pierre__trees@1.0.0-beta.6/NOTICE.md",
+          "source": "installed npm package",
+          "sha256": "a3504441e109da15ac873123ac4436250936b8261055c998360748ce35485963"
+        }
+      ]
+    },
+    {
+      "name": "@sapphire/async-queue",
+      "version": "1.5.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/sapphire__async-queue@1.5.5/LICENSE.md",
+          "source": "https://raw.githubusercontent.com/sapphiredev/utilities/36268acb83cc613e06836f6ebbdafeeba99c2365/LICENSE.md",
+          "sha256": "9a022e629657a7e9753e631ac112bb4260e71267b9ccff1fa72240eb167e2eeb"
+        }
+      ]
+    },
+    {
+      "name": "@sapphire/snowflake",
+      "version": "3.5.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/sapphire__snowflake@3.5.5/LICENSE.md",
+          "source": "https://raw.githubusercontent.com/sapphiredev/utilities/dd52b66fc63099b2f95163eebd4df23c26b1cd16/LICENSE.md",
+          "sha256": "9a022e629657a7e9753e631ac112bb4260e71267b9ccff1fa72240eb167e2eeb"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/core",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__core@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/engine-javascript",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__engine-javascript@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/engine-oniguruma",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__engine-oniguruma@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/langs",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__langs@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/primitive",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__primitive@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/themes",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__themes@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/transformers",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__transformers@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/types",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__types@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "@shikijs/vscode-textmate",
+      "version": "10.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shikijs__vscode-textmate@10.0.2/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "b5cb7ff7859e7d282d98fc43ab081b0dda5dc659dc3385cf65740c759a7e6a6c"
+        }
+      ]
+    },
+    {
+      "name": "@stablelib/base64",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/stablelib__base64@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "1605b77bebe018db1fc27bd22fbcdeed1335c617937a124299a8b042b42b0fb6"
+        }
+      ]
+    },
+    {
+      "name": "@types/debug",
+      "version": "4.1.13",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__debug@4.1.13/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/estree",
+      "version": "1.0.9",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__estree@1.0.9/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/estree-jsx",
+      "version": "1.0.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__estree-jsx@1.0.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/hast",
+      "version": "3.0.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__hast@3.0.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/mdast",
+      "version": "4.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__mdast@4.0.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/ms",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__ms@2.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/node",
+      "version": "24.13.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__node@24.13.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/react",
+      "version": "19.2.17",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__react@19.2.17/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/trusted-types",
+      "version": "2.0.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__trusted-types@2.0.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/unist",
+      "version": "2.0.11",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__unist@2.0.11/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@types/unist",
+      "version": "3.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/types__unist@3.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "@ungap/structured-clone",
+      "version": "1.3.1",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/ungap__structured-clone@1.3.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "dc6d4961d8b6ee747231582ae9c53ce1d66bf76bc9f5a28f554c0e97210953bf"
+        }
+      ]
+    },
+    {
+      "name": "@vladfrangu/async_event_emitter",
+      "version": "2.4.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/vladfrangu__async_event_emitter@2.4.7/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "ae9e0665153e0c1bb7f24d63ac445e9d3e277b0b02e04bb631dc99eb56116812"
+        }
+      ]
+    },
+    {
+      "name": "@xhayper/discord-rpc",
+      "version": "1.3.4",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/xhayper__discord-rpc@1.3.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "31ac71ae3609ac5a1e77bed175c78ef2fce0e7b1bc3647518ee62c3fdd5917d4"
+        }
+      ]
+    },
+    {
+      "name": "@xterm/addon-fit",
+      "version": "0.11.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/xterm__addon-fit@0.11.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "e256f01188af527e4d06d21d06fbf785ae9c50d4b328bf03cbe0ba7f0aa4228f"
+        }
+      ]
+    },
+    {
+      "name": "@xterm/xterm",
+      "version": "6.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/xterm__xterm@6.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "b569f629d00f2626a8100df2a1798210535621e42164dfd426a6fe5aac7b0ccd"
+        }
+      ]
+    },
+    {
+      "name": "accepts",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/accepts@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "71f83c4c0621102a56d9853812777b85751bce7e9726f686f5b056c1f8a4b0e6"
+        }
+      ]
+    },
+    {
+      "name": "ajv",
+      "version": "8.20.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ajv@8.20.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a05350a88e318e4f5f2c2a1ff1e2e88daa4dd38e6e78b71cccae422bdc762cc3"
+        }
+      ]
+    },
+    {
+      "name": "ajv-formats",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ajv-formats@2.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9df3bb69929a3b650ed73b3bfa1756725aaff0ac296461605753547004eafeaf"
+        }
+      ]
+    },
+    {
+      "name": "ajv-formats",
+      "version": "3.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ajv-formats@3.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9df3bb69929a3b650ed73b3bfa1756725aaff0ac296461605753547004eafeaf"
+        }
+      ]
+    },
+    {
+      "name": "ansi-regex",
+      "version": "5.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ansi-regex@5.0.1/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "ansi-styles",
+      "version": "4.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ansi-styles@4.3.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "asn1",
+      "version": "0.2.6",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/asn1@0.2.6/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f4b6bd1a9437d0f66ff46d8f4dca185c31a069ba11e437f3b8506ec4424be9cf"
+        }
+      ]
+    },
+    {
+      "name": "atomically",
+      "version": "1.7.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/atomically@1.7.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "716bd9213ef82d9017ed813688703837aaa99fc56de205a7b97475d40056a500"
+        }
+      ]
+    },
+    {
+      "name": "bail",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/bail@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "base64-js",
+      "version": "1.5.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/base64-js@1.5.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5b37224c080cdcc97c871ada971c224e9926370fe74f11b539aa1cf9f3b1aca1"
+        }
+      ]
+    },
+    {
+      "name": "bcrypt-pbkdf",
+      "version": "1.0.2",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/bcrypt-pbkdf@1.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "b5f71fac3ae50115c65ee70551bdbaeed89b4f7a76ac36dc8c576e3036bcd604"
+        }
+      ]
+    },
+    {
+      "name": "bl",
+      "version": "4.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/bl@4.1.0/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "9377db95383c8befacf05c6e465d969d756edf178487ca1344fdf3ba147c596f"
+        }
+      ]
+    },
+    {
+      "name": "body-parser",
+      "version": "2.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/body-parser@2.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "23d466b1b134b415b66fa50c6526b4cf3e7b9258554da88d3abb371721e7ce68"
+        }
+      ]
+    },
+    {
+      "name": "buffer",
+      "version": "5.7.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/buffer@5.7.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6"
+        }
+      ]
+    },
+    {
+      "name": "buildcheck",
+      "version": "0.0.7",
+      "declaredLicense": "See included license",
+      "files": [
+        {
+          "path": "npm/buildcheck@0.0.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d06b5d27bbbbe22c36b1fd88406b1208876e2d37d795f5b8eaed951a459a3111"
+        }
+      ]
+    },
+    {
+      "name": "bytes",
+      "version": "3.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/bytes@3.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "e3b44af066615de2ea48d18d852d0762f18c0b2efcea714fa48a6f729d405b85"
+        }
+      ]
+    },
+    {
+      "name": "call-bind-apply-helpers",
+      "version": "1.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/call-bind-apply-helpers@1.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "call-bound",
+      "version": "1.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/call-bound@1.0.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "camelcase",
+      "version": "5.3.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/camelcase@5.3.1/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "ccount",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ccount@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "character-entities",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/character-entities@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "character-entities-html4",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/character-entities-html4@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "character-entities-legacy",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/character-entities-legacy@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "character-reference-invalid",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/character-reference-invalid@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "chownr",
+      "version": "1.1.4",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/chownr@1.1.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "cliui",
+      "version": "6.0.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/cliui@6.0.0/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149"
+        }
+      ]
+    },
+    {
+      "name": "cloudflared",
+      "version": "0.7.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/cloudflared@0.7.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "918b206b6cc0a5bf8c214e9f72a4239f31e8aedd006ffe8bd76a05ea2e829ffe"
+        }
+      ]
+    },
+    {
+      "name": "color-convert",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/color-convert@2.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "693866fc419c6f61c8570438ec00659d156ec2b4d4a4d04091711f5f11a365d4"
+        }
+      ]
+    },
+    {
+      "name": "color-name",
+      "version": "1.1.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/color-name@1.1.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7357445bac398c76c0aef75a587009fe406d40de6a79789eb5b7ecbbad317ef2"
+        }
+      ]
+    },
+    {
+      "name": "comma-separated-tokens",
+      "version": "2.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/comma-separated-tokens@2.0.3/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "conf",
+      "version": "10.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/conf@10.2.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "content-disposition",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/content-disposition@1.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "1.0.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/content-type@1.0.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/content-type@2.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "cookie",
+      "version": "0.7.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/cookie@0.7.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858"
+        }
+      ]
+    },
+    {
+      "name": "cookie-signature",
+      "version": "1.2.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/cookie-signature@1.2.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0dd4e47333485760cf8c265db5a5e24ae8d7401064c6f2e19793ee81a5bef42f"
+        }
+      ]
+    },
+    {
+      "name": "cors",
+      "version": "2.8.6",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/cors@2.8.6/LICENSE",
+          "source": "installed npm package",
+          "sha256": "1aa9a12863eefb583779b2ca0e5d73c610b6e6d07529ae0472721769a6ea0a32"
+        }
+      ]
+    },
+    {
+      "name": "cpu-features",
+      "version": "0.0.10",
+      "declaredLicense": "See included license",
+      "files": [
+        {
+          "path": "npm/cpu-features@0.0.10/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d06b5d27bbbbe22c36b1fd88406b1208876e2d37d795f5b8eaed951a459a3111"
+        }
+      ]
+    },
+    {
+      "name": "cross-spawn",
+      "version": "7.0.6",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/cross-spawn@7.0.6/LICENSE",
+          "source": "installed npm package",
+          "sha256": "aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1"
+        }
+      ]
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/csstype@3.2.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "11d55bd4541c75ee7879547ac49089c489163dae49551389713c3d026cab383e"
+        }
+      ]
+    },
+    {
+      "name": "debounce-fn",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/debounce-fn@4.0.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "version": "4.4.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/debug@4.4.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95"
+        }
+      ]
+    },
+    {
+      "name": "decamelize",
+      "version": "1.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/decamelize@1.2.0/license",
+          "source": "installed npm package",
+          "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        }
+      ]
+    },
+    {
+      "name": "decode-named-character-reference",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/decode-named-character-reference@1.3.0/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "decompress-response",
+      "version": "6.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/decompress-response@6.0.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "deep-extend",
+      "version": "0.6.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/deep-extend@0.6.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "e17120ad3deff741c2ca5cbe511971ca33971a1ba6e49694c6498309bb2680b9"
+        }
+      ]
+    },
+    {
+      "name": "depd",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/depd@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd134b41da59e452fb5a1d366b660886f741c87c2bf9428e93764c419fbc40f5"
+        }
+      ]
+    },
+    {
+      "name": "dequal",
+      "version": "2.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/dequal@2.0.3/license",
+          "source": "installed npm package",
+          "sha256": "306fa513e39b23a6e8747520de761809d206b99800ef41907b530226574c59ae"
+        }
+      ]
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/detect-libc@2.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+        }
+      ]
+    },
+    {
+      "name": "devlop",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/devlop@1.1.0/license",
+          "source": "installed npm package",
+          "sha256": "6f296a5eccc1dc96714bb94ebaa9cac25b0a1467d74cc5263ac4d0646ab01f62"
+        }
+      ]
+    },
+    {
+      "name": "diff",
+      "version": "9.0.0",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/diff@9.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "eda81a415869e67809f6a9f3fd6056062cb83a462118e07eec5e92b2e0c40ce9"
+        }
+      ]
+    },
+    {
+      "name": "dijkstrajs",
+      "version": "1.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/dijkstrajs@1.0.3/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "c46324e45a005413535a6fb7a97e9eacd3cc6bf30335b7d5c10b8ee3af9e60c2"
+        }
+      ]
+    },
+    {
+      "name": "discord-api-types",
+      "version": "0.38.48",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/discord-api-types@0.38.48/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0adfaa12dd8b7912276277414fa318490c6aa5b1346cb793bff15e4ab6678e05"
+        }
+      ]
+    },
+    {
+      "name": "dompurify",
+      "version": "3.2.7",
+      "declaredLicense": "(MPL-2.0 OR Apache-2.0)",
+      "files": [
+        {
+          "path": "npm/dompurify@3.2.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "1b02e03c3fb4f87d476c128f0eb9def1f5a1709d28b180465228bd41574623b7"
+        }
+      ]
+    },
+    {
+      "name": "dot-prop",
+      "version": "6.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/dot-prop@6.0.1/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "dunder-proto",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/dunder-proto@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2b770a704c15de238c3f622b01b0044ddd60b49ee30608ea6991ebf19db7a7a1"
+        }
+      ]
+    },
+    {
+      "name": "echarts",
+      "version": "6.1.0",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/echarts@6.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a"
+        },
+        {
+          "path": "npm/echarts@6.1.0/NOTICE",
+          "source": "installed npm package",
+          "sha256": "d491d358344f842685c1b1585970999db65fe30ecf7ef3867af8814f4016c016"
+        }
+      ]
+    },
+    {
+      "name": "ee-first",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ee-first@1.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "965ef284f7f4c176842ec2e87fa13e79feed777d56d7a21a5a3b38f1bb6dc288"
+        }
+      ]
+    },
+    {
+      "name": "electron",
+      "version": "42.4.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/electron@42.4.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+        }
+      ]
+    },
+    {
+      "name": "electron-store",
+      "version": "8.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/electron-store@8.2.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "emoji-regex",
+      "version": "8.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/emoji-regex@8.0.0/LICENSE-MIT.txt",
+          "source": "installed npm package",
+          "sha256": "483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a"
+        }
+      ]
+    },
+    {
+      "name": "encodeurl",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/encodeurl@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7585ea7bba616ccbbe43cb54ecb67956688c3c5641bb84f3099a652a73193afe"
+        }
+      ]
+    },
+    {
+      "name": "end-of-stream",
+      "version": "1.4.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/end-of-stream@1.4.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+        }
+      ]
+    },
+    {
+      "name": "env-paths",
+      "version": "2.2.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/env-paths@2.2.1/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "env-paths",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/env-paths@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "es-define-property",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/es-define-property@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "es-errors",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/es-errors@1.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "es-object-atoms",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/es-object-atoms@1.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "escape-html",
+      "version": "1.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/escape-html@1.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "255aa557a1f55224ce522f311629c0bf20854740a67955cefd798fbd1d3d1ded"
+        }
+      ]
+    },
+    {
+      "name": "escape-string-regexp",
+      "version": "5.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/escape-string-regexp@5.0.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "estree-util-is-identifier-name",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/estree-util-is-identifier-name@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "etag",
+      "version": "1.8.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/etag@1.8.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a7996721249a136fbcfc1c201bcb5f414f38a701d4a24f28abe65e16cfcce813"
+        }
+      ]
+    },
+    {
+      "name": "eventsource",
+      "version": "3.0.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/eventsource@3.0.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f683a72ffe6a9675b5507af22fe0f448d8c8de3da1e14f139d370a7e6a54a23e"
+        }
+      ]
+    },
+    {
+      "name": "eventsource-parser",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/eventsource-parser@3.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb"
+        }
+      ]
+    },
+    {
+      "name": "expand-template",
+      "version": "2.0.3",
+      "declaredLicense": "(MIT OR WTFPL)",
+      "files": [
+        {
+          "path": "npm/expand-template@2.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0967624813244bf47da346449804af853437433cbdeb8c977f1e0d4bd14e0a3b"
+        }
+      ]
+    },
+    {
+      "name": "express",
+      "version": "5.2.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/express@5.2.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "95a5762890e5c1c9808921cef095661fc482c5e1f0bba31446ac85595df6237c"
+        }
+      ]
+    },
+    {
+      "name": "express-rate-limit",
+      "version": "8.7.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/express-rate-limit@8.7.1/license",
+          "source": "installed npm package",
+          "sha256": "a752c164b45840ef677e68c738aefabfd665ee9f112ada4538761301a97118b0"
+        }
+      ]
+    },
+    {
+      "name": "extend",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/extend@3.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "97af7428f93afbab9bf79cd09254da1357161794f4255eb1b4599f04dd2d2e7c"
+        }
+      ]
+    },
+    {
+      "name": "fast-deep-equal",
+      "version": "3.1.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/fast-deep-equal@3.1.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+        }
+      ]
+    },
+    {
+      "name": "fast-sha256",
+      "version": "1.3.0",
+      "declaredLicense": "Unlicense",
+      "files": [
+        {
+          "path": "npm/fast-sha256@1.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd"
+        }
+      ]
+    },
+    {
+      "name": "fast-uri",
+      "version": "3.1.2",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/fast-uri@3.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "b010b0dfdfdb23d7396e03b82cd4621fc9bb8f95d6b0aea70b9c24e12074c786"
+        }
+      ]
+    },
+    {
+      "name": "finalhandler",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/finalhandler@2.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "47dcccf62bf40469d23849b0b1dc8df9fc91bce219b880c638d4dc4596e6b5cf"
+        }
+      ]
+    },
+    {
+      "name": "find-up",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/find-up@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "find-up",
+      "version": "4.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/find-up@4.1.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "forwarded",
+      "version": "0.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/forwarded@0.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "fresh",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/fresh@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a0ec0dab16b3666f24950f86d257930ac2ad475557b4bfe245620e0817d8a45d"
+        }
+      ]
+    },
+    {
+      "name": "fs-constants",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/fs-constants@1.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2281f2db407bdbb54f069eec38128b2dee2c0c952f52b786ef1faecb81767b3c"
+        }
+      ]
+    },
+    {
+      "name": "function-bind",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/function-bind@1.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "773e131a7684726005a7e4688a80b4620033bc08499bc1404dd1a1eb3bca725e"
+        }
+      ]
+    },
+    {
+      "name": "get-caller-file",
+      "version": "2.0.5",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/get-caller-file@2.0.5/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "902dbb4154679fb2b8d7c33878183f45b268d01eae5e5033dddaa8852d45f213"
+        }
+      ]
+    },
+    {
+      "name": "get-intrinsic",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/get-intrinsic@1.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "39c5ec504cf6bd5cd782a7c695828e09189df79f5d94840e4f08feb97b9fd416"
+        }
+      ]
+    },
+    {
+      "name": "get-proto",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/get-proto@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "be46ce1e3b0479af9ce82d22b465a6d7d2ff084fca0aaf3d54172da2b5eb5781"
+        }
+      ]
+    },
+    {
+      "name": "github-from-package",
+      "version": "0.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/github-from-package@0.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b"
+        }
+      ]
+    },
+    {
+      "name": "gopd",
+      "version": "1.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/gopd@1.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d90bf0a089da4cf43d644ed240a0b3825dcdb705e64e38371d56995a4cc9e4c5"
+        }
+      ]
+    },
+    {
+      "name": "graceful-fs",
+      "version": "4.2.11",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/graceful-fs@4.2.11/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c"
+        }
+      ]
+    },
+    {
+      "name": "has-symbols",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/has-symbols@1.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "206c1adcf206dc0031b11232f5b054ec5f1662407ab1ca415247921cab2068ab"
+        }
+      ]
+    },
+    {
+      "name": "hasown",
+      "version": "2.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hasown@2.0.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bf9b0d665be2a689851eea667ca9f42066ea1d903b38349c51e6a44b2577680a"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-to-html",
+      "version": "9.0.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hast-util-to-html@9.0.5/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-to-jsx-runtime",
+      "version": "2.3.6",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hast-util-to-jsx-runtime@2.3.6/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-whitespace",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hast-util-whitespace@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "hono",
+      "version": "4.13.13",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/hono@4.13.13/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a6ab98e5c77b9070c443eaff2ff81034a6f8cc05a7524d5098eb0f24defa0115"
+        }
+      ]
+    },
+    {
+      "name": "html-to-image",
+      "version": "1.11.13",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/html-to-image@1.11.13/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9fe73723f7a9e91057f73aafc9b6a3c3b2174db2b3ddc0a3a6a8ddf2bad68e37"
+        }
+      ]
+    },
+    {
+      "name": "html-url-attributes",
+      "version": "3.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/html-url-attributes@3.0.1/license",
+          "source": "installed npm package",
+          "sha256": "e18cf5173e928f808f0cd208097fee8fbec9d28fc0255213938e4c559e29ff58"
+        }
+      ]
+    },
+    {
+      "name": "html-void-elements",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/html-void-elements@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "http-errors",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/http-errors@2.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "dcb94ff9b1e037a847bc20589dc81a1066d041fd4c16deb18b0fa968c66cf395"
+        }
+      ]
+    },
+    {
+      "name": "iconv-lite",
+      "version": "0.7.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/iconv-lite@0.7.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "ac779f7314c74f232ef847ea86e714abe25cf6eeb5cc97b69451b74e2af6492d"
+        }
+      ]
+    },
+    {
+      "name": "ieee754",
+      "version": "1.2.1",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/ieee754@1.2.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "18d45466ba3253deae04667e267a91ea8de8548f18c1125264d1c9db28194cc1"
+        }
+      ]
+    },
+    {
+      "name": "inherits",
+      "version": "2.0.4",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/inherits@2.0.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b"
+        }
+      ]
+    },
+    {
+      "name": "ini",
+      "version": "1.3.8",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/ini@1.3.8/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "inline-style-parser",
+      "version": "0.2.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/inline-style-parser@0.2.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "395c95f20598da653ff1eb1cb9d74947c7fac689697147f1d192fd0242a0e635"
+        }
+      ]
+    },
+    {
+      "name": "ip-address",
+      "version": "10.7.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ip-address@10.7.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f8d791359a50cbcac82c29cb7b0b1b889b28be76fdd35b8ee33f0f7c8704702a"
+        }
+      ]
+    },
+    {
+      "name": "ipaddr.js",
+      "version": "1.9.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ipaddr.js@1.9.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "62568a2d1337b77171ecca9db10579163446de1ba6151678e81f06cdc199971b"
+        }
+      ]
+    },
+    {
+      "name": "is-alphabetical",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-alphabetical@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "is-alphanumerical",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-alphanumerical@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "is-decimal",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-decimal@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "is-fullwidth-code-point",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-fullwidth-code-point@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "is-hexadecimal",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-hexadecimal@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "is-obj",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-obj@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "is-plain-obj",
+      "version": "4.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-plain-obj@4.1.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "is-promise",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/is-promise@4.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "44191656d296391e0ec97e32f5385f0d02b6f2992694082d22ea04ba0f66f9e4"
+        }
+      ]
+    },
+    {
+      "name": "isexe",
+      "version": "2.0.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/isexe@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "jose",
+      "version": "6.2.12",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/jose@6.2.12/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-to-ts",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/json-schema-to-ts@3.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "18a2bfd070b08bd1cc538c90f59989a9523e070e72fe9a9068593c3e82f44fa7"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-traverse",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/json-schema-traverse@1.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-typed",
+      "version": "7.0.3",
+      "declaredLicense": "BSD-2-Clause",
+      "files": [
+        {
+          "path": "npm/json-schema-typed@7.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "59992f12a42bfad11b6586e1bffda51749bb468847ca27c7070647462a66ed7b"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-typed",
+      "version": "8.0.2",
+      "declaredLicense": "BSD-2-Clause",
+      "files": [
+        {
+          "path": "npm/json-schema-typed@8.0.2/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "2701eb669226473bb7df25dff5abcd3b7f73589091dce6dea1ca50919a138c73"
+        }
+      ]
+    },
+    {
+      "name": "locate-path",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/locate-path@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "locate-path",
+      "version": "5.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/locate-path@5.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "longest-streak",
+      "version": "3.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/longest-streak@3.1.0/license",
+          "source": "installed npm package",
+          "sha256": "9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10"
+        }
+      ]
+    },
+    {
+      "name": "lru_map",
+      "version": "0.4.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/lru_map@0.4.1/LICENSE-from-README.md",
+          "source": "installed npm README.md, MIT license section",
+          "sha256": "6d1ba2d02cd55eebb60dc5991c64617fd3a5c87ac863606ff89dddec03e1cfa7"
+        }
+      ]
+    },
+    {
+      "name": "lucide-react",
+      "version": "1.18.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/lucide-react@1.18.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+        }
+      ]
+    },
+    {
+      "name": "magic-bytes.js",
+      "version": "1.13.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/magic-bytes.js@1.13.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9eafa31f3f1a41e02a12823a7d2c7773dfeb80e6095558bda5d609b28fd5303e"
+        }
+      ]
+    },
+    {
+      "name": "markdown-table",
+      "version": "3.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/markdown-table@3.0.4/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "marked",
+      "version": "14.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/marked@14.0.0/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+        }
+      ]
+    },
+    {
+      "name": "math-intrinsics",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/math-intrinsics@1.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2b770a704c15de238c3f622b01b0044ddd60b49ee30608ea6991ebf19db7a7a1"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-find-and-replace",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-find-and-replace@3.0.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-from-markdown",
+      "version": "2.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-from-markdown@2.0.3/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm",
+      "version": "3.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm@3.1.0/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-autolink-literal",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm-autolink-literal@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-footnote",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm-footnote@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-strikethrough",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm-strikethrough@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-table",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm-table@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-task-list-item",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-gfm-task-list-item@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-mdx-expression",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-mdx-expression@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-mdx-jsx",
+      "version": "3.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-mdx-jsx@3.2.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-mdxjs-esm",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-mdxjs-esm@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-phrasing",
+      "version": "4.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-phrasing@4.1.0/license",
+          "source": "installed npm package",
+          "sha256": "b6d1a4e1831b177acc96f22a817d4f0f4c18419355badc3125754445fc69e3a7"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-to-hast",
+      "version": "13.2.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-to-hast@13.2.1/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-to-markdown",
+      "version": "2.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-to-markdown@2.1.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-to-string",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mdast-util-to-string@4.0.0/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "media-typer",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/media-typer@1.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "merge-descriptors",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/merge-descriptors@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "70b126abc64d7ea06e1243349073935caa16fa47a41a571773ccf0b350b1d574"
+        }
+      ]
+    },
+    {
+      "name": "micromark",
+      "version": "4.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark@4.0.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-core-commonmark",
+      "version": "2.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-core-commonmark@2.0.3/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-autolink-literal",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-autolink-literal@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-footnote",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-footnote@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "807a88522a850092aece49486207c17c313c4d5708ac276524840fe1caa0b0fa"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-strikethrough",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-strikethrough@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-table",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-table@2.1.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-tagfilter",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-tagfilter@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-task-list-item",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-extension-gfm-task-list-item@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61"
+        }
+      ]
+    },
+    {
+      "name": "micromark-factory-destination",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-factory-destination@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-factory-label",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-factory-label@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-factory-space",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-factory-space@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-factory-title",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-factory-title@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-factory-whitespace",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-factory-whitespace@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-character",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-character@2.1.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-chunked",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-chunked@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-classify-character",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-classify-character@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-combine-extensions",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-combine-extensions@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-decode-numeric-character-reference",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-decode-numeric-character-reference@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-decode-string",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-decode-string@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-encode",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-encode@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-html-tag-name",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-html-tag-name@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-normalize-identifier",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-normalize-identifier@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-resolve-all",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-resolve-all@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-sanitize-uri",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-sanitize-uri@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-subtokenize",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-subtokenize@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-symbol",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-symbol@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "micromark-util-types",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/micromark-util-types@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "mime-db",
+      "version": "1.54.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mime-db@1.54.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "cc1dfd4dafa27271e8212cd3b274eeb3f262e40a6fdab36ddc3f9696f706f58b"
+        }
+      ]
+    },
+    {
+      "name": "mime-types",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mime-types@3.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "71f83c4c0621102a56d9853812777b85751bce7e9726f686f5b056c1f8a4b0e6"
+        }
+      ]
+    },
+    {
+      "name": "mimic-fn",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mimic-fn@2.1.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "mimic-fn",
+      "version": "3.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mimic-fn@3.1.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "mimic-response",
+      "version": "3.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mimic-response@3.1.0/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "minimist",
+      "version": "1.2.8",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/minimist@1.2.8/LICENSE",
+          "source": "installed npm package",
+          "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b"
+        }
+      ]
+    },
+    {
+      "name": "mkdirp-classic",
+      "version": "0.5.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/mkdirp-classic@0.5.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a255b85c1a510ecfe660c4d442ecdbc1e9d07f4b4d3d7f90443f7e5570591e0a"
+        }
+      ]
+    },
+    {
+      "name": "monaco-editor",
+      "version": "0.55.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/monaco-editor@0.55.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "33e4ff1a06ef62ba21788ea162564ee8165269a24a9ce6ef301837447eab0ac6"
+        },
+        {
+          "path": "npm/monaco-editor@0.55.1/ThirdPartyNotices.txt",
+          "source": "installed npm package",
+          "sha256": "790537262fc78a764e121e6b92b959bcd3f5c310b47d9d9b9e92e17fe0af5336"
+        }
+      ]
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ms@2.1.3/license.md",
+          "source": "installed npm package",
+          "sha256": "1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801"
+        }
+      ]
+    },
+    {
+      "name": "nan",
+      "version": "2.29.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/nan@2.29.0/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "95d152af7a776fba93bd795d3235d478cca4a207f8e1475fc9a3d71d28964c39"
+        }
+      ]
+    },
+    {
+      "name": "napi-build-utils",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/napi-build-utils@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9c6a91d2847bd9bfd493c1ca87b9c3f96302cfd069667e6dd4a6278e69a33a31"
+        }
+      ]
+    },
+    {
+      "name": "negotiator",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/negotiator@1.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "553d4d20029a24e315b428a1a54a9e109eaa340f2e958a4f50a92362c2c4070b"
+        }
+      ]
+    },
+    {
+      "name": "node-abi",
+      "version": "3.92.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/node-abi@3.92.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "9a508cd4122f2dc1cc39f8ab0b6950efbc49fb087a581c7177a4b8c9d5d0d6a1"
+        }
+      ]
+    },
+    {
+      "name": "node-addon-api",
+      "version": "7.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/node-addon-api@7.1.1/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "89024017b88a9f2b763f79b941a4f2db3b4428edfcacdc0b23866b2da633ad0c"
+        }
+      ]
+    },
+    {
+      "name": "object-assign",
+      "version": "4.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/object-assign@4.1.1/license",
+          "source": "installed npm package",
+          "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        }
+      ]
+    },
+    {
+      "name": "object-inspect",
+      "version": "1.13.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/object-inspect@1.13.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd40cc437e28a3ad7bef2ad34e6b72e757b182e67bda1acadbab4ef0476f8232"
+        }
+      ]
+    },
+    {
+      "name": "on-finished",
+      "version": "2.4.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/on-finished@2.4.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "8089bcc08845ec143e5761f4a101a65b8c792a0dedbfeeb90a15560c0b77f768"
+        }
+      ]
+    },
+    {
+      "name": "once",
+      "version": "1.4.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/once@1.4.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "onetime",
+      "version": "5.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/onetime@5.1.2/license",
+          "source": "installed npm package",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "oniguruma-parser",
+      "version": "0.12.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/oniguruma-parser@0.12.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5fe78c91b36c6147ed0b6ab1631ce731165b7dd5e00482be1f027d46d12a8082"
+        }
+      ]
+    },
+    {
+      "name": "oniguruma-to-es",
+      "version": "4.3.6",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/oniguruma-to-es@4.3.6/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c1a5a1ebc88f3e0f3caa04c0af52bf8f3a5405a467337a09594ae1ad149cec83"
+        }
+      ]
+    },
+    {
+      "name": "p-limit",
+      "version": "2.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/p-limit@2.3.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "p-locate",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/p-locate@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "p-locate",
+      "version": "4.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/p-locate@4.1.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "p-try",
+      "version": "2.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/p-try@2.2.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "parse-entities",
+      "version": "4.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/parse-entities@4.0.2/license",
+          "source": "installed npm package",
+          "sha256": "5d0698266086f217bb11ea0499d33453e401fe479fb9126ad04e625e63d3557b"
+        }
+      ]
+    },
+    {
+      "name": "parseurl",
+      "version": "1.3.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/parseurl@1.3.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "11d017c3b9f1ee3f44caf7203035f0461d5b57e0db8ce1bc03a9af34fa7d3f6b"
+        }
+      ]
+    },
+    {
+      "name": "path-exists",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/path-exists@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        }
+      ]
+    },
+    {
+      "name": "path-exists",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/path-exists@4.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "path-key",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/path-key@3.1.1/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "path-to-regexp",
+      "version": "8.4.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/path-to-regexp@8.4.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4eeb3271453a891df609e5a9f4ee79a68307f730c13417a3bfeffa604ac8cf25"
+        }
+      ]
+    },
+    {
+      "name": "pkce-challenge",
+      "version": "5.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/pkce-challenge@5.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "feb87a2e0c305de3464cc44077da5393c52d8ca6362d37427157d04ec6f4510d"
+        }
+      ]
+    },
+    {
+      "name": "pkg-up",
+      "version": "3.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/pkg-up@3.1.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "pngjs",
+      "version": "5.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/pngjs@5.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "176b07a18c0bb3836aaeb61088fd0bf11a38f66e6f15e3fbda85faa225250d6e"
+        }
+      ]
+    },
+    {
+      "name": "preact",
+      "version": "11.0.0-beta.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/preact@11.0.0-beta.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "1fe6958409c8c257a70c587a18b6f7f412b179b456630790d30b2ec9a8e4b7d4"
+        }
+      ]
+    },
+    {
+      "name": "preact-render-to-string",
+      "version": "6.6.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/preact-render-to-string@6.6.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f1f6a1f3170072992cfdbbd59b125a04b9e810f6d1e08bb459741f54904a3460"
+        }
+      ]
+    },
+    {
+      "name": "prebuild-install",
+      "version": "7.1.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/prebuild-install@7.1.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0aa9add6a9158efad3e6649e3affd607c7e2629f6677af19f9988c8fbb0757b0"
+        }
+      ]
+    },
+    {
+      "name": "progress",
+      "version": "2.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/progress@2.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d7d2a7786de7c7cfd96f920c6f12927d74e1d2a861ca4498bf465c3bc3f4c21c"
+        }
+      ]
+    },
+    {
+      "name": "property-information",
+      "version": "7.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/property-information@7.2.0/license",
+          "source": "installed npm package",
+          "sha256": "5d0698266086f217bb11ea0499d33453e401fe479fb9126ad04e625e63d3557b"
+        }
+      ]
+    },
+    {
+      "name": "proxy-addr",
+      "version": "2.0.8",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/proxy-addr@2.0.8/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a7996721249a136fbcfc1c201bcb5f414f38a701d4a24f28abe65e16cfcce813"
+        }
+      ]
+    },
+    {
+      "name": "pump",
+      "version": "3.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/pump@3.0.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+        }
+      ]
+    },
+    {
+      "name": "qrcode",
+      "version": "1.5.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/qrcode@1.5.4/license",
+          "source": "installed npm package",
+          "sha256": "8df47c6ad9ac2c41eb9b2a72def9908959da0ede8dadd56c7b249c1bdb0c5ce6"
+        }
+      ]
+    },
+    {
+      "name": "qs",
+      "version": "6.16.0",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/qs@6.16.0/LICENSE.md",
+          "source": "installed npm package",
+          "sha256": "e7dc37bf662d7f786efcb46c545615e70c1daf458a38385521c63cf6607cdfe1"
+        }
+      ]
+    },
+    {
+      "name": "range-parser",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/range-parser@1.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "f655e6291356ec0de7a8f0e69f294961a2cea86678ec94588be1e6a492e278ab"
+        }
+      ]
+    },
+    {
+      "name": "raw-body",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/raw-body@3.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "37876d7de8bdf5e5b9b58a697ebc34044624e493e6f49eff5c938e5226dcac6b"
+        }
+      ]
+    },
+    {
+      "name": "rc",
+      "version": "1.2.8",
+      "declaredLicense": "(BSD-2-Clause OR MIT OR Apache-2.0)",
+      "files": [
+        {
+          "path": "npm/rc@1.2.8/LICENSE.APACHE2",
+          "source": "installed npm package",
+          "sha256": "e8734448285a2dd773d40136ed5d5e8163a70701dd540cdc796cfca232f67d55"
+        },
+        {
+          "path": "npm/rc@1.2.8/LICENSE.BSD",
+          "source": "installed npm package",
+          "sha256": "65e7e4d223688c601f42959defde380f8c4aa677fa4706da3b4a53f129bd78a3"
+        },
+        {
+          "path": "npm/rc@1.2.8/LICENSE.MIT",
+          "source": "installed npm package",
+          "sha256": "d72dea1a8cdf3f4dfa2f594253d0c5b37baefc76e806f5ecb0e426393edcd505"
+        }
+      ]
+    },
+    {
+      "name": "react",
+      "version": "19.2.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/react@19.2.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+        }
+      ]
+    },
+    {
+      "name": "react-dom",
+      "version": "19.2.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/react-dom@19.2.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+        }
+      ]
+    },
+    {
+      "name": "react-icons",
+      "version": "5.6.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/react-icons@5.6.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a0c1e5484fb4c79e2a683834253864e640e1ca57cb57b807bd5bddb72bbbf74f"
+        }
+      ]
+    },
+    {
+      "name": "react-markdown",
+      "version": "10.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/react-markdown@10.1.0/license",
+          "source": "installed npm package",
+          "sha256": "f6196c64e144f9a6fa9154c3a80bc8b89615a9567934b83a8951879f06ba2aef"
+        }
+      ]
+    },
+    {
+      "name": "react-virtuoso",
+      "version": "4.18.16",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/react-virtuoso@4.18.16/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0c53d51ef7f29a43470f7c3132faf161fb72ea3b99ffa9e928981cd8681be6b8"
+        }
+      ]
+    },
+    {
+      "name": "readable-stream",
+      "version": "3.6.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/readable-stream@3.6.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54"
+        }
+      ]
+    },
+    {
+      "name": "regex",
+      "version": "6.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/regex@6.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3d19c2b6246b3072547af2bd05e6b4c09bd3d15955590f1f1e1d20382c919a49"
+        }
+      ]
+    },
+    {
+      "name": "regex-recursion",
+      "version": "6.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/regex-recursion@6.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3d19c2b6246b3072547af2bd05e6b4c09bd3d15955590f1f1e1d20382c919a49"
+        }
+      ]
+    },
+    {
+      "name": "regex-utilities",
+      "version": "2.3.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/regex-utilities@2.3.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "8ca7af4f6c753e5ab8388e1078d94ce4650723bba4b0d4dfe562fbd45fb4a4e6"
+        }
+      ]
+    },
+    {
+      "name": "remark-gfm",
+      "version": "4.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/remark-gfm@4.0.1/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "remark-parse",
+      "version": "11.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/remark-parse@11.0.0/license",
+          "source": "installed npm package",
+          "sha256": "413654b0a78b98661dce96d2aff2e4d075603d220b8483e28b1aa010ccc138b4"
+        }
+      ]
+    },
+    {
+      "name": "remark-rehype",
+      "version": "11.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/remark-rehype@11.1.2/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "remark-stringify",
+      "version": "11.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/remark-stringify@11.0.0/license",
+          "source": "installed npm package",
+          "sha256": "413654b0a78b98661dce96d2aff2e4d075603d220b8483e28b1aa010ccc138b4"
+        }
+      ]
+    },
+    {
+      "name": "require-directory",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/require-directory@2.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a92e52eb1fa7cd746e3827bf01d3a3589bbc8e1e51348b1da042aad165525ad1"
+        }
+      ]
+    },
+    {
+      "name": "require-from-string",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/require-from-string@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "6ee0feb1f6ef996ff5a68600f8cf98909cf412d39ef3cdceaefd87d636fa1b7f"
+        }
+      ]
+    },
+    {
+      "name": "require-main-filename",
+      "version": "2.0.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/require-main-filename@2.0.0/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "365496ca1f56da40b23c9815fc40fa9005847b2f8f8fd1c1a4929ef25ec8cd1d"
+        }
+      ]
+    },
+    {
+      "name": "router",
+      "version": "2.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/router@2.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d0bca4e517157b7a6120c085f5fe43a35b90c095e3bbeb9e67f220c608506a16"
+        }
+      ]
+    },
+    {
+      "name": "safe-buffer",
+      "version": "5.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/safe-buffer@5.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac"
+        }
+      ]
+    },
+    {
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/safer-buffer@2.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4bc935e71be198c67ddf3c2b5fddb195f6edc182bfc155a96a6db61b44b494b9"
+        }
+      ]
+    },
+    {
+      "name": "scheduler",
+      "version": "0.27.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/scheduler@0.27.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+        }
+      ]
+    },
+    {
+      "name": "semver",
+      "version": "7.8.4",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/semver@7.8.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "send",
+      "version": "1.2.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/send@1.2.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "25a328069fe771f8ed5b6f983ed4b0e6c84b3312ac0f69b28c3d52dc277962c9"
+        }
+      ]
+    },
+    {
+      "name": "serve-static",
+      "version": "2.2.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/serve-static@2.2.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "63b9a188d7d43e64b0558b7115255045b9fe20a5fc3ff483421cb899e7f52bcb"
+        }
+      ]
+    },
+    {
+      "name": "set-blocking",
+      "version": "2.0.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/set-blocking@2.0.0/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "365496ca1f56da40b23c9815fc40fa9005847b2f8f8fd1c1a4929ef25ec8cd1d"
+        }
+      ]
+    },
+    {
+      "name": "setprototypeof",
+      "version": "1.2.0",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/setprototypeof@1.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "76d6d1ea0c268da37dd3c961b4fcfb23dee8417fff9e8786d4d44c585b781b69"
+        }
+      ]
+    },
+    {
+      "name": "shebang-command",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shebang-command@2.0.0/license",
+          "source": "installed npm package",
+          "sha256": "69dee148a2cc470554dfa7142e830662062394d0fe67cddd379aba90dc60d6b3"
+        }
+      ]
+    },
+    {
+      "name": "shebang-regex",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shebang-regex@3.0.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "shiki",
+      "version": "4.5.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/shiki@4.5.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
+        }
+      ]
+    },
+    {
+      "name": "side-channel",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/side-channel@1.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "cfc3f455254c0af0655cc3ff46a41ed644b67599f6043346169d285bf2b3cf3b"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-list",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/side-channel-list@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-map",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/side-channel-map@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-weakmap",
+      "version": "1.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/side-channel-weakmap@1.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "cfc3f455254c0af0655cc3ff46a41ed644b67599f6043346169d285bf2b3cf3b"
+        }
+      ]
+    },
+    {
+      "name": "simple-concat",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/simple-concat@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d4c2065e2b936e62a4eb400efb4576edec9ca1388a9f78aa288e147275e7bc8b"
+        }
+      ]
+    },
+    {
+      "name": "simple-get",
+      "version": "4.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/simple-get@4.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d4c2065e2b936e62a4eb400efb4576edec9ca1388a9f78aa288e147275e7bc8b"
+        }
+      ]
+    },
+    {
+      "name": "space-separated-tokens",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/space-separated-tokens@2.0.2/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "ssh2",
+      "version": "1.17.0",
+      "declaredLicense": "See included license",
+      "files": [
+        {
+          "path": "npm/ssh2@1.17.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d06b5d27bbbbe22c36b1fd88406b1208876e2d37d795f5b8eaed951a459a3111"
+        }
+      ]
+    },
+    {
+      "name": "standardwebhooks",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/standardwebhooks@1.0.0/LICENSE",
+          "source": "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/929bf0c1928b188287eaf88d0a9f0a4e87df6499/libraries/LICENSE",
+          "sha256": "5ec8c7b26b64d881a6706617bed25c049f97f2f35de034c756de8546fd6dbe27"
+        }
+      ]
+    },
+    {
+      "name": "state-local",
+      "version": "1.0.7",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/state-local@1.0.7/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3154651e339acde2858130fb40566eb80ced1b03508c57fcb52bb709ab0a0cea"
+        }
+      ]
+    },
+    {
+      "name": "statuses",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/statuses@2.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "512cfa4d5e7a7569c7ae4dd95241cb6ae2aaf648ef9ebd080c01bd24868d26e9"
+        }
+      ]
+    },
+    {
+      "name": "string-width",
+      "version": "4.2.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/string-width@4.2.3/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "string_decoder",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/string_decoder@1.1.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b"
+        }
+      ]
+    },
+    {
+      "name": "stringify-entities",
+      "version": "4.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/stringify-entities@4.0.4/license",
+          "source": "installed npm package",
+          "sha256": "9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10"
+        }
+      ]
+    },
+    {
+      "name": "strip-ansi",
+      "version": "6.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/strip-ansi@6.0.1/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "strip-json-comments",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/strip-json-comments@2.0.1/license",
+          "source": "installed npm package",
+          "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        }
+      ]
+    },
+    {
+      "name": "style-to-js",
+      "version": "1.1.21",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/style-to-js@1.1.21/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bbb380e5c1a717079378d6ea4d33c8a5a81655d4612b749f882e34e46712aab5"
+        }
+      ]
+    },
+    {
+      "name": "style-to-object",
+      "version": "1.0.14",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/style-to-object@1.0.14/LICENSE",
+          "source": "installed npm package",
+          "sha256": "896c9fd6b5fc48ac31800b9d29a6e3ffcb0c2d534ed077ebfa5c2fa388cc38b7"
+        }
+      ]
+    },
+    {
+      "name": "sumchecker",
+      "version": "3.0.1",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/sumchecker@3.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ]
+    },
+    {
+      "name": "tar-fs",
+      "version": "2.1.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/tar-fs@2.1.4/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+        }
+      ]
+    },
+    {
+      "name": "tar-stream",
+      "version": "2.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/tar-stream@2.2.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+        }
+      ]
+    },
+    {
+      "name": "toidentifier",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/toidentifier@1.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a832d679750e49ab433626ab196350b89964b60eb0d3edd3341887c7d5f4c128"
+        }
+      ]
+    },
+    {
+      "name": "trim-lines",
+      "version": "3.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/trim-lines@3.0.1/license",
+          "source": "installed npm package",
+          "sha256": "9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10"
+        }
+      ]
+    },
+    {
+      "name": "trough",
+      "version": "2.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/trough@2.2.0/license",
+          "source": "installed npm package",
+          "sha256": "6c03fd41cfd7c92d8aa8a2fa521b94b2683f059123281dcf921ddea9216b6254"
+        }
+      ]
+    },
+    {
+      "name": "ts-algebra",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ts-algebra@2.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "18a2bfd070b08bd1cc538c90f59989a9523e070e72fe9a9068593c3e82f44fa7"
+        }
+      ]
+    },
+    {
+      "name": "tslib",
+      "version": "2.3.0",
+      "declaredLicense": "0BSD",
+      "files": [
+        {
+          "path": "npm/tslib@2.3.0/CopyrightNotice.txt",
+          "source": "installed npm package",
+          "sha256": "877887436bbb1fc5ff12793813d65f06d664532ca8629667c8bbc755eb035dc1"
+        },
+        {
+          "path": "npm/tslib@2.3.0/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "0e8d2550baea17eb3072c4f919b36fbf9852bb49dba948549872e713863c0834"
+        }
+      ]
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "declaredLicense": "0BSD",
+      "files": [
+        {
+          "path": "npm/tslib@2.8.1/CopyrightNotice.txt",
+          "source": "installed npm package",
+          "sha256": "72ba857a2d06a6d440c28e690835119f6d70fe16f58b7538e3e3c1c133d944d7"
+        },
+        {
+          "path": "npm/tslib@2.8.1/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "0e8d2550baea17eb3072c4f919b36fbf9852bb49dba948549872e713863c0834"
+        }
+      ]
+    },
+    {
+      "name": "tunnel-agent",
+      "version": "0.6.0",
+      "declaredLicense": "Apache-2.0",
+      "files": [
+        {
+          "path": "npm/tunnel-agent@0.6.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "d446a8c73d7bbe4872d6524b15ae206f9a2d7eb53f8c9cb6e6c893a43acc5276"
+        }
+      ]
+    },
+    {
+      "name": "tweetnacl",
+      "version": "0.14.5",
+      "declaredLicense": "Unlicense",
+      "files": [
+        {
+          "path": "npm/tweetnacl@0.14.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd"
+        }
+      ]
+    },
+    {
+      "name": "type-fest",
+      "version": "2.19.0",
+      "declaredLicense": "(MIT OR CC0-1.0)",
+      "files": [
+        {
+          "path": "npm/type-fest@2.19.0/license-mit",
+          "source": "https://raw.githubusercontent.com/sindresorhus/type-fest/v2.19.0/license-mit",
+          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+        }
+      ]
+    },
+    {
+      "name": "type-is",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/type-is@2.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "23d466b1b134b415b66fa50c6526b4cf3e7b9258554da88d3abb371721e7ce68"
+        }
+      ]
+    },
+    {
+      "name": "undici",
+      "version": "6.24.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/undici@6.24.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ]
+    },
+    {
+      "name": "undici",
+      "version": "7.27.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/undici@7.27.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ]
+    },
+    {
+      "name": "undici-types",
+      "version": "7.18.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/undici-types@7.18.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ]
+    },
+    {
+      "name": "unified",
+      "version": "11.0.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unified@11.0.5/license",
+          "source": "installed npm package",
+          "sha256": "05811400116ed61f1a7693b78fe8ca6598c155a12f3978e609db4df648a4cb3d"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-is",
+      "version": "6.0.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unist-util-is@6.0.1/license",
+          "source": "installed npm package",
+          "sha256": "82974dbf2639d13edab95c32ed9cb6c0867ede272cd2e07ce47ce8548fe55c05"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-position",
+      "version": "5.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unist-util-position@5.0.0/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-stringify-position",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unist-util-stringify-position@4.0.0/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-visit",
+      "version": "5.1.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unist-util-visit@5.1.0/license",
+          "source": "installed npm package",
+          "sha256": "63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-visit-parents",
+      "version": "6.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unist-util-visit-parents@6.0.2/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    },
+    {
+      "name": "unpipe",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/unpipe@1.0.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "1a526fbe8d8577f5a4b1c2821842b55b7c0e18862531c62ae4ce69c9b19b74b6"
+        }
+      ]
+    },
+    {
+      "name": "util-deprecate",
+      "version": "1.0.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/util-deprecate@1.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7"
+        }
+      ]
+    },
+    {
+      "name": "vary",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/vary@1.1.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "vfile",
+      "version": "6.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/vfile@6.0.3/license",
+          "source": "installed npm package",
+          "sha256": "05811400116ed61f1a7693b78fe8ca6598c155a12f3978e609db4df648a4cb3d"
+        }
+      ]
+    },
+    {
+      "name": "vfile-message",
+      "version": "4.0.3",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/vfile-message@4.0.3/license",
+          "source": "installed npm package",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "which",
+      "version": "2.0.2",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/which@2.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "which-module",
+      "version": "2.0.1",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/which-module@2.0.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "852bf81203aa93aa89afc9f881ebb035322dc7334aaceff435c557634c94a815"
+        }
+      ]
+    },
+    {
+      "name": "wrap-ansi",
+      "version": "6.2.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/wrap-ansi@6.2.0/license",
+          "source": "installed npm package",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "wrappy",
+      "version": "1.0.2",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/wrappy@1.0.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "ws",
+      "version": "8.21.0",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/ws@8.21.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2b29dcfe0d6471f7e8c92c5fb38c9f93edee10330937055440192f1832b1ecef"
+        }
+      ]
+    },
+    {
+      "name": "y18n",
+      "version": "4.0.3",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/y18n@4.0.3/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2034cce3b6fafcddd642c4175e01d3ddfc332a53b9f20fdc46b1466dc89ac469"
+        }
+      ]
+    },
+    {
+      "name": "yargs",
+      "version": "15.4.1",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/yargs@15.4.1/LICENSE",
+          "source": "installed npm package",
+          "sha256": "2f1a503bfab84b3ba7393627308b3274501e459e3b5185bbb56bbf16cb1602d4"
+        }
+      ]
+    },
+    {
+      "name": "yargs-parser",
+      "version": "18.1.3",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/yargs-parser@18.1.3/LICENSE.txt",
+          "source": "installed npm package",
+          "sha256": "365496ca1f56da40b23c9815fc40fa9005847b2f8f8fd1c1a4929ef25ec8cd1d"
+        }
+      ]
+    },
+    {
+      "name": "zod",
+      "version": "4.6.5",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/zod@4.6.5/LICENSE",
+          "source": "installed npm package",
+          "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+        }
+      ]
+    },
+    {
+      "name": "zod-to-json-schema",
+      "version": "3.25.2",
+      "declaredLicense": "ISC",
+      "files": [
+        {
+          "path": "npm/zod-to-json-schema@3.25.2/LICENSE",
+          "source": "installed npm package",
+          "sha256": "80d3168ad2f70f6f5bb2ab22b23414707abf6f0a392034891481ae36a1a429d4"
+        }
+      ]
+    },
+    {
+      "name": "zrender",
+      "version": "6.1.0",
+      "declaredLicense": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "npm/zrender@6.1.0/LICENSE",
+          "source": "installed npm package",
+          "sha256": "a681e9d183c72b4af4856935893805eb48c08f0f5a3f260203db7444c20fb98a"
+        }
+      ]
+    },
+    {
+      "name": "zustand",
+      "version": "5.0.14",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/zustand@5.0.14/LICENSE",
+          "source": "installed npm package",
+          "sha256": "c1e6e266563517467b1bf874817d23e426f3149252bd7d42758cd697514b8417"
+        }
+      ]
+    },
+    {
+      "name": "zwitch",
+      "version": "2.0.4",
+      "declaredLicense": "MIT",
+      "files": [
+        {
+          "path": "npm/zwitch@2.0.4/license",
+          "source": "installed npm package",
+          "sha256": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "references/traycer/LICENSE",
+      "source": "https://raw.githubusercontent.com/traycerai/traycer/main/LICENSE",
+      "sha256": "2cd0326a35e707bc95d137c1f52cfd18ef91e4b025f3d4fa51cc2070033c0425"
+    },
+    {
+      "path": "references/lobe-icons/LICENSE",
+      "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/LICENSE",
+      "sha256": "add9d7531d1b21646317a8958e38fc727506fa39d24bdecb44154d943c82753a"
+    },
+    {
+      "path": "references/vscord/LICENSE",
+      "source": "https://raw.githubusercontent.com/leonardssh/vscord/main/LICENSE",
+      "sha256": "e0f51e0d7c23cda6c71b3f09f3b6a8653076b8b19248dec5dc8544e01b854a4d"
+    },
+    {
+      "path": "references/font-awesome-6/LICENSE.txt",
+      "source": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.5.2/LICENSE.txt",
+      "sha256": "9b914eae88817d63b576eab5aafde7068c7a1abae125d7cdfb034f1da43a9afc"
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+.pr-files {
+  display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; height: 100%;
+  background: var(--tr-background); color: var(--tr-foreground); font-family: var(--tr-font-ui);
+  font-size: 14px; line-height: 20px;
+}
+.pr-files-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 4px; }
+.pr-files-title { color: var(--tr-muted-foreground); font-size: 12px; font-weight: 500; }
+.pr-files-actions { display: flex; align-items: center; gap: 2px; }
+.pr-files-actions .tr-btn { color: var(--tr-muted-foreground); }
+.pr-files-actions .tr-btn:hover { color: var(--tr-foreground); }
+.pr-files-picker-wrap { padding: 4px 8px 8px; }
+.pr-files-picker { display: flex; align-items: center; gap: 8px; min-height: 32px; width: 100%; min-width: 0; padding: 6px 8px; border: 0; border-radius: var(--tr-radius-md); background: color-mix(in oklab, var(--tr-muted) 20%, transparent); color: var(--tr-foreground); text-align: left; cursor: pointer; font: inherit; }
+.pr-files-picker:hover { background: color-mix(in oklab, var(--tr-accent) 45%, transparent); }
+.pr-files-picker:focus-visible { outline: 2px solid var(--tr-ring); outline-offset: 2px; }
+.pr-files-picker-labels { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pr-files-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.pr-files-picker-path { direction: rtl; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.pr-files-picker-path > span { unicode-bidi: plaintext; }
+.pr-files-picker > svg { flex: none; color: var(--tr-muted-foreground); }
+.pr-files-workspace-menu { width: min(90vw, 448px); }
+.pr-files-workspace-option { display: flex; flex-direction: column; min-width: 0; }
+.pr-files-workspace-option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-files-workspace-option > small { color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-files-body { display: flex; flex: 1; flex-direction: column; padding: 0 8px 8px; min-height: 0; }
+.pr-files-search { height: 28px; flex: none; margin-bottom: 6px; }
+.pr-files-search.tr-input-group > input { font-size: 12px; line-height: 16px; }
+.pr-files-search .tr-input-addon { color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); }
+.pr-files-search .tr-btn { width: 20px; height: 20px; }
+.pr-files-tree { overflow: auto; flex: 1; min-height: 0; position: relative; outline: none; padding-top: 1px; }
+.pr-files-tree:focus-visible { border-radius: var(--tr-radius-md); box-shadow: inset 0 0 0 1px var(--tr-ring); }
+.pr-files-node { position: relative; }
+.pr-files-row {
+  display: flex; align-items: center; height: 24px; width: 100%; min-width: 0; gap: 4.8px; padding: 0 8px;
+  border-radius: var(--tr-radius-md); border: 0; outline: none; background: var(--tr-background);
+  color: color-mix(in oklab, var(--tr-foreground) 75%, transparent); font: inherit; font-weight: 400;
+  cursor: pointer; user-select: none; position: relative; text-align: left;
+}
+.pr-files-row:hover { background: color-mix(in oklab, var(--tr-accent) 70%, transparent); color: var(--tr-accent-foreground); }
+.pr-files-row.is-active, .pr-files-row.is-selected { background: var(--tr-accent); color: var(--tr-accent-foreground); }
+.pr-files-row.is-cut { opacity: .45; }
+.pr-files-row.is-drop, .pr-files-tree.is-drop { box-shadow: inset 0 0 0 1px var(--tr-ring); background: color-mix(in oklab, var(--tr-accent) 60%, var(--tr-background)); }
+.pr-files-row.is-folder.is-expanded { position: sticky; top: var(--tr-files-sticky-top); z-index: var(--tr-files-sticky-z); }
+.pr-files-icon-slot { width: 14px; height: 16px; flex: none; display: flex; justify-content: center; align-items: center; color: var(--tr-muted-foreground); }
+.pr-files-type-icon { display: block; flex-shrink: 0; fill: currentColor; }
+.pr-files-chevron { display: block; flex: none; fill: currentColor; color: var(--tr-muted-foreground); transform: rotate(-90deg); }
+.pr-files-chevron.is-open { transform: none; }
+.pr-files-spacing { display: flex; align-self: stretch; padding-left: 6.5px; flex: none; }
+.pr-files-guide { height: 100%; border-left: 1px solid color-mix(in oklab, var(--tr-muted-foreground) 25%, transparent); margin-right: 5.4px; opacity: 0; transform: translateX(-.25px); transition: opacity 150ms; }
+.pr-files-guide + .pr-files-guide { margin-left: 11.3px; }
+.pr-files-tree:hover .pr-files-guide { opacity: .75; }
+.pr-files-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-files-middle-name { display: flex; }
+.pr-files-name-stem { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pr-files-name-suffix { flex-shrink: 0; }
+.pr-files-row.is-match .pr-files-name { font-weight: 600; }
+.pr-files-name mark { background: transparent; color: inherit; }
+.pr-files-git { margin-left: auto; flex: none; width: 12px; text-align: center; font-size: 12px; font-weight: 600; }
+.pr-files-git.is-descendant { color: var(--tr-files-git-modified); opacity: .5; }
+.pr-files-git.is-descendant::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.pr-files-row[data-git='added'], .pr-files-row[data-git='untracked'] { --tr-files-row-status: var(--tr-files-git-added); }
+.pr-files-row[data-git='modified'] { --tr-files-row-status: var(--tr-files-git-modified); }
+.pr-files-row[data-git='renamed'] { --tr-files-row-status: var(--tr-files-icon-javascript); }
+.pr-files-row[data-git='deleted'], .pr-files-row[data-git='conflict'] { --tr-files-row-status: var(--tr-files-icon-npm); }
+.pr-files-row[data-git] > .pr-files-name, .pr-files-row[data-git] > .pr-files-git { color: var(--tr-files-row-status); }
+.pr-files-row[data-git] .pr-files-type-icon { color: var(--tr-files-row-status) !important; }
+.pr-files-input { min-width: 0; width: 100%; height: 22px; padding: 0 4px; border: 1px solid var(--tr-ring); border-radius: var(--tr-radius-sm); outline: none; background: var(--tr-canvas); color: var(--tr-foreground); font: inherit; }
+.pr-files-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--tr-muted-foreground); }
+.pr-files-empty > svg { color: color-mix(in oklab, var(--tr-muted-foreground) 45%, transparent); }
+.pr-files-empty p { margin: 0; color: color-mix(in oklab, var(--tr-muted-foreground) 60%, transparent); }
+.pr-files-empty small { font-size: 12px; line-height: 16px; color: color-mix(in oklab, var(--tr-muted-foreground) 50%, transparent); }
+.pr-files-feedback { padding: 12px 8px; text-align: center; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.pr-files-feedback.is-error { color: var(--tr-destructive); }
+.pr-files-search-notice { flex: none; margin: 4px 0 0; padding: 0 4px; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.pr-files-search-notice.is-error { color: var(--tr-destructive); }
+.pr-files-delete-dialog.ps-shell-dialog { width: min(92vw, 448px); overflow: hidden; }
+.pr-files-delete-dialog .ps-shell-modal-footer { background: color-mix(in oklab, var(--tr-muted) 10%, transparent); }
+.pr-files-delete-body { display: flex; align-items: flex-start; gap: 12px; padding: 20px; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; }
+.pr-files-delete-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); color: var(--tr-destructive); }
+.pr-files-delete-copy { flex: 1; min-width: 0; }
+.pr-files-delete-title { margin: 0 0 6px; overflow-wrap: anywhere; color: var(--tr-foreground); font-size: 16px; line-height: 20px; font-weight: 600; }
+.pr-files-delete-body p { margin: 0; }
+.pr-files-delete-body p + p { margin-top: 8px; }
+.pr-files-delete-path { overflow-wrap: anywhere; font-family: var(--tr-font-mono); font-size: 12px; line-height: 16px; }
+.pr-files-context-anchor { position: fixed; width: 1px; height: 1px; pointer-events: none; }
+.pr-files-root-actions { display: flex; gap: 2px; margin-left: auto; opacity: 0; }
+.pr-files-row:hover .pr-files-root-actions, .pr-files-row:focus-within .pr-files-root-actions { opacity: 1; }
+@media (pointer: coarse) { .pr-files-root-actions { opacity: 1; } }
+
+/* Pierre complete sprite palette, matching Traycer in both appearances. */
+:root {
+  --tr-files-icon-astro: #d568ea;
+  --tr-files-icon-babel: #ffd452;
+  --tr-files-icon-bash: #5ecc71;
+  --tr-files-icon-biome: #69b1ff;
+  --tr-files-icon-bootstrap: #9d6afb;
+  --tr-files-icon-browserslist: #ffd452;
+  --tr-files-icon-bun: #79697b;
+  --tr-files-icon-c: #69b1ff;
+  --tr-files-icon-claude: #ffa359;
+  --tr-files-icon-cpp: #69b1ff;
+  --tr-files-icon-css: #9d6afb;
+  --tr-files-icon-database: #d568ea;
+  --tr-files-icon-default: #adadb1;
+  --tr-files-icon-docker: #69b1ff;
+  --tr-files-icon-eslint: #9d6afb;
+  --tr-files-icon-git: #d5512f;
+  --tr-files-icon-go: #68cdf2;
+  --tr-files-icon-graphql: #ff678d;
+  --tr-files-icon-html: #ffa359;
+  --tr-files-icon-image: #ff678d;
+  --tr-files-icon-javascript: #ffd452;
+  --tr-files-icon-json: #ffa359;
+  --tr-files-icon-markdown: #5ecc71;
+  --tr-files-icon-mcp: #64d1db;
+  --tr-files-icon-npm: #ff6762;
+  --tr-files-icon-oxc: #68cdf2;
+  --tr-files-icon-postcss: #ff6762;
+  --tr-files-icon-prettier: #64d1db;
+  --tr-files-icon-python: #69b1ff;
+  --tr-files-icon-react: #68cdf2;
+  --tr-files-icon-ruby: #ff6762;
+  --tr-files-icon-rust: #ffa359;
+  --tr-files-icon-sass: #ff678d;
+  --tr-files-icon-svg: #ffa359;
+  --tr-files-icon-svelte: #ff6762;
+  --tr-files-icon-svgo: #5ecc71;
+  --tr-files-icon-swift: #ffa359;
+  --tr-files-icon-table: #64d1db;
+  --tr-files-icon-tailwind: #68cdf2;
+  --tr-files-icon-terraform: #9d6afb;
+  --tr-files-icon-text: #adadb1;
+  --tr-files-icon-typescript: #69b1ff;
+  --tr-files-icon-vite: #d568ea;
+  --tr-files-icon-vscode: #69b1ff;
+  --tr-files-icon-vue: #5ecc71;
+  --tr-files-icon-wasm: #9d6afb;
+  --tr-files-icon-webpack: #69b1ff;
+  --tr-files-icon-yml: #ff6762;
+  --tr-files-icon-zig: #ffa359;
+  --tr-files-icon-zip: #ffa359;
+  --tr-files-git-added: #00cab1;
+  --tr-files-git-modified: #08c0ef;
+}
+[data-appearance='light'] {
+  --tr-files-icon-astro: #a631be;
+  --tr-files-icon-babel: #d5a910;
+  --tr-files-icon-bash: #199f43;
+  --tr-files-icon-biome: #1a85d4;
+  --tr-files-icon-bootstrap: #693acf;
+  --tr-files-icon-browserslist: #d5a910;
+  --tr-files-icon-bun: #594c5b;
+  --tr-files-icon-c: #1a85d4;
+  --tr-files-icon-claude: #d47628;
+  --tr-files-icon-cpp: #1a85d4;
+  --tr-files-icon-css: #693acf;
+  --tr-files-icon-database: #a631be;
+  --tr-files-icon-default: #84848a;
+  --tr-files-icon-docker: #1a85d4;
+  --tr-files-icon-eslint: #693acf;
+  --tr-files-icon-git: #ff8c5b;
+  --tr-files-icon-go: #1ca1c7;
+  --tr-files-icon-graphql: #d32a61;
+  --tr-files-icon-html: #d47628;
+  --tr-files-icon-image: #d32a61;
+  --tr-files-icon-javascript: #d5a910;
+  --tr-files-icon-json: #d47628;
+  --tr-files-icon-markdown: #199f43;
+  --tr-files-icon-mcp: #17a5af;
+  --tr-files-icon-npm: #d52c36;
+  --tr-files-icon-oxc: #1ca1c7;
+  --tr-files-icon-postcss: #d52c36;
+  --tr-files-icon-prettier: #17a5af;
+  --tr-files-icon-python: #1a85d4;
+  --tr-files-icon-react: #1ca1c7;
+  --tr-files-icon-ruby: #d52c36;
+  --tr-files-icon-rust: #d47628;
+  --tr-files-icon-sass: #d32a61;
+  --tr-files-icon-svg: #d47628;
+  --tr-files-icon-svelte: #d52c36;
+  --tr-files-icon-svgo: #199f43;
+  --tr-files-icon-swift: #d47628;
+  --tr-files-icon-table: #17a5af;
+  --tr-files-icon-tailwind: #1ca1c7;
+  --tr-files-icon-terraform: #693acf;
+  --tr-files-icon-text: #84848a;
+  --tr-files-icon-typescript: #1a85d4;
+  --tr-files-icon-vite: #a631be;
+  --tr-files-icon-vscode: #1a85d4;
+  --tr-files-icon-vue: #199f43;
+  --tr-files-icon-wasm: #693acf;
+  --tr-files-icon-webpack: #1a85d4;
+  --tr-files-icon-yml: #d52c36;
+  --tr-files-icon-zig: #d47628;
+  --tr-files-icon-zip: #d47628;
+  --tr-files-git-added: #16a994;
+  --tr-files-git-modified: #1ca1c7;
+}

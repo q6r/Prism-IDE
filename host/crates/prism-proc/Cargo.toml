@@ -1,0 +1,19 @@
+[package]
+name = "prism-proc"
+description = "Process trees for the Prism host: everything an agent or terminal spawns dies with it (Windows job objects, Unix process groups)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio = { version = "1.53.2", features = ["process", "rt", "macros", "time"] }
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Security"] }
+
+[target."cfg(unix)".dependencies]
+libc = "0.2.190"
+
+[dev-dependencies]
+tokio = { version = "1.53.2", features = ["process", "rt-multi-thread", "macros", "time"] }

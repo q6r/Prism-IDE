@@ -1,0 +1,96 @@
+const {test}=require('node:test')
+const assert=require('node:assert/strict')
+const fs=require('node:fs'), path=require('node:path'), os=require('node:os')
+const load=require('./helpers/load-typescript.cjs')
+const agents=load('src/shared/agents.ts')
+const subagents=load('src/shared/subagents.ts')
+const journal=load('src/shared/agentJournal.ts',{'./agents':agents,'./subagents':subagents})
+const {AgentRepository}=load('src/main/agentRepository.ts',{'node:sqlite':require('node:sqlite'),fs,path,'../shared/agentJournal':journal,'../shared/subagents':subagents})
+const chat=()=>({id:'chat',title:'Conversa',cwd:'C:\\QA',selection:{provider:'codex',profileId:'ambient-codex',model:'',effort:'high',permissionMode:'default'},turns:[{id:'user',role:'user',text:'Migrar'},{id:'turn',role:'assistant',text:'',segments:[]}],updatedAt:1,pendingTurnId:'turn',lastRunId:'turn'})
+function fixture(fn){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'prism-repo-'));try{fn(path.join(dir,'agents.db'))}finally{fs.rmSync(dir,{recursive:true,force:true})}}
+
+test('native children persist independently through parent completion, late updates and restart',()=>fixture(file=>{
+ let repo=new AgentRepository(file,{get:()=>[]});repo.beginRun(chat(),'turn')
+ repo.appendEvent('chat','turn',{kind:'subagent',agent:{id:'child',name:'Reviewer',status:'running',text:'Visible child output'}})
+ repo.appendEvent('chat','turn',{kind:'done'})
+ repo.appendEvent('chat','turn',{kind:'subagent',agent:{id:'nested',parentId:'child',name:'Nested',status:'running',text:'Nested output'}})
+ repo.appendEvent('chat','turn',{kind:'subagent',agent:{id:'child',status:'completed',summary:'Review complete'}})
+ let docs=repo.get('chats'),child=docs.find(c=>c.nativeAgent?.id==='child'),nested=docs.find(c=>c.nativeAgent?.id==='nested')
+ assert.equal(child.parentChatId,'chat');assert.equal(nested.parentChatId,child.id)
+ assert.equal(child.turns[0].segments[0].text,'Visible child output')
+ assert.equal(child.turns[0].segments.find(s=>s.subagent)?.subagent.status,'running')
+ assert.equal(docs.find(c=>c.id==='chat').turns[1].segments[0].subagent.status,'completed')
+ repo.close();repo=new AgentRepository(file,{get:()=>[]});docs=repo.get('chats')
+ child=docs.find(c=>c.nativeAgent?.id==='child');nested=docs.find(c=>c.nativeAgent?.id==='nested')
+ assert.equal(child.nativeAgent.status,'completed');assert.equal(nested.nativeAgent.status,'stopped')
+ assert.equal(nested.pendingTurnId,undefined);assert.equal(nested.turns[0].interrupted,true)
+ assert.equal(child.turns[0].segments.find(s=>s.subagent).subagent.status,'stopped')
+ assert.equal(child.turns[0].segments.filter(s=>s.text==='Review complete').length,1)
+ repo.close()
+}))
+test('SQLite migrates legacy documents once and atomically retains profiles, tasks and independent chats',()=>fixture(file=>{
+ const legacy={get:k=>k==='profiles'?[{id:'p',provider:'claude',name:'Work'}]:[chat()]}
+ let repo=new AgentRepository(file,legacy)
+ repo.set('tasks',[{id:'task',title:'Projeto',cwd:'C:\\QA',editor:{tabs:[{content:'UNSAVED'}]},updatedAt:1}])
+ repo.upsert('chats',{...chat(),id:'other',draft:'DRAFT'})
+ assert.throws(()=>repo.set('tasks',[{id:'duplicate'},{id:'duplicate'}]),/UNIQUE/)
+ assert.equal(repo.get('tasks')[0].id,'task');repo.close()
+ repo=new AgentRepository(file,{get:()=>{throw Error('Must not migrate twice')}})
+ assert.equal(repo.get('profiles')[0].name,'Work');assert.equal(repo.get('chats').length,2)
+ assert.equal(repo.get('tasks')[0].editor.tabs[0].content,'UNSAVED');repo.close()
+}))
+test('native event journal recovers unsaved tokens, tool effects and interruption without duplicate text',()=>fixture(file=>{
+ let repo=new AgentRepository(file,{get:()=>[]});const snapshot=chat();repo.beginRun(snapshot,'turn')
+ repo.appendEvent('chat','turn',{kind:'session',sessionId:'native'})
+ repo.appendEvent('chat','turn',{kind:'text',text:'ação🙂'})
+ repo.appendEvent('chat','turn',{kind:'segment',segment:{kind:'tool',toolId:'bash',name:'Bash',status:'done',input:{command:'migrate'},result:'migration applied'}})
+ repo.upsert('chats',snapshot)
+ assert.equal(repo.get('chats')[0].turns[1].segments[0].text,'ação🙂');repo.close()
+ repo=new AgentRepository(file,{get:()=>[]})
+ const restored=repo.get('chats')[0]
+ assert.equal(restored.turns[1].segments[0].text,'ação🙂');assert.equal(restored.turns[1].segments[1].result,'migration applied')
+ assert.equal(restored.turns[1].interrupted,true);assert.equal(restored.resume,undefined);assert.equal(restored.pendingTurnId,undefined)
+ repo.close()
+}))
+test('journal refuses to revive resume after route switch and keeps completed side effects on failure',()=>fixture(file=>{
+ const repo=new AgentRepository(file,{get:()=>[]});const snapshot=chat();repo.beginRun(snapshot,'turn')
+ repo.appendEvent('chat','turn',{kind:'session',sessionId:'old'})
+ repo.appendEvent('chat','turn',{kind:'segment',segment:{kind:'tool',toolId:'t',status:'done',result:'SIDE_EFFECT',name:'Write'}})
+ repo.appendEvent('chat','turn',{kind:'error',message:'Rate limit'})
+ repo.upsert('chats',{...snapshot,lastRunId:undefined,resume:undefined,selection:{...snapshot.selection,provider:'claude',profileId:'ambient-claude'}})
+ const restored=repo.get('chats')[0];assert.equal(restored.resume,undefined)
+ assert.ok(agents.continuationPrompt(restored,'Continue').prompt.includes('SIDE_EFFECT'))
+ repo.removeChat('chat');assert.equal(repo.events('chat').length,0);repo.close()
+}))
+test('another window cannot replace or delete a currently running conversation',()=>fixture(file=>{
+ const repo=new AgentRepository(file,{get:()=>[]}),snapshot=chat();repo.beginRun(snapshot,'turn')
+ assert.throws(()=>repo.upsert('chats',{...snapshot,pendingTurnId:'other'}),/execução/)
+ assert.throws(()=>repo.set('chats',[{...snapshot,pendingTurnId:undefined}]),/execução/)
+ assert.throws(()=>repo.removeChat('chat'),/Pare/)
+ assert.throws(()=>repo.beginRun(snapshot,'turn'),/execução/)
+ repo.appendEvent('chat','turn',{kind:'done'});repo.removeChat('chat');repo.close()
+}))
+
+test('native metrics and timing survive unsaved completion and interrupted restart',()=>fixture(file=>{
+ let repo=new AgentRepository(file,{get:()=>[]});const snapshot=chat();snapshot.turns[1].startedAt=Date.now()-2500
+ repo.beginRun(snapshot,'turn');repo.appendEvent('chat','turn',{kind:'metrics',metrics:{scope:'session',inputTokens:10,outputTokens:2,costUsd:0.01}})
+ repo.appendEvent('chat','turn',{kind:'done'});repo.close()
+ repo=new AgentRepository(file,{get:()=>[]});const t=repo.get('chats')[0].turns[1]
+ assert.equal(t.metrics.inputTokens,10);assert.ok(t.durationMs>=2500);assert.ok(t.completedAt);assert.equal(t.interrupted,false);repo.close()
+}))
+
+test('stream bursts commit together, preserve item order and flush before completion/read/close',()=>fixture(file=>{
+ const repo=new AgentRepository(file,{get:()=>[]});repo.beginRun(chat(),'turn')
+ const raw=repo.db,prepare=raw.prepare.bind(raw),exec=raw.exec.bind(raw);let inserts=0,transactions=0
+ raw.prepare=(sql)=>{const statement=prepare(sql);if(sql.startsWith('INSERT INTO events')){const run=statement.run.bind(statement);statement.run=(...args)=>{inserts++;return run(...args)}}return statement}
+ raw.exec=(sql)=>{if(sql==='BEGIN IMMEDIATE')transactions++;return exec(sql)}
+ for(let i=0;i<100;i++)repo.appendEvent('chat','turn',{kind:'segment',segment:{kind:'text',toolId:'message',text:`output-${i}`}})
+ repo.appendEvent('chat','turn',{kind:'segment',segment:{kind:'tool',toolId:'tool',name:'Bash',status:'done',result:'SIDE EFFECT'}})
+ repo.appendEvent('chat','turn',{kind:'segment',segment:{kind:'text',toolId:'message',text:'final'}})
+ assert.equal(inserts,0,'stream snapshots must not fsync on each delta')
+ repo.appendEvent('chat','turn',{kind:'done'})
+ assert.equal(inserts,3,'only final absolute item snapshots plus completion are stored')
+ assert.equal(transactions,1,'the burst uses one transaction')
+ const t=repo.get('chats')[0].turns[1];assert.equal(t.segments[0].text,'final');assert.equal(t.segments[1].result,'SIDE EFFECT')
+ repo.close()
+}))

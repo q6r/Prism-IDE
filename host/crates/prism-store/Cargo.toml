@@ -1,0 +1,15 @@
+[package]
+name = "prism-store"
+description = "Prism host storage: SQLite documents, event journal (seq/actor/at), its fold, compaction, schema migrations and the Prism 0.2 importer."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rusqlite = { workspace = true }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[dev-dependencies]
+tempfile = "3"

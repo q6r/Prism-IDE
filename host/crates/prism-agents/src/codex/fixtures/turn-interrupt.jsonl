@@ -1,0 +1,13 @@
+{"dir":">","msg":{"id":1,"method":"initialize"}}
+{"dir":"<","msg":{"id":1,"result":{"userAgent":"prism/0.142.5","codexHome":"C:\\QA\\codex-home","platformFamily":"windows","platformOs":"windows"}}}
+{"dir":">","msg":{"method":"initialized"}}
+{"dir":">","msg":{"id":2,"method":"thread/resume","params":{"threadId":"thr_9","cwd":"C:\\QA\\projeto","approvalPolicy":"never","sandbox":"danger-full-access","serviceTier":null}}}
+{"dir":"<","msg":{"id":2,"result":{"thread":{"id":"thr_9"},"model":"gpt-5.4","modelProvider":"openai","serviceTier":null,"cwd":"C:\\QA\\projeto","approvalPolicy":"never","sandbox":{"type":"dangerFullAccess"},"reasoningEffort":null}}}
+{"dir":">","msg":{"id":3,"method":"turn/start","params":{"threadId":"thr_9","input":[{"type":"text","text":"US$100 por $$pdf","text_elements":[]}],"approvalPolicy":"never","sandboxPolicy":{"type":"dangerFullAccess"},"serviceTier":null}}}
+{"dir":"<","msg":{"id":3,"result":{"turn":{"id":"turn_9","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"turn/started","params":{"threadId":"thr_9","turn":{"id":"turn_9","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"item/started","params":{"threadId":"thr_9","turnId":"turn_9","item":{"type":"agentMessage","id":"msg_9","text":""},"startedAtMs":1}}}
+{"dir":"<","msg":{"method":"item/agentMessage/delta","params":{"threadId":"thr_9","turnId":"turn_9","itemId":"msg_9","delta":"parcial"}}}
+{"dir":">","msg":{"id":4,"method":"turn/interrupt","params":{"threadId":"thr_9","turnId":"turn_9"}}}
+{"dir":"<","msg":{"id":4,"result":{}}}
+{"dir":"<","msg":{"method":"turn/completed","params":{"threadId":"thr_9","turn":{"id":"turn_9","items":[],"status":"interrupted","error":null}}}}

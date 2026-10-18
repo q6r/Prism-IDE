@@ -1,0 +1,20 @@
+[workspace]
+resolver = "3"
+members = ["crates/prism-protocol", "crates/prism-proc", "crates/prism-store", "crates/prism-agents", "crates/prism-host"]
+
+[workspace.package]
+# Kept in step with package.json by the release script (one version for app and host).
+version = "0.3.12"
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Shared pins: crates that link native code must agree on one version
+# (`libsqlite3-sys` has `links = "sqlite3"`). Use `rusqlite = { workspace = true }`.
+[workspace.dependencies]
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

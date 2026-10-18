@@ -1,0 +1,81 @@
+{
+  "cliVersion": "2.1.289",
+  "sdkVersion": "0.3.295",
+  "recordedAt": "2026-10-09",
+  "platform": "win32-x64",
+  "processes": [
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--model=haiku",
+        "--permission-prompt-tool=stdio",
+        "--setting-sources=user,project,local",
+        "--permission-mode=default",
+        "--include-partial-messages",
+        "--settings",
+        "{\"fastMode\":false}"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1",
+        "CLAUDE_CODE_QUESTION_PREVIEW_FORMAT": "markdown"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--resume=018626cf-a8bb-4030-a22c-18746c520798",
+        "--setting-sources=user,project,local",
+        "--permission-mode=bypassPermissions"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": "",
+      "note": "env recomputed: recorded under a polluted process.env (agent:rewind passes no env); fixed in the recorder"
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--resume=018626cf-a8bb-4030-a22c-18746c520798",
+        "--setting-sources=user,project,local",
+        "--permission-mode=bypassPermissions"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1"
+      },
+      "removedEnv": [],
+      "exitCode": 0,
+      "stderr": "",
+      "note": "env recomputed: recorded under a polluted process.env (agent:rewind passes no env); fixed in the recorder"
+    }
+  ]
+}

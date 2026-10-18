@@ -1,0 +1,23 @@
+{
+  "scenario": "metadata",
+  "cwd": "C:\\work\\metadata",
+  "files": {},
+  "loggedOut": false,
+  "sends": [],
+  "actions": [],
+  "end": null,
+  "calls": [
+    {
+      "method": "models"
+    },
+    {
+      "method": "commands",
+      "args": {
+        "cwd": "$cwd"
+      }
+    },
+    {
+      "method": "usage"
+    }
+  ]
+}

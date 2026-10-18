@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output (electron-vite + electron-builder)
+out/
+dist/
+dist-app/
+build/Release/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.cache/
+.turbo/
+.eslintcache
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+host-instance.json
+provider-profiles/
+.claude/
+.codex/
+.traycer/
+.ssh/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Misc
+*.local
+
+# remote-control tunnel test artifacts
+.cloudflared-test/
+
+# Rust host build output
+host/target/

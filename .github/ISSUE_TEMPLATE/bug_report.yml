@@ -1,0 +1,68 @@
+name: Relatar um problema
+description: Descreva uma falha e como reproduzi-la.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Procure uma issue semelhante antes de continuar.
+        Esta issue é pública. Não envie tokens, logins, chaves, bancos de conversas, pastas de perfis, URLs ou QR codes de controle remoto. Remova nomes, caminhos, prompts e código privado de logs e imagens.
+  - type: input
+    id: version
+    attributes:
+      label: Versão do Prism
+      description: Informe a versão exibida pelo aplicativo e se usa o instalador ou uma execução de desenvolvimento.
+      placeholder: "0.3.12 — instalador"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Sistema e ambiente
+      description: Informe o sistema e a versão. Se ocorrer no celular, inclua também o navegador e sua versão.
+      placeholder: "Windows 11; celular com Android e Chrome"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provedor ou área afetada
+      description: Se envolver um agente, informe Claude Code ou Codex e, se souber, a versão da CLI e o modelo. Não informe dados da conta.
+      placeholder: "Codex, conversa local; ou editor, terminal, controle remoto…"
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Como reproduzir
+      description: Escreva passos curtos usando dados fictícios. Diga se ocorre sempre ou ocasionalmente.
+      placeholder: |
+        1. Abrir uma pasta de teste.
+        2. Criar uma conversa.
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+      description: O que deveria acontecer?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Resultado observado
+      description: O que aconteceu? Inclua a mensagem de erro, se houver.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Diagnóstico ou imagem sem dados pessoais
+      description: Opcional. Anexe somente o trecho necessário, revisado e sem segredos. Evite logs completos ou exportações de conversas.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Revisão dos anexos
+      options:
+        - label: Revisei o texto e os anexos e removi segredos e dados pessoais ou privados.
+          required: true

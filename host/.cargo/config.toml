@@ -1,0 +1,3 @@
+# `cargo test` writes the ts-rs bindings here (npm run host:types).
+[env]
+TS_RS_EXPORT_DIR = { value = "../src/shared/host/generated", relative = true }

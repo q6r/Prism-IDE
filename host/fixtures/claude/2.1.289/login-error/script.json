@@ -1,0 +1,28 @@
+{
+  "scenario": "login-error",
+  "cwd": "C:\\work\\login-error",
+  "files": {},
+  "loggedOut": true,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-login-error",
+        "chat": {
+          "id": "chat-login-error"
+        },
+        "cwd": "C:\\work\\login-error",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Responda apenas: oi"
+      }
+    }
+  ],
+  "actions": [],
+  "end": {
+    "channel": "agent:done",
+    "nth": 0
+  },
+  "calls": []
+}

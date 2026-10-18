@@ -1,0 +1,39 @@
+{
+  "scenario": "permission-deny",
+  "cwd": "C:\\work\\permission-deny",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-permission-deny",
+        "chat": {
+          "id": "chat-permission-deny"
+        },
+        "cwd": "C:\\work\\permission-deny",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Use a ferramenta Write para criar o arquivo negado.txt nesta pasta com o conteúdo \"x\". Se for negado, responda só: negado."
+      }
+    }
+  ],
+  "actions": [
+    {
+      "on": {
+        "channel": "agent:permission",
+        "nth": 0
+      },
+      "do": {
+        "type": "permission",
+        "decision": "deny"
+      }
+    }
+  ],
+  "end": {
+    "channel": "agent:done",
+    "nth": 0
+  },
+  "calls": []
+}

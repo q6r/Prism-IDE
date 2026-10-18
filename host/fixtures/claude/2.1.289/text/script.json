@@ -1,0 +1,28 @@
+{
+  "scenario": "text",
+  "cwd": "C:\\work\\text",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-text",
+        "chat": {
+          "id": "chat-text"
+        },
+        "cwd": "C:\\work\\text",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Responda apenas com a palavra: pronto"
+      }
+    }
+  ],
+  "actions": [],
+  "end": {
+    "channel": "agent:done",
+    "nth": 0
+  },
+  "calls": []
+}

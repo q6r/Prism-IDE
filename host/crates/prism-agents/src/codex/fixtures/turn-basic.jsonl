@@ -1,0 +1,39 @@
+{"dir":">","msg":{"id":1,"method":"initialize","params":{"clientInfo":{"name":"prism","version":"1.0.0"},"capabilities":{"experimentalApi":true}}}}
+{"dir":"<","msg":{"id":1,"result":{"userAgent":"prism/0.142.5","codexHome":"C:\\QA\\codex-home","platformFamily":"windows","platformOs":"windows"}}}
+{"dir":">","msg":{"method":"initialized","params":{}}}
+{"dir":">","msg":{"id":2,"method":"thread/start","params":{"cwd":"C:\\QA\\projeto","approvalPolicy":"on-request","sandbox":"read-only","model":"gpt-5.5","serviceTier":"priority"}}}
+{"dir":"<","msg":{"method":"thread/started","params":{"thread":{"id":"thr_1"}}}}
+{"dir":"<","msg":{"id":2,"result":{"thread":{"id":"thr_1"},"model":"gpt-5.5","modelProvider":"openai","serviceTier":"priority","cwd":"C:\\QA\\projeto","approvalPolicy":"on-request","sandbox":{"type":"readOnly"},"reasoningEffort":"high"}}}
+{"dir":">","msg":{"id":3,"method":"skills/list","params":{"cwds":["C:\\QA\\projeto"]}}}
+{"dir":"<","msg":{"id":3,"result":{"data":[{"cwd":"C:\\QA\\projeto","skills":[{"name":"pdf","description":"PDFs","path":"C:\\Users\\qa\\.agents\\skills\\pdf\\SKILL.md","scope":"user","enabled":true},{"name":"off","description":"x","path":"C:\\x\\SKILL.md","scope":"user","enabled":false}],"errors":[]}]}}}
+{"dir":">","msg":{"id":4,"method":"turn/start","params":{"threadId":"thr_1","input":[{"type":"text","text":"leia $pdf. agora $off","text_elements":[]},{"type":"skill","name":"pdf","path":"C:\\Users\\qa\\.agents\\skills\\pdf\\SKILL.md"}],"cwd":"C:\\QA\\projeto","approvalPolicy":"on-request","sandboxPolicy":{"type":"readOnly"},"model":"gpt-5.5","effort":"high","serviceTier":"priority"}}}
+{"dir":"<","msg":{"id":4,"result":{"turn":{"id":"turn_1","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"turn/started","params":{"threadId":"thr_1","turn":{"id":"turn_1","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"item/started","params":{"threadId":"thr_1","turnId":"turn_1","item":{"type":"reasoning","id":"rs_1","summary":[],"content":[]},"startedAtMs":1}}}
+{"dir":"<","msg":{"method":"item/reasoning/summaryTextDelta","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"rs_1","delta":"Pensando","summaryIndex":0}}}
+{"dir":"<","msg":{"method":"item/started","params":{"threadId":"thr_1","turnId":"turn_1","item":{"type":"agentMessage","id":"msg_1","text":""},"startedAtMs":2}}}
+{"dir":"<","msg":{"method":"item/agentMessage/delta","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"msg_1","delta":"Olá, "}}}
+{"dir":"<","msg":{"method":"item/agentMessage/delta","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"msg_1","delta":"ação🙂"}}}
+{"dir":"<","msg":{"method":"item/agentMessage/delta","params":{"threadId":"thr_other","turnId":"turn_x","itemId":"msg_1","delta":"IGNORADO"}}}
+{"dir":"<","msg":{"method":"item/started","params":{"threadId":"thr_1","turnId":"turn_1","item":{"type":"commandExecution","id":"cmd_1","command":"npm test","cwd":"C:\\QA\\projeto","status":"inProgress","aggregatedOutput":null,"exitCode":null},"startedAtMs":3}}}
+{"dir":"<","msg":{"id":0,"method":"item/commandExecution/requestApproval","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"cmd_1","startedAtMs":3,"approvalId":null,"reason":"Rodar os testes","command":"npm test","cwd":"C:\\QA\\projeto"}}}
+{"dir":">","msg":{"id":0,"result":{"decision":"accept"}}}
+{"dir":"<","msg":{"method":"serverRequest/resolved","params":{"threadId":"thr_1","requestId":0}}}
+{"dir":"<","msg":{"method":"item/commandExecution/outputDelta","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"cmd_1","delta":"ok 1\n"}}}
+{"dir":"<","msg":{"method":"item/completed","params":{"threadId":"thr_1","turnId":"turn_1","item":{"type":"commandExecution","id":"cmd_1","command":"npm test","cwd":"C:\\QA\\projeto","status":"completed","aggregatedOutput":"ok 1\n","exitCode":0},"completedAtMs":4}}}
+{"dir":"<","msg":{"id":1,"method":"item/tool/requestUserInput","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"ask_1","questions":[{"id":"q1","header":"Modo","question":"Qual modo?","isOther":false,"isSecret":false,"options":[{"label":"Rápido","description":"menos checagens"},{"label":"Seguro","description":"mais checagens"}]},{"id":"q2","header":"Nota","question":"Algo mais?","isOther":true,"isSecret":false,"options":null}],"autoResolutionMs":null}}}
+{"dir":">","msg":{"id":1,"result":{"answers":{"q1":{"answers":["Seguro"]},"q2":{"answers":[]}}}}}
+{"dir":"<","msg":{"id":2,"method":"item/tool/call","params":{"threadId":"thr_1","turnId":"turn_1","callId":"c1","tool":"x","arguments":{}}}}
+{"dir":">","msg":{"id":2,"error":{"code":-32601,"message":"Operação não suportada pelo Prism."}}}
+{"dir":"<","msg":{"id":3,"method":"item/commandExecution/requestApproval","params":{"threadId":"thr_other","turnId":"turn_x","itemId":"cmd_x","command":"rm -rf /"}}}
+{"dir":">","msg":{"id":3,"error":{"code":-32601}}}
+{"dir":"<","msg":{"method":"thread/tokenUsage/updated","params":{"threadId":"thr_1","turnId":"turn_1","tokenUsage":{"total":{"totalTokens":1500,"inputTokens":1200,"cachedInputTokens":200,"outputTokens":300,"reasoningOutputTokens":50},"last":{"totalTokens":1500,"inputTokens":1200,"cachedInputTokens":200,"outputTokens":300,"reasoningOutputTokens":50},"modelContextWindow":272000}}}}
+{"dir":"<","msg":{"method":"thread/tokenUsage/updated","params":{"threadId":"thr_1","turnId":"turn_1","tokenUsage":{"total":{"totalTokens":1500,"inputTokens":1200,"cachedInputTokens":200,"outputTokens":300,"reasoningOutputTokens":50},"last":{"totalTokens":1500,"inputTokens":1200,"cachedInputTokens":200,"outputTokens":300,"reasoningOutputTokens":50},"modelContextWindow":272000}}}}
+{"dir":"<","msg":{"method":"item/completed","params":{"threadId":"thr_1","turnId":"turn_1","item":{"type":"agentMessage","id":"msg_1","text":"Olá, ação🙂"},"completedAtMs":5}}}
+{"dir":"<","msg":{"method":"turn/completed","params":{"threadId":"thr_1","turn":{"id":"turn_1","items":[],"status":"completed","error":null}}}}
+{"dir":">","msg":{"id":5,"method":"turn/start","params":{"threadId":"thr_1","input":[{"type":"text","text":"de novo","text_elements":[]}],"cwd":"C:\\QA\\projeto","serviceTier":"priority"}}}
+{"dir":"<","msg":{"id":5,"result":{"turn":{"id":"turn_2","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"turn/started","params":{"threadId":"thr_1","turn":{"id":"turn_2","items":[],"status":"inProgress","error":null}}}}
+{"dir":"<","msg":{"method":"item/agentMessage/delta","params":{"threadId":"thr_1","turnId":"turn_1","itemId":"msg_1","delta":"ATRASADO"}}}
+{"dir":"<","msg":{"method":"thread/tokenUsage/updated","params":{"threadId":"thr_1","turnId":"turn_2","tokenUsage":{"total":{"totalTokens":2860,"inputTokens":2600,"cachedInputTokens":1000,"outputTokens":400,"reasoningOutputTokens":60},"last":{"totalTokens":1360,"inputTokens":1400,"cachedInputTokens":800,"outputTokens":100,"reasoningOutputTokens":10},"modelContextWindow":272000}}}}
+{"dir":"<","msg":{"method":"turn/completed","params":{"threadId":"thr_1","turn":{"id":"turn_2","items":[],"status":"completed","error":null}}}}

@@ -1,0 +1,47 @@
+{
+  "scenario": "model-switch",
+  "cwd": "C:\\work\\model-switch",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-model-switch",
+        "chat": {
+          "id": "chat-model-switch"
+        },
+        "cwd": "C:\\work\\model-switch",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Responda apenas: um"
+      }
+    },
+    {
+      "after": {
+        "channel": "agent:done",
+        "nth": 0
+      },
+      "payload": {
+        "permissionScope": "chat-model-switch",
+        "chat": {
+          "id": "chat-model-switch"
+        },
+        "cwd": "C:\\work\\model-switch",
+        "model": "claude-haiku-4-5",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-2",
+        "prompt": "Responda apenas: dois",
+        "resume": "$session"
+      }
+    }
+  ],
+  "actions": [],
+  "end": {
+    "channel": "agent:done",
+    "nth": 1
+  },
+  "calls": []
+}

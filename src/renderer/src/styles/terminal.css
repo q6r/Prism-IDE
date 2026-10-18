@@ -1,0 +1,76 @@
+/* Traycer landing tab strip (h-9) and epic terminal rows (h-7). */
+.prism-terminal-panel {
+  --tr-terminal-selection: color-mix(in srgb, var(--tr-primary) 30%, transparent);
+  --tr-terminal-scrollbar: color-mix(in srgb, var(--tr-muted-foreground) 35%, transparent);
+  --tr-terminal-scrollbar-hover: color-mix(in srgb, var(--tr-muted-foreground) 60%, transparent);
+  --tr-terminal-scrollbar-active: color-mix(in srgb, var(--tr-muted-foreground) 75%, transparent);
+  /* Default ANSI palette from Traycer's theme-fallback.css. */
+  --tr-terminal-black: #18181b; --tr-terminal-red: #ef4444;
+  --tr-terminal-green: #22c55e; --tr-terminal-yellow: #eab308;
+  --tr-terminal-blue: #3b82f6; --tr-terminal-magenta: #a855f7;
+  --tr-terminal-cyan: #06b6d4; --tr-terminal-white: #d4d4d8;
+  --tr-terminal-bright-black: #52525b; --tr-terminal-bright-red: #f87171;
+  --tr-terminal-bright-green: #4ade80; --tr-terminal-bright-yellow: #facc15;
+  --tr-terminal-bright-blue: #60a5fa; --tr-terminal-bright-magenta: #c084fc;
+  --tr-terminal-bright-cyan: #22d3ee; --tr-terminal-bright-white: #fafafa;
+  display: flex; flex-direction: column; min-height: 0; min-width: 0; flex-shrink: 0;
+  overflow: hidden; background: var(--tr-canvas); color: var(--tr-foreground);
+  font-family: var(--tr-font-ui); font-size: 14px; line-height: 20px;
+}
+[data-appearance='light'] .prism-terminal-panel {
+  --tr-terminal-red: #b91c1c; --tr-terminal-green: #166534;
+  --tr-terminal-yellow: #854d0e; --tr-terminal-blue: #1d4ed8;
+  --tr-terminal-magenta: #7e22ce; --tr-terminal-cyan: #0e7490;
+  --tr-terminal-white: #71717a; --tr-terminal-bright-red: #991b1b;
+  --tr-terminal-bright-green: #15803d; --tr-terminal-bright-yellow: #a16207;
+  --tr-terminal-bright-blue: #1e40af; --tr-terminal-bright-magenta: #6b21a8;
+  --tr-terminal-bright-cyan: #155e75; --tr-terminal-bright-white: #d4d4d8;
+}
+.prism-terminal-strip { display: flex; height: 36px; flex-shrink: 0; align-items: stretch; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 70%, transparent); background: var(--tr-canvas); }
+.prism-terminal-strip-start { display: flex; min-width: 0; max-width: 100%; flex: 0 1 auto; align-items: stretch; }
+.prism-terminal-tabs { display: flex; min-width: 0; flex: 0 1 auto; overflow-x: auto; overscroll-behavior-x: contain; }
+.prism-terminal-tab { position: relative; display: flex; min-width: 0; max-width: 45vw; flex-shrink: 0; align-items: center; gap: 6px; padding: 0 12px; border-right: 1px solid color-mix(in oklab, var(--tr-border) 70%, transparent); color: var(--tr-muted-foreground); cursor: pointer; outline: none; transition: color 120ms, background-color 120ms; }
+.prism-terminal-tab:hover { background: color-mix(in oklab, var(--tr-accent) 50%, transparent); }
+.prism-terminal-tab.is-active { background: var(--tr-background); color: var(--tr-foreground); box-shadow: inset 0 -1px 0 var(--tr-background); }
+.prism-terminal-tab.is-active::before { content: ''; position: absolute; inset: 0 0 auto; height: 1px; background: var(--tr-primary); }
+.prism-terminal-tab:focus-visible, .prism-terminal-row-main:focus-visible { box-shadow: inset 0 0 0 2px var(--tr-ring); }
+.prism-terminal-tab > svg, .prism-terminal-row-main > svg { flex-shrink: 0; }
+.prism-terminal-label { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+.prism-terminal-count { color: var(--tr-muted-foreground); font-size: 12px; }
+.prism-terminal-tab .prism-terminal-tab-close { opacity: 0; flex-shrink: 0; transition: opacity 120ms; }
+.prism-terminal-tab:hover .prism-terminal-tab-close, .prism-terminal-tab:focus-within .prism-terminal-tab-close { opacity: 1; }
+.prism-terminal-add { display: flex; flex-shrink: 0; align-items: center; padding: 0 4px; }
+.prism-terminal-actions { display: flex; flex-shrink: 0; align-items: center; margin-left: auto; padding: 0 4px; }
+.prism-terminal-remote { max-width: 160px; margin-right: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prism-terminal-body, .prism-terminal-stage { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.prism-terminal-group { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.prism-terminal-group[hidden] { display: none; }
+.prism-terminal-pane-wrap { display: flex; position: relative; flex: 1 1 0; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.prism-terminal-pane-wrap + .prism-terminal-pane-wrap { border-left: 1px solid var(--tr-border); }
+.prism-terminal-pane-heading { display: flex; height: 28px; flex-shrink: 0; align-items: center; gap: 6px; padding: 0 8px; border-bottom: 1px solid var(--tr-border); color: var(--tr-muted-foreground); font-size: 12px; }
+.prism-terminal-pane-heading > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prism-terminal-pane-wrap.is-active > .prism-terminal-pane-heading { color: var(--tr-foreground); background: color-mix(in oklab, var(--tr-accent) 50%, transparent); }
+.prism-terminal-pane { position: relative; flex: 1; min-height: 0; min-width: 0; background: var(--tr-canvas); }
+.prism-terminal-xterm { position: absolute; inset: 0; padding: 8px; }
+.prism-terminal-xterm .xterm { height: 100%; }
+.prism-terminal-xterm .xterm-viewport { background: var(--tr-canvas) !important; }
+.prism-terminal-overlay { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px; background: color-mix(in oklab, var(--tr-canvas) 85%, transparent); text-align: center; color: var(--tr-muted-foreground); }
+.prism-terminal-error { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.prism-terminal-error p { margin: 0; }
+.prism-terminal-list { width: 180px; max-width: 30%; min-width: 100px; flex-shrink: 0; overflow-y: auto; padding: 8px; border-left: 1px solid var(--tr-border); background: var(--tr-background); }
+.prism-terminal-list-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 2px; }
+.prism-terminal-list-group.is-split { border-left: 1px solid var(--tr-border); margin-left: 3px; padding-left: 4px; }
+.prism-terminal-row { position: relative; }
+.prism-terminal-row-main { display: flex; width: 100%; height: 28px; align-items: center; gap: 6px; padding: 0 32px 0 8px; border: 0; border-radius: var(--tr-radius-md); background: transparent; color: color-mix(in oklab, var(--tr-foreground) 75%, transparent); font: inherit; text-align: left; outline: none; cursor: pointer; transition: color 120ms, background-color 120ms; }
+.prism-terminal-row-main > svg { color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); }
+.prism-terminal-row-main:hover { background: color-mix(in oklab, var(--tr-accent) 70%, transparent); color: var(--tr-accent-foreground); }
+.prism-terminal-row-main.is-active { background: var(--tr-accent); color: var(--tr-accent-foreground); font-weight: 500; }
+.prism-terminal-row-actions { position: absolute; right: 4px; top: 50%; display: flex; transform: translateY(-50%); opacity: 0; transition: opacity 120ms; }
+.prism-terminal-row:hover .prism-terminal-row-actions, .prism-terminal-row:focus-within .prism-terminal-row-actions { opacity: 1; }
+.prism-terminal-rename { height: 24px; min-width: 7ch; max-width: 160px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-sm); background: var(--tr-background); padding: 0 4px; color: var(--tr-foreground); font: inherit; outline: 1px solid var(--tr-ring); user-select: text; }
+.prism-terminal-row-main:has(.prism-terminal-rename) { padding-right: 4px; }
+.prism-terminal-row-main .prism-terminal-rename { width: 100%; min-width: 0; }
+.prism-terminal-context-anchor { position: fixed; width: 0; height: 0; border: 0; padding: 0; visibility: hidden; pointer-events: none; }
+@media (pointer: coarse) { .prism-terminal-tab .prism-terminal-tab-close, .prism-terminal-row-actions { opacity: 1; } }
+@media (max-width: 720px) { .prism-terminal-remote { display: none; } .prism-terminal-list { width: 140px; } }
+@media (prefers-reduced-motion: reduce) { .prism-terminal-panel *, .prism-terminal-panel *::before { transition: none; } }

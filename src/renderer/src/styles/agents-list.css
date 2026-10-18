@@ -1,0 +1,312 @@
+/*
+ * Agents list, task tabs, run monitor and the Traycer live view - Traycer's
+ * epic sidebar (Agents panel), header tab strip and activity strip.
+ * Class prefix: al-. Only --tr-* tokens.
+ */
+
+.al-root { font-family: var(--tr-font-ui); color: var(--tr-foreground); }
+/* Every control here draws its own ring (box-shadow), never the UA outline. */
+.al-root :is(button, input, [role='tab'], [role='separator']):focus-visible { outline: none; }
+.al-menu .tr-menu-item > svg { width: 16px; height: 16px; }
+.al-fill { fill: currentColor; }
+
+/* ---------- Status glyphs (notification tones) ---------- */
+.al-glyph { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 14px; height: 14px; }
+.al-glyph .tr-spinner { font-size: 13px; }
+.al-glyph-icon { flex-shrink: 0; width: 14px; height: 14px; }
+.al-tone-done { color: var(--tr-success-foreground); }
+.al-tone-failure { color: var(--tr-destructive); }
+.al-tone-interview, .al-tone-approval { color: var(--tr-warning-foreground); }
+.al-tone-read-only { color: var(--tr-muted-foreground); }
+.al-tone-idle { color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); }
+.al-rollup { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; opacity: 0.6; }
+
+/* ---------- Sidebar column ---------- */
+.al-sidebar {
+  position: relative; display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; min-height: 0;
+  background: var(--tr-background); border-right: 1px solid var(--tr-border);
+  font-size: 14px; line-height: 20px;
+}
+.al-workspace { flex-shrink: 0; padding: 8px 8px 4px; }
+.al-workspace-trigger {
+  display: flex; width: 100%; min-width: 0; min-height: 32px; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: var(--tr-radius-md); background: color-mix(in oklab, var(--tr-muted) 20%, transparent); text-align: left;
+  transition: background-color 150ms;
+}
+.al-workspace-trigger:hover:not(:disabled) { background: color-mix(in oklab, var(--tr-accent) 45%, transparent); }
+.al-workspace-trigger:focus-visible { box-shadow: 0 0 0 2px var(--tr-ring); }
+.al-workspace-text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.al-workspace-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--tr-foreground); }
+.al-workspace-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-workspace-trigger > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--tr-muted-foreground); }
+
+.al-panel { display: flex; flex: 1; min-height: 0; flex-direction: column; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 60%, transparent); }
+.al-panel-header { display: flex; flex-shrink: 0; height: 36px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; container-type: inline-size; }
+.al-panel-header.search { gap: 4px; padding: 0 8px; }
+.al-panel-header.search .al-search { flex: 1; }
+.al-panel-title { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; }
+.al-panel-title > svg { width: 16px; height: 16px; flex-shrink: 0; color: color-mix(in oklab, var(--tr-muted-foreground) 80%, transparent); }
+.al-panel-title > p { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: 0.025em; text-transform: uppercase; color: var(--tr-muted-foreground); }
+@container (max-width: 14rem) { .al-panel-title > svg { display: none; } }
+.al-panel-actions { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
+.al-header-btn { position: relative; color: var(--tr-muted-foreground); }
+.al-filter-trigger[data-active] { color: var(--tr-foreground); }
+.al-filter-badge {
+  position: absolute; top: 1px; right: 1px; display: flex; min-width: 14px; height: 14px; align-items: center; justify-content: center;
+  padding: 0 3px; border-radius: 999px; background: var(--tr-primary); color: var(--tr-primary-foreground);
+  font-size: 9px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.al-panel-body { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: auto; padding: 0 8px 8px; }
+
+/* Search field (PanelSearchField) */
+.al-search { height: 30px; }
+.al-search .tr-input-addon.start svg { width: 14px; height: 14px; }
+.al-search > input { font-size: 14px; }
+.al-search .tr-input-addon.end { gap: 2px; padding-right: 4px; }
+.al-search .tr-btn.s-icon-xs { width: 20px; height: 20px; }
+.al-search .tr-btn.s-icon-xs svg { width: 14px; height: 14px; }
+.al-search .tr-btn.al-search-esc { width: auto; padding: 0 4px; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; }
+
+/* ---------- Tree (epic-sidebar-chat-tree) ---------- */
+.al-tree, .al-group { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.al-group { position: relative; margin-top: 2px; }
+.al-guide { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in oklab, var(--tr-border) 70%, transparent); pointer-events: none; }
+.al-row-wrap { position: relative; display: flex; min-width: 0; }
+.al-row {
+  display: flex; flex: 1; min-width: 0; min-height: 28px; align-items: center; gap: 6px; padding: 4px 8px;
+  border: 0; border-radius: var(--tr-radius-md); background: transparent; text-align: left;
+  font: inherit; font-size: 14px; line-height: 20px; font-weight: 400;
+  color: color-mix(in oklab, var(--tr-foreground) 75%, transparent); cursor: pointer;
+  transition: background-color 150ms, color 150ms, padding-right 150ms;
+}
+.al-row:hover:not(:disabled) { background: color-mix(in oklab, var(--tr-accent) 70%, transparent); color: var(--tr-accent-foreground); }
+.al-row.active, .al-row.active:hover:not(:disabled) { background: var(--tr-accent); color: var(--tr-accent-foreground); }
+.al-row:focus-visible { box-shadow: inset 0 0 0 2px var(--tr-ring); }
+.al-row.archived { opacity: 0.55; }
+.al-row-rename { cursor: default; }
+.al-row-wrap[data-slots='1']:is(:hover, :focus-within, :has([data-state='open'])) .al-row { padding-right: 32px; }
+.al-row-wrap[data-slots='2']:is(:hover, :focus-within, :has([data-state='open'])) .al-row { padding-right: 56px; }
+.al-row-wrap[data-slots='2']:is(:hover, :focus-within, :has([data-state='open'])) .al-row-trailing { display: none; }
+
+.al-chevron, .al-chevron-spacer { display: inline-flex; flex-shrink: 0; width: 12px; height: 12px; margin: 0 -2px; align-items: center; justify-content: center; }
+.al-chevron { position: relative; color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); cursor: pointer; transition: transform 150ms; }
+.al-chevron::before { content: ''; position: absolute; inset: -4px; }
+.al-chevron svg { width: 12px; height: 12px; }
+.al-chevron.open { transform: rotate(90deg); }
+.al-row-icon { display: inline-flex; flex-shrink: 0; width: 18px; height: 14px; align-items: center; }
+.al-row-line { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; }
+.al-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-archived-prefix { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; color: var(--tr-muted-foreground); }
+.al-archived-prefix b { font-weight: 600; }
+.al-row-trailing { display: inline-flex; flex: none; align-items: center; gap: 6px; }
+.al-idle-time { flex: none; font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; color: var(--tr-muted-foreground); }
+.al-rename-input {
+  flex: 1; min-width: 0; padding: 0 4px; border: 0; border-radius: var(--tr-radius-sm); background: transparent; outline: none;
+  color: var(--tr-foreground); font: inherit; font-size: 14px; line-height: 20px; user-select: text;
+}
+.al-rename-input:focus { box-shadow: 0 0 0 1px var(--tr-ring); }
+
+/* Hover controls beside the row (archive, "…") */
+.al-ctl { position: absolute; top: 50%; transform: translateY(-50%); opacity: 0; transition: opacity 150ms; color: var(--tr-muted-foreground); }
+.al-ctl-more { right: 4px; }
+.al-ctl-archive { right: 28px; }
+.al-row-wrap:is(:hover, :focus-within) .al-ctl, .al-ctl[data-state='open'], .al-ctl:focus-visible { opacity: 1; }
+.al-row-wrap .al-ctl:hover:not(:disabled), .al-row-wrap .al-ctl[data-state='open'] { color: var(--tr-foreground); background-color: color-mix(in oklab, var(--tr-foreground) 8%, transparent); }
+
+.al-row-tip { display: flex; flex-direction: column; gap: 2px; }
+.al-row-tip > span { opacity: 0.75; }
+
+/* Empty state (SidebarPanelEmptyState) */
+.al-empty { display: flex; flex: 1; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--tr-muted-foreground); }
+.al-empty-icon { width: 32px; height: 32px; color: color-mix(in oklab, var(--tr-muted-foreground) 45%, transparent); }
+.al-empty-text { display: flex; flex-direction: column; gap: 4px; }
+.al-empty-title { margin: 0; font-size: 14px; line-height: 20px; color: color-mix(in oklab, var(--tr-muted-foreground) 60%, transparent); }
+.al-empty-desc { margin: 0; font-size: 12px; line-height: 16px; color: color-mix(in oklab, var(--tr-muted-foreground) 50%, transparent); }
+
+/* View menu (ChatFilterMenu) */
+.al-view-menu { width: min(16rem, var(--tr-available-width, 16rem)); max-height: min(70vh, 28rem); }
+.al-view-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto 1rem; align-items: center; gap: 6px; }
+.al-view-summary { min-width: 0; text-align: right; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-view-entry:focus .al-view-summary { color: var(--tr-accent-foreground); }
+.al-menu .al-view-entry > svg.al-view-chevron { width: 14px; height: 14px; justify-self: end; }
+.al-view-group { margin-top: 4px; }
+.al-point-anchor { position: fixed; width: 0; height: 0; pointer-events: none; }
+
+/* Column foot (side-strip foot nav rows) */
+.al-foot { display: flex; flex-shrink: 0; flex-direction: column; gap: 2px; padding: 8px; }
+.al-nav-row {
+  display: flex; width: 100%; min-width: 0; height: 32px; align-items: center; gap: 8px; padding: 0 8px;
+  border-radius: var(--tr-radius-lg); background: transparent; color: var(--tr-muted-foreground); text-align: left;
+  font-size: 13px; line-height: 16px; transition: background-color 100ms, color 100ms;
+}
+.al-nav-row:hover:not(:disabled), .al-nav-row[data-state='open'] { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); color: var(--tr-foreground); }
+.al-nav-row:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--tr-ring) 50%, transparent); }
+.al-nav-row > svg { width: 16px; height: 16px; flex-shrink: 0; }
+.al-nav-row > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-nav-row > svg.al-nav-trailing { width: 14px; height: 14px; opacity: 0.7; }
+.al-nav-row.al-account-row { height: 44px; }
+.al-account-text { display: flex; flex-direction: column; gap: 2px; }
+.al-account-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-account-text > span:first-child { color: var(--tr-foreground); }
+.al-account-sub { font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+
+/* Resize handle (sidebar rail edge) */
+.al-resize { position: absolute; top: 0; right: -3px; bottom: 0; z-index: 5; width: 6px; cursor: col-resize; }
+.al-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: transparent; transition: background-color 150ms; }
+.al-resize:hover::after, .al-resize:focus-visible::after, body.al-resizing .al-resize::after { background: color-mix(in oklab, var(--tr-ring) 60%, transparent); }
+body.al-resizing { cursor: col-resize; user-select: none; }
+
+/* ---------- Task tab strip (layout/tabs) ---------- */
+/* Like Traycer's header (app-header tabStripBoxClass): the strip's empty ground
+   drags the window - and a double-click there maximizes it, as the OS does -
+   while the tabs (the scroller sizes to them), buttons and inputs do not. */
+.al-tabs { display: flex; flex: 1; min-width: 0; height: 100%; align-items: flex-end; gap: 2px; -webkit-app-region: drag; font-size: 14px; line-height: 20px; }
+.al-tabs :is(.al-tabstrip, .al-tabs-btn, button, input) { -webkit-app-region: no-drag; }
+/* Suspended while a menu or popover is open over the header (the strip's own, or the shell's via its data-suppressed). */
+.al-tabs[data-suppressed='true'], [data-suppressed='true'] .al-tabs { -webkit-app-region: no-drag; }
+.al-tabs-btn { align-self: center; flex-shrink: 0; color: var(--tr-muted-foreground); }
+.al-tabs .al-tabs-btn:hover:not(:disabled) { background-color: color-mix(in oklab, var(--tr-accent) 40%, transparent); color: var(--tr-foreground); }
+.al-tabstrip { display: flex; flex: 0 1 auto; min-width: 0; max-width: 100%; height: 36px; align-items: flex-end; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }
+.al-tabstrip::-webkit-scrollbar { display: none; }
+.al-tab-frame { position: relative; display: flex; flex: 1 1 14rem; width: 14rem; min-width: 7.5rem; max-width: 14rem; height: 36px; align-items: flex-end; }
+.al-tab {
+  position: relative; display: flex; width: 100%; min-width: 0; height: 36px; align-items: center; gap: 6px; padding: 0 20px;
+  color: var(--tr-muted-foreground); cursor: pointer; outline: none; user-select: none; transition: color 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.al-tab:hover { color: var(--tr-foreground); }
+.al-tab.active { z-index: 10; font-weight: 500; color: var(--tr-foreground); }
+.al-tab-box { position: absolute; inset: 2px; border-radius: var(--tr-radius-xl); pointer-events: none; background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); opacity: 0; transition: opacity 150ms ease-out; }
+.al-tab:hover .al-tab-box, .al-tab:focus-visible .al-tab-box { opacity: 1; }
+.al-tab.active .al-tab-box { opacity: 1; background: var(--tr-background); border: 1px solid var(--tr-border); }
+.al-tab:focus-visible .al-tab-box { box-shadow: 0 0 0 2px color-mix(in oklab, var(--tr-ring) 60%, transparent); }
+.al-tab-color { position: absolute; left: 0; right: 0; bottom: -1px; height: 1.5px; pointer-events: none; }
+.al-tab-content { position: relative; z-index: 20; display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; gap: 6px; }
+.al-tab-status { display: inline-flex; flex-shrink: 0; width: 14px; height: 14px; align-items: center; justify-content: center; }
+.al-tab-status:empty { display: none; }
+.al-tab-status svg { width: 14px; height: 14px; }
+.al-tab-status .tr-spinner { font-size: 13px; }
+.al-tab-pin { color: var(--tr-muted-foreground); }
+.al-tab-label { position: relative; display: flex; flex: 1; min-width: 0; align-items: center; }
+.al-tab-title {
+  display: block; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-align: left;
+  mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
+}
+.al-tab-trailing { position: absolute; top: 50%; right: 0; display: flex; width: 0; align-items: center; justify-content: center; overflow: hidden; opacity: 0; transform: translateY(-50%); transition: opacity 150ms; }
+.al-tab-close { pointer-events: none; width: 20px; height: 20px; }
+.al-tab-close svg { width: 12px; height: 12px; }
+.al-tab:is(:hover, :focus-visible) .al-tab-title { padding-inline-end: calc(1.25rem + 6px); }
+.al-tab:is(:hover, :focus-visible) .al-tab-trailing { width: 1.25rem; opacity: 1; }
+.al-tab:is(:hover, :focus-visible) .al-tab-close { pointer-events: auto; }
+.al-tab-sep { position: absolute; top: 50%; right: 0; z-index: 10; width: 1px; height: 20px; transform: translateY(-50%); background: color-mix(in oklab, var(--tr-border) 80%, transparent); pointer-events: none; }
+.al-tab-drop { position: absolute; top: 4px; bottom: 4px; z-index: 20; width: 2px; border-radius: 999px; background: var(--tr-primary); pointer-events: none; }
+.al-tab-drop.before { left: 0; }
+.al-tab-drop.after { right: 0; }
+.al-tab-input {
+  flex: 1; min-width: 0; height: 24px; padding: 0 6px; border: 0; border-radius: var(--tr-radius-sm); outline: none;
+  background: color-mix(in oklab, var(--tr-input) 30%, transparent); box-shadow: 0 0 0 1px var(--tr-ring);
+  color: var(--tr-foreground); font: inherit; font-size: 14px; user-select: text;
+}
+.al-tab-tip { display: flex; flex-direction: column; gap: 2px; }
+.al-tab-tip > span { opacity: 0.75; }
+.al-tab-new { margin-bottom: 4px; align-self: flex-end; width: 28px; height: 28px; }
+.al-tasks-menu { width: min(20rem, calc(100vw - 16px)); }
+.al-task-option { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.al-task-path { font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+
+/* ---------- Run monitor (activity strip) ---------- */
+.al-monitor {
+  display: flex; flex-direction: column; max-height: min(55vh, 520px); min-height: 0; margin: 8px 12px 0;
+  border: 1px solid var(--tr-border); border-radius: var(--tr-radius-xl); background: var(--tr-popover);
+  box-shadow: var(--tr-shadow-md); font-size: 14px; line-height: 20px; overflow: hidden;
+}
+.al-monitor-head { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 12px; }
+.al-monitor-title { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.al-monitor-title > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--tr-muted-foreground); }
+.al-monitor-title h2 { margin: 0; font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+.al-monitor-actions { display: flex; flex-shrink: 0; align-items: center; gap: 4px; }
+.al-monitor-bar { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 0 12px; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 60%, transparent); }
+.al-monitor-bar .tr-tabs-line { flex: 1 1 auto; border-bottom: 0; }
+.al-monitor-search { width: 260px; max-width: 100%; margin-bottom: 6px; }
+.al-count { margin-left: 2px; padding: 0 5px; border-radius: 999px; background: color-mix(in oklab, var(--tr-foreground) 8%, transparent); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.al-monitor-list { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 2px; padding: 6px; overflow: auto; }
+.al-run { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; border-radius: var(--tr-radius-md); }
+.al-run:hover, .al-run.open { background: color-mix(in oklab, var(--tr-foreground) 4%, transparent); }
+.al-run-main {
+  display: flex; min-width: 0; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--tr-radius-md);
+  background: transparent; text-align: left; color: var(--tr-foreground);
+}
+.al-run-main:focus-visible { box-shadow: inset 0 0 0 2px var(--tr-ring); }
+.al-run-chevron { width: 12px; height: 12px; flex-shrink: 0; color: color-mix(in oklab, var(--tr-muted-foreground) 70%, transparent); transition: transform 150ms; }
+.al-run.open .al-run-chevron { transform: rotate(90deg); }
+.al-run-glyph { display: inline-flex; flex-shrink: 0; width: 16px; justify-content: center; }
+.al-run-text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.al-run-line { display: flex; min-width: 0; align-items: baseline; gap: 8px; }
+.al-run-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.al-run-state { flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-run-state.warn { color: var(--tr-warning-foreground); }
+.al-run-state.fail { color: var(--tr-destructive); }
+.al-run-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-run-time { flex-shrink: 0; font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; color: var(--tr-muted-foreground); }
+.al-run-actions { display: flex; align-items: center; gap: 2px; padding-right: 6px; }
+.al-run-actions .tr-btn { color: var(--tr-muted-foreground); }
+.al-run-detail { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 12px 8px 52px; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-run-detail[hidden] { display: none; }
+.al-run-detail .run-numbers { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.al-monitor-more { align-self: center; margin-top: 4px; }
+.al-monitor-foot { flex-shrink: 0; padding: 8px 12px; border-top: 1px solid color-mix(in oklab, var(--tr-border) 60%, transparent); background: color-mix(in oklab, var(--tr-foreground) 3%, transparent); font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+
+/* ---------- Dialogs (ui/dialog banded) ---------- */
+.al-overlay {
+  position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgb(0 0 0 / 0.1); backdrop-filter: blur(4px); animation: tr-fade-in 100ms ease-out;
+}
+.al-dialog {
+  display: flex; flex-direction: column; min-width: 0; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow: hidden;
+  border-radius: var(--tr-radius-2xl); background: var(--tr-popover); color: var(--tr-popover-foreground);
+  box-shadow: var(--tr-shadow-lg), 0 0 0 1px color-mix(in oklab, var(--tr-foreground) 10%, transparent);
+  font-family: var(--tr-font-ui); font-size: 14px; line-height: 20px; outline: none; animation: tr-fade-zoom-in 100ms ease-out;
+}
+.al-dialog-title { margin: 0; font-size: 16px; line-height: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.al-dialog-desc { margin: 0; font-size: 14px; line-height: 1.625; color: var(--tr-muted-foreground); overflow-wrap: anywhere; }
+.al-dialog-head { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--tr-border); }
+.al-dialog-heading { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.al-dialog-heading .al-dialog-desc { font-size: 12px; line-height: 16px; }
+.al-dialog-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.al-dialog-foot { display: flex; flex-shrink: 0; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid color-mix(in oklab, var(--tr-border) 60%, transparent); background: color-mix(in oklab, var(--tr-foreground) 3%, transparent); }
+.al-dialog-foot.muted { justify-content: flex-start; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-confirm { width: min(92vw, 28rem); }
+.al-confirm-body { display: flex; min-width: 0; align-items: flex-start; gap: 12px; padding: 20px; }
+.al-confirm-badge { display: flex; flex-shrink: 0; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 999px; background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); color: var(--tr-destructive); }
+.al-confirm-badge svg { width: 16px; height: 16px; }
+.al-confirm-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; }
+
+/* Traycer live view */
+.al-browser { width: min(96vw, 1100px); height: min(88vh, 760px); }
+.al-browser-task { max-width: 260px; }
+.al-browser-error { flex-shrink: 0; margin: 0; padding: 8px 20px; border-bottom: 1px solid color-mix(in oklab, var(--tr-destructive) 30%, transparent); background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); color: var(--tr-destructive); font-size: 12px; line-height: 16px; }
+.al-browser-body { display: grid; flex: 1; min-height: 0; grid-template-columns: 300px minmax(0, 1fr); }
+.al-browser-side { display: flex; min-height: 0; flex-direction: column; border-right: 1px solid var(--tr-border); background: var(--tr-background); }
+.al-browser-tools { display: flex; flex-shrink: 0; flex-direction: column; gap: 8px; padding: 8px; }
+.al-switch-row { display: flex; align-items: center; gap: 8px; padding: 0 4px; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); cursor: pointer; }
+.al-browser-tree { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: auto; padding: 0 8px 8px; }
+.al-browser-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; background: var(--tr-canvas); }
+.al-browser-heading { display: flex; flex-shrink: 0; min-width: 0; flex-direction: column; gap: 2px; padding: 12px 20px; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 60%, transparent); }
+.al-browser-heading > strong { font-size: 14px; font-weight: 600; }
+.al-browser-heading > span { font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.al-browser-transcript { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; padding: 16px 20px; overflow: auto; user-select: text; }
+.al-msg { display: flex; flex-direction: column; gap: 6px; }
+.al-msg.user { align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: var(--tr-radius-lg); background: var(--tr-muted); }
+.al-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.al-msg-role { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; color: var(--tr-muted-foreground); }
+.al-msg-tool { border: 1px solid var(--tr-border); border-radius: var(--tr-radius-md); background: color-mix(in oklab, var(--tr-foreground) 3%, transparent); }
+.al-msg-tool > summary { display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 12px; line-height: 16px; cursor: pointer; }
+.al-msg-tool-status { margin-left: auto; flex-shrink: 0; color: var(--tr-muted-foreground); }
+.al-msg-tool pre { margin: 0; max-height: 240px; padding: 8px; overflow: auto; border-top: 1px solid var(--tr-border); font-family: var(--tr-font-mono); font-size: 12px; line-height: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 950px) {
+  .al-browser-body { grid-template-columns: 230px minmax(0, 1fr); }
+  .al-dialog-head { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .al-row, .al-chevron, .al-ctl, .al-tab, .al-tab-box, .al-tab-trailing, .al-run-chevron, .al-overlay, .al-dialog { transition: none; animation: none; }
+}

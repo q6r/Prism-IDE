@@ -1,0 +1,30 @@
+{
+  "scenario": "tool",
+  "cwd": "C:\\work\\tool",
+  "files": {
+    "nota.txt": "conteudo secreto 42"
+  },
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-tool",
+        "chat": {
+          "id": "chat-tool"
+        },
+        "cwd": "C:\\work\\tool",
+        "model": "haiku",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "turn-1",
+        "prompt": "Use a ferramenta Read para ler o arquivo nota.txt desta pasta e responda só com o conteúdo dele."
+      }
+    }
+  ],
+  "actions": [],
+  "end": {
+    "channel": "agent:done",
+    "nth": 0
+  },
+  "calls": []
+}

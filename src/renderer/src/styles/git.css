@@ -1,0 +1,117 @@
+/* Traycer git-diff: panel rows 24px, tile rows 28px, 14/20 UI and 12/16 metadata. */
+.pg-panel, .pg-diff-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; color: var(--tr-foreground); background: var(--tr-background); font-family: var(--tr-font-ui); font-size: 14px; line-height: 20px; }
+.pg-panel button, .pg-diff-view button, .pg-branch-menu button, .pg-diff-settings button { font-family: inherit; }
+.pg-panel-header { display: flex; flex-shrink: 0; min-height: 40px; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 12px; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 70%, transparent); font-weight: 500; }
+.pg-toolbar { display: inline-flex; flex-shrink: 0; align-items: center; gap: 2px; }
+.pg-filter { flex-shrink: 0; padding: 6px 8px; background: color-mix(in oklab, var(--tr-background) 50%, transparent); }
+.pg-filter .tr-input-group { height: 28px; }
+.pg-filter input, .pg-branch-search input { min-width: 0; width: 100%; font-size: 12px; line-height: 16px; }
+.pg-repositories { min-height: 0; overflow: auto; flex: 1; }
+.pg-repo + .pg-repo { border-top: 1px solid var(--tr-border); }
+.pg-repo-header { padding: 4px 6px; }
+.pg-repo-toggle, .pg-section-toggle, .pg-directory-row, .pg-diff-file-toggle { display: flex; align-items: center; gap: 6px; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.pg-repo-toggle { width: 100%; padding: 4px 6px; font-size: 12px; font-weight: 500; }
+.pg-repo-toggle > span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-count { flex-shrink: 0; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); font-weight: 400; font-variant-numeric: tabular-nums; }
+.pg-branch-bar { display: flex; align-items: center; gap: 4px; }
+.pg-branch-trigger { min-width: 0; flex: 1; justify-content: flex-start; padding: 4px 6px; font-weight: 400; height: 28px; }
+.pg-branch-trigger > span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pg-branch-trigger > svg:last-child { margin-left: auto; }
+.pg-sync-count { color: var(--tr-muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pg-branch-menu { width: min(320px, calc(100vw - 24px)); }
+.pg-branch-search { padding: 4px; }
+.pg-branch-empty { display: flex; align-items: center; gap: 6px; padding: 12px 8px; color: var(--tr-muted-foreground); font-size: 12px; }
+.pg-menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pg-commit { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 10px; }
+.pg-commit-field { position: relative; display: flex; border: 1px solid var(--tr-input); border-radius: var(--tr-radius-lg); background: color-mix(in oklab, var(--tr-input) 15%, transparent); }
+.pg-commit-field:focus-within { border-color: var(--tr-ring); }
+.pg-commit-field textarea { resize: vertical; display: block; min-height: 60px; max-height: 180px; width: 100%; border: 0; background: transparent; color: var(--tr-foreground); outline: none; padding: 8px 36px 8px 10px; font-family: var(--tr-font-ui); font-size: 14px; line-height: 20px; }
+.pg-commit-field textarea::placeholder { color: var(--tr-muted-foreground); }
+.pg-ai-button { position: absolute; right: 4px; bottom: 4px; }
+.pg-commit-button { width: 100%; height: 28px; }
+.pg-section { padding-bottom: 4px; }
+.pg-section-header { display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; }
+.pg-section-header.is-empty { color: color-mix(in oklab, var(--tr-muted-foreground) 55%, transparent); }
+.pg-section-toggle { flex: 1; padding: 2px 6px; min-height: 24px; font-size: 14px; font-weight: 500; border-radius: var(--tr-radius-md); }
+.pg-section-toggle:hover, .pg-repo-toggle:hover { background: color-mix(in oklab, var(--tr-accent) 50%, transparent); }
+.pg-section-header.is-empty .pg-count { color: inherit; }
+.pg-file-list { display: flex; flex-direction: column; }
+.pg-file-row { position: relative; display: flex; width: 100%; align-items: center; min-height: 24px; gap: 2px; padding: 0 8px 0 12px; }
+.pg-file-row:hover, .pg-directory-row:hover { background: color-mix(in oklab, var(--tr-accent) 50%, transparent); }
+.pg-file-row.is-active { background: var(--tr-accent); color: var(--tr-accent-foreground); }
+.pg-file-row.is-conflict { border-left: 2px solid var(--tr-destructive); }
+.pg-file-open { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; min-height: 24px; text-align: left; background: transparent; border: 0; color: inherit; padding: 2px 0; cursor: pointer; font-size: 14px; line-height: 20px; }
+.pg-file-open > svg { flex-shrink: 0; }
+.pg-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.pg-file-name-extension { display: flex; align-items: baseline; }
+.pg-file-name-extension > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pg-file-name-extension > :last-child { flex-shrink: 0; }
+.pg-path-highlight { border-radius: var(--tr-radius-xs); background: color-mix(in oklab, var(--tr-primary) 25%, transparent); color: var(--tr-foreground); }
+.pg-file-directory { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.pg-status { display: inline-flex; height: 20px; min-width: 20px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: var(--tr-radius-sm); padding: 0 4px; font-size: 10px; font-weight: 700; line-height: 14px; }
+.pg-tone-success { background: color-mix(in oklab, var(--tr-success) 10%, transparent); color: var(--tr-success); }
+.pg-tone-destructive { background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); color: var(--tr-destructive); }
+.pg-tone-warning { background: color-mix(in oklab, var(--tr-warning) 10%, transparent); color: var(--tr-warning); }
+.pg-tone-primary { background: color-mix(in oklab, var(--tr-primary) 10%, transparent); color: var(--tr-primary); }
+.pg-tone-muted { background: var(--tr-muted); color: var(--tr-muted-foreground); }
+.pg-file-actions { display: flex; flex-shrink: 0; gap: 0; opacity: 0; }
+.pg-file-row:hover .pg-file-actions, .pg-file-row:focus-within .pg-file-actions { opacity: 1; }
+.pg-file-actions .tr-btn { width: 20px; height: 20px; }
+.pg-file-stats { pointer-events: none; position: absolute; right: 52px; top: 50%; display: none; align-items: center; gap: 4px; transform: translateY(-50%); padding: 2px 4px; border-radius: var(--tr-radius-sm); background: color-mix(in oklab, var(--tr-background) 95%, transparent); box-shadow: var(--tr-shadow-sm); font-size: 12px; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pg-file-stats-staged { right: 32px; }
+.pg-file-stats > :first-child { color: var(--tr-success); }
+.pg-file-stats > :nth-child(2) { color: var(--tr-destructive); }
+.pg-file-row:hover .pg-file-stats, .pg-file-row:focus-within .pg-file-stats { display: flex; }
+.pg-directory-row { width: 100%; min-height: 24px; padding: 2px 12px; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; }
+.pg-directory-row svg { flex-shrink: 0; }
+.pg-directory-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 120px; padding: 24px 16px; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; text-align: center; }
+.pg-empty-small { min-height: 72px; font-size: 12px; line-height: 16px; padding: 16px; }
+.pg-error { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; color: var(--tr-destructive); background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.pg-error > span { flex: 1; }
+.pg-conflict-banner { padding: 8px 12px; color: var(--tr-warning-foreground); background: color-mix(in oklab, var(--tr-warning) 10%, transparent); font-size: 12px; }
+.pg-loading { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.pg-loading > div { height: 20px; width: 80%; border-radius: var(--tr-radius-sm); background: color-mix(in oklab, var(--tr-muted-foreground) 10%, transparent); animation: pg-pulse 1.5s ease-in-out infinite; }
+.pg-loading > div:nth-child(even) { width: 60%; }
+.pg-loading > div:first-child { height: 28px; width: 100%; }
+.pg-diff-header { z-index: 1; display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; min-height: clamp(40px, 5vh, 48px); padding: 8px 12px; border-bottom: 1px solid color-mix(in oklab, var(--tr-border) 70%, transparent); background: var(--tr-background); }
+.pg-diff-heading { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.pg-diff-heading > svg { flex-shrink: 0; color: var(--tr-muted-foreground); }
+.pg-diff-heading > div { min-width: 0; }
+.pg-diff-heading h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 20px; }
+.pg-diff-subtitle, .pg-diff-context { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.pg-diff-context { color: color-mix(in oklab, var(--tr-muted-foreground) 80%, transparent); }
+.pg-diff-toolbar { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
+.pg-diff-body { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
+.pg-diff-file-header { display: flex; flex-shrink: 0; align-items: center; gap: 8px; min-height: 32px; padding: 4px 12px; border-bottom: 1px solid var(--tr-border); background: color-mix(in oklab, var(--tr-muted) 30%, var(--tr-background)); }
+.pg-diff-file-toggle { flex: 1; padding: 0; min-height: 24px; gap: 8px; }
+.pg-diff-file-toggle > svg { flex-shrink: 0; }
+.pg-diff-file-toggle > span:not(.pg-file-directory) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--tr-font-mono); }
+.pg-diff-stats { display: flex; flex-shrink: 0; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; line-height: 16px; font-variant-numeric: tabular-nums; }
+.pg-diff-stats > :first-child { color: var(--tr-success); }
+.pg-diff-stats > :last-child { color: var(--tr-destructive); }
+.pg-diff-editor { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: auto; background: var(--tr-canvas); }
+.pg-pierre-file { display: block; min-width: 0; width: 100%; }
+.pg-diff-find { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--tr-border); background: var(--tr-background); }
+.pg-diff-find .tr-input-group { width: min(300px, 100%); height: 28px; }
+.pg-diff-find-count { flex-shrink: 0; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.pg-diff-settings { width: min(240px, 80vw); padding: 4px; }
+.pg-setting-row { justify-content: space-between; padding: 6px 8px; gap: 12px; }
+.pg-setting-row > .tr-switch { flex-shrink: 0; }
+.pg-indicator-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px; font-size: 14px; }
+.pg-indicator-control { display: flex; align-items: center; flex-shrink: 0; border-radius: var(--tr-radius-md); padding: 2px; background: var(--tr-muted); }
+.pg-indicator-control button { position: relative; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--tr-radius-sm); background: transparent; color: var(--tr-muted-foreground); cursor: pointer; }
+.pg-indicator-control button[aria-checked='true'] { color: var(--tr-foreground); background: var(--tr-background); box-shadow: var(--tr-shadow-sm); }
+.pg-indicator-control button:hover { color: var(--tr-foreground); }
+.pg-panel button:focus-visible, .pg-diff-file-toggle:focus-visible, .pg-indicator-control button:focus-visible { outline: 2px solid var(--tr-ring); outline-offset: -2px; }
+@keyframes pg-pulse { 50% { opacity: 0.5; } }
+@media (pointer: coarse) { .pg-file-row, .pg-file-open, .pg-directory-row { min-height: 44px; } .pg-file-actions { opacity: 1; } .pg-file-stats { position: static; display: flex; transform: none; background: transparent; box-shadow: none; padding: 0; } }
+@media (prefers-reduced-motion: reduce) { .pg-loading > div { animation: none; } }
+
+.pg-confirm { width: min(384px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-xl); background: var(--tr-popover); color: var(--tr-popover-foreground); font-family: var(--tr-font-ui); box-shadow: var(--tr-shadow-xl); overflow: auto; }
+.pg-confirm::backdrop { background: color-mix(in oklab, var(--tr-shell-ground) 10%, transparent); backdrop-filter: blur(4px); }
+.pg-confirm-header { display: flex; flex-direction: column; gap: 8px; padding: 16px 20px; }
+.pg-confirm-header h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+.pg-confirm-header p { margin: 0; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.pg-confirm-header strong { color: var(--tr-foreground); font-weight: 500; }
+.pg-confirm-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--tr-border); background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }

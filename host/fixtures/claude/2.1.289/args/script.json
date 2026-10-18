@@ -1,0 +1,74 @@
+{
+  "scenario": "args",
+  "cwd": "C:\\work\\args",
+  "files": {},
+  "loggedOut": false,
+  "sends": [
+    {
+      "payload": {
+        "permissionScope": "chat-args",
+        "chat": {
+          "id": "chat-args"
+        },
+        "cwd": "C:\\work\\args",
+        "model": "sonnet",
+        "permissionMode": "default",
+        "profileId": "ambient-claude",
+        "id": "a-1",
+        "prompt": "x",
+        "effort": "high"
+      }
+    },
+    {
+      "payload": {
+        "permissionScope": "chat-args-b",
+        "chat": {
+          "id": "chat-args-b"
+        },
+        "cwd": "C:\\work\\args",
+        "model": "opus",
+        "permissionMode": "plan",
+        "profileId": "ambient-claude",
+        "id": "a-2",
+        "prompt": "x",
+        "effort": "ultra",
+        "thinking": false,
+        "serviceTier": "fast",
+        "resume": "resume-id"
+      }
+    },
+    {
+      "payload": {
+        "permissionScope": "chat-args-c",
+        "chat": {
+          "id": "chat-args-c"
+        },
+        "cwd": "C:\\work\\args",
+        "model": "claude-haiku-4-5",
+        "permissionMode": "acceptEdits",
+        "profileId": "ambient-claude",
+        "id": "a-3",
+        "prompt": "x",
+        "effort": "max"
+      }
+    },
+    {
+      "payload": {
+        "permissionScope": "chat-args-d",
+        "chat": {
+          "id": "chat-args-d"
+        },
+        "cwd": "C:\\work\\args",
+        "model": "",
+        "permissionMode": "bypassPermissions",
+        "profileId": "ambient-claude",
+        "id": "a-4",
+        "prompt": "x",
+        "thinking": true
+      }
+    }
+  ],
+  "actions": [],
+  "end": null,
+  "calls": []
+}

@@ -1,0 +1,229 @@
+/* Traycer: header h-10; footer h-6; collapsed side strip 60px; 4px spacing. */
+.ps-shell-app { display: flex; flex-direction: column; height: 100dvh; min-width: 0; overflow: clip; background: var(--tr-shell-ground, var(--tr-canvas)); color: var(--tr-foreground); font-family: var(--tr-font-ui); }
+.ps-shell-body { display: flex; flex: 1; min-width: 0; min-height: 0; background: var(--tr-shell-ground, var(--tr-canvas)); }
+.ps-shell-center { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: clip; background: var(--tr-canvas); }
+.ps-shell-app .splitter:hover, .ps-shell-app .splitter:active { background: color-mix(in oklab, var(--tr-ring) 30%, transparent); }
+.ps-shell-titlebar { display: flex; align-items: center; flex-shrink: 0; height: 40px; min-width: 0; padding-left: 12px; background: var(--tr-shell-ground, var(--tr-canvas)); color: var(--tr-foreground); font-family: var(--tr-font-ui); -webkit-app-region: drag; }
+.ps-shell-titlebar[data-suppressed='true'], .ps-shell-titlebar[data-suppressed='true'] .ps-shell-task-tabs { -webkit-app-region: no-drag; }
+.ps-shell-titlebar button, .ps-shell-titlebar input, .ps-shell-titlebar a, .ps-shell-titlebar [role='button'] { -webkit-app-region: no-drag; }
+.ps-shell-menubar { display: flex; height: 100%; align-items: center; flex-shrink: 0; -webkit-app-region: no-drag; }
+.ps-shell-menu-trigger { height: 28px; padding: 4px 8px; border: 0; border-radius: var(--tr-radius-md); color: var(--tr-muted-foreground); background: transparent; font: 12px/16px var(--tr-font-ui); white-space: nowrap; cursor: pointer; }
+.ps-shell-menu-trigger:hover { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); color: var(--tr-foreground); }
+.ps-shell-menu-trigger[data-state='open'] { background: color-mix(in oklab, var(--tr-foreground) 8%, transparent); color: var(--tr-foreground); }
+.ps-shell-menu-subtrigger { width: 100%; justify-content: space-between; text-align: left; }
+.ps-shell-menu-check { display: inline-flex; width: 14px; flex-shrink: 0; }
+.ps-shell-drag-gap { flex: 0 1 clamp(32px, 6vw, 96px); height: 100%; -webkit-app-region: drag; }
+.ps-shell-drag-gap[data-suppressed='true'] { -webkit-app-region: no-drag; }
+.ps-shell-task-tabs { display: flex; flex: 1; align-items: center; min-width: 0; height: 100%; -webkit-app-region: drag; }
+.ps-shell-header-actions { display: flex; align-items: center; flex-shrink: 0; gap: 8px; padding-right: 8px; -webkit-app-region: no-drag; }
+.ps-shell-window-controls { display: flex; flex-shrink: 0; height: 40px; -webkit-app-region: no-drag; }
+.ps-shell-window-controls > button { display: flex; align-items: center; justify-content: center; width: 46px; height: 40px; border: 0; background: transparent; color: var(--tr-muted-foreground); cursor: pointer; }
+.ps-shell-window-controls > button:hover { color: var(--tr-foreground); background: var(--tr-secondary); }
+.ps-shell-window-controls > .ps-shell-window-close:hover { background: var(--tr-destructive); color: var(--tr-primary-foreground); }
+.ps-shell-workspace-tabs.tr-tabs-line { flex-shrink: 0; height: 36px; padding: 0 12px 6px 68px; gap: 8px; background: var(--tr-shell-ground, var(--tr-canvas)); }
+.ps-shell-workspace-tabs.tr-tabs-line > button { height: 28px; padding: 2px 8px; font-size: 12px; line-height: 16px; }
+.ps-shell-workspace-tabs.tr-tabs-line > button::after { bottom: -7px; }
+.ps-shell-rail { display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; width: 60px; padding: 8px; background: var(--tr-shell-ground, var(--tr-canvas)); color: var(--tr-muted-foreground); font-family: var(--tr-font-ui); }
+.ps-shell-rail-group { display: flex; align-items: center; flex-direction: column; gap: 8px; }
+.ps-shell-rail-item { position: relative; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border: 0; border-radius: var(--tr-radius-lg); color: var(--tr-muted-foreground); background: transparent; cursor: pointer; transition: background-color 150ms, color 150ms; }
+.ps-shell-rail-item:hover { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); color: var(--tr-foreground); }
+.ps-shell-rail-item.is-active { color: var(--tr-foreground); background: color-mix(in oklab, var(--tr-foreground) 8%, transparent); }
+.ps-shell-rail-divider { height: 1px; width: 32px; margin: 0 4px; background: var(--tr-border); }
+.ps-shell-rail-badge { position: absolute; right: -3px; top: -3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--tr-radius-lg); background: var(--tr-warning); color: var(--tr-primary-foreground); font-size: 10px; font-weight: 600; line-height: 16px; box-shadow: 0 0 0 2px var(--tr-canvas); }
+.ps-shell-sidebar { display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; min-height: 0; overflow: hidden; background: var(--tr-background); color: var(--tr-foreground); font-family: var(--tr-font-ui); }
+.ps-shell-sidebar[data-side='right'] { border-left: 1px solid var(--tr-border); }
+.ps-shell-sidebar[data-side='left'] { border-right: 1px solid var(--tr-border); }
+.ps-shell-sidebar > * { min-width: 0; min-height: 0; }
+.ps-shell-statusbar { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 8px; height: 24px; padding: 0 8px; border-top: 1px solid color-mix(in oklab, var(--tr-border) 90%, transparent); color: var(--tr-muted-foreground); background: var(--tr-canvas); font: 12px/16px var(--tr-font-ui); font-variant-numeric: tabular-nums; }
+.ps-shell-status-left, .ps-shell-status-right { display: flex; align-items: center; min-width: 0; gap: 4px; }
+.ps-shell-status-left { flex-shrink: 1; }
+.ps-shell-status-right { justify-content: flex-end; overflow: hidden; }
+.ps-shell-status-item { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 22px; min-width: 0; padding: 0 4px; border: 0; border-radius: var(--tr-radius-sm); background: transparent; color: inherit; font: inherit; white-space: nowrap; }
+.ps-shell-status-item svg { flex-shrink: 0; }
+.ps-shell-status-btn, .ps-shell-status-remote { cursor: pointer; }
+.ps-shell-status-btn:hover, .ps-shell-status-remote:hover { background: var(--tr-accent); color: var(--tr-foreground); }
+.ps-shell-status-item.on, .ps-shell-status-accent { color: var(--tr-foreground); }
+.ps-shell-status-model { max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+.ps-shell-status-discord.st-connected, .ps-shell-status-remote { color: var(--tr-success); }
+.ps-shell-status-discord.st-connecting { color: var(--tr-warning); }
+.ps-shell-status-discord.off { opacity: 0.5; }
+/* Prism host connection: a dot that carries the state. */
+.ps-shell-status-host::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.ps-shell-status-host.hs-connected { color: var(--tr-success); }
+.ps-shell-status-host.hs-connecting, .ps-shell-status-host.hs-reconnecting { color: var(--tr-warning); }
+.ps-shell-status-host.hs-unavailable { color: var(--tr-muted-foreground); }
+.ps-shell-status-host.hs-incompatible, .ps-shell-status-host.hs-unauthorized { color: var(--tr-destructive); }
+.ps-shell-status-clock { flex-shrink: 0; }
+.ps-shell-panel, .ps-shell-search-panel, .ps-shell-ext-panel { display: flex; flex: 1; flex-direction: column; height: 100%; min-height: 0; min-width: 0; color: var(--tr-foreground); background: var(--tr-background); font: 14px/20px var(--tr-font-ui); }
+.ps-shell-panel-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 8px 12px; border-bottom: 1px solid var(--tr-border); }
+.ps-shell-panel-header h2 { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.ps-shell-panel-actions { display: flex; align-items: center; gap: 4px; }
+.ps-shell-empty, .ps-shell-sessions-empty, .ps-shell-remote-empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px 16px; text-align: center; color: var(--tr-muted-foreground); font-size: 12px; line-height: 18px; }
+.ps-shell-empty { flex: 1; flex-direction: column; }
+.ps-shell-empty p { margin: 0; }
+.ps-shell-search-input-row { display: flex; align-items: center; gap: 4px; padding: 12px; }
+.ps-shell-search-box { flex: 1; min-width: 0; }
+.ps-shell-search-toggle.on { background: var(--tr-accent); color: var(--tr-foreground); }
+.ps-shell-search-summary { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.ps-shell-search-results { min-height: 0; overflow: auto; flex: 1; padding: 0 8px 8px; }
+.ps-shell-search-file-head { display: flex; width: 100%; align-items: center; gap: 4px; padding: 6px 4px; background: transparent; color: var(--tr-foreground); border: 0; border-radius: var(--tr-radius-md); text-align: left; font: 12px/16px var(--tr-font-ui); cursor: pointer; }
+.ps-shell-search-file-head:hover, .ps-shell-search-match:hover { background: var(--tr-accent); }
+.ps-shell-search-file-head > svg { flex-shrink: 0; }
+.ps-shell-search-file-name { flex-shrink: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; }
+.ps-shell-search-file-path { min-width: 0; color: var(--tr-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-search-file-count { flex-shrink: 0; margin-left: auto; min-width: 18px; padding: 0 4px; border-radius: var(--tr-radius-sm); background: var(--tr-muted); text-align: center; font-size: 10px; line-height: 16px; }
+.ps-shell-search-match { display: flex; width: 100%; align-items: baseline; gap: 8px; padding: 3px 8px 3px 24px; border: 0; border-radius: var(--tr-radius-sm); text-align: left; color: var(--tr-muted-foreground); background: transparent; font: 12px/18px var(--tr-font-mono); cursor: pointer; }
+.ps-shell-search-line-no { width: 26px; text-align: right; flex-shrink: 0; opacity: 0.65; font-variant-numeric: tabular-nums; }
+.ps-shell-search-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-search-hl { color: var(--tr-foreground); background: color-mix(in oklab, var(--tr-warning) 25%, transparent); border-radius: var(--tr-radius-xs); }
+.ps-shell-sessions-scope { padding: 12px 12px 8px; }
+.ps-shell-sessions-scope .tr-segmented { width: 100%; }
+.ps-shell-sessions-scope .tr-segmented > button { flex: 1; justify-content: center; font-size: 12px; line-height: 16px; }
+.ps-shell-sessions-search { margin: 0 12px 12px; width: auto; flex-shrink: 0; }
+.ps-shell-sessions-list { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 8px; }
+.ps-shell-sessions-group { display: flex; align-items: center; gap: 6px; padding: 12px 8px 6px; color: var(--tr-muted-foreground); font-size: 11px; font-weight: 600; letter-spacing: 0.025em; }
+.ps-shell-session-item { position: relative; margin: 2px 0; border-radius: var(--tr-radius-lg); }
+.ps-shell-session-item:hover, .ps-shell-session-item:focus-within { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }
+.ps-shell-session-open { display: block; width: 100%; padding: 10px 8px; border: 0; border-radius: var(--tr-radius-lg); text-align: left; color: var(--tr-foreground); background: transparent; cursor: pointer; font: 14px/20px var(--tr-font-ui); }
+.ps-shell-session-top { display: flex; align-items: baseline; gap: 8px; }
+.ps-shell-session-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.ps-shell-session-time { color: var(--tr-muted-foreground); font-size: 11px; line-height: 16px; flex-shrink: 0; }
+.ps-shell-session-preview { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.ps-shell-session-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-right: 24px; color: var(--tr-muted-foreground); font-size: 11px; line-height: 16px; }
+.ps-shell-session-meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.ps-shell-session-branch { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-session-del { position: absolute; right: 4px; bottom: 4px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: var(--tr-radius-sm); background: transparent; color: var(--tr-muted-foreground); opacity: 0; cursor: pointer; }
+.ps-shell-session-item:hover .ps-shell-session-del, .ps-shell-session-item:focus-within .ps-shell-session-del { opacity: 1; }
+.ps-shell-session-del:hover { background: color-mix(in oklab, var(--tr-destructive) 15%, transparent); color: var(--tr-destructive); }
+.ps-shell-ext-list { overflow: auto; min-height: 0; flex: 1; padding: 12px; }
+.ps-shell-ext-card { padding: 12px; margin-bottom: 8px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-lg); background: var(--tr-card); }
+.ps-shell-ext-head { display: flex; align-items: center; gap: 8px; }
+.ps-shell-ext-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--tr-radius-md); background: var(--tr-secondary); color: var(--tr-muted-foreground); }
+.ps-shell-ext-info { min-width: 0; flex: 1; }
+.ps-shell-ext-name { font-size: 14px; font-weight: 500; line-height: 20px; }
+.ps-shell-ext-ver, .ps-shell-ext-author { color: var(--tr-muted-foreground); font-size: 11px; line-height: 16px; font-weight: 400; }
+.ps-shell-ext-desc { margin: 8px 0; font-size: 12px; line-height: 18px; color: var(--tr-muted-foreground); }
+.ps-shell-ext-status { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; line-height: 16px; color: var(--tr-muted-foreground); }
+.ps-shell-dot, .ps-shell-rc-dot, .ps-shell-toast-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ps-shell-ext-status.st-connected { color: var(--tr-success); }
+.ps-shell-ext-status.st-error { color: var(--tr-destructive); }
+.ps-shell-ext-status.st-connecting, .ps-shell-ext-status.st-needs-config { color: var(--tr-warning); }
+.ps-shell-ext-config-link { margin-top: 8px; padding: 0; }
+.ps-shell-ext-footnote { padding: 8px 4px; color: var(--tr-muted-foreground); font-size: 11px; line-height: 16px; }
+.ps-shell-remote-connected { display: flex; align-items: center; gap: 8px; margin: 12px; padding: 10px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-lg); }
+.ps-shell-rc-dot { color: var(--tr-success); }
+.ps-shell-rc-info { min-width: 0; flex: 1; }
+.ps-shell-rc-name { font-size: 14px; line-height: 20px; font-weight: 500; }
+.ps-shell-rc-host { font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-remote-list { min-height: 0; flex: 1; overflow: auto; padding: 8px 12px; }
+.ps-shell-remote-new { width: 100%; margin-bottom: 12px; }
+.ps-shell-host-item { display: flex; align-items: center; min-width: 0; gap: 4px; margin: 2px 0; border-radius: var(--tr-radius-lg); }
+.ps-shell-host-item:hover { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }
+.ps-shell-host-item.on { background: var(--tr-accent); }
+.ps-shell-host-connect { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding: 8px; border: 0; border-radius: var(--tr-radius-lg); background: transparent; color: var(--tr-foreground); text-align: left; cursor: pointer; }
+.ps-shell-host-connect:disabled { opacity: 0.5; cursor: wait; }
+.ps-shell-host-info { display: flex; flex-direction: column; min-width: 0; }
+.ps-shell-host-name { font: 14px/20px var(--tr-font-ui); font-weight: 500; }
+.ps-shell-host-sub { font: 12px/16px var(--tr-font-ui); color: var(--tr-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-host-actions { display: flex; align-items: center; flex-shrink: 0; opacity: 0; }
+.ps-shell-host-item:hover .ps-shell-host-actions, .ps-shell-host-item:focus-within .ps-shell-host-actions { opacity: 1; }
+.ps-shell-modal-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: color-mix(in oklab, var(--tr-canvas) 10%, transparent); backdrop-filter: blur(4px); }
+.ps-shell-dialog { width: min(384px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-xl); background: var(--tr-popover); color: var(--tr-foreground); box-shadow: var(--tr-shadow-xl); font: 14px/20px var(--tr-font-ui); outline: none; animation: ps-shell-dialog-in 100ms var(--tr-ease-out); }
+.ps-shell-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--tr-border); }
+.ps-shell-modal-header h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; line-height: 20px; font-weight: 600; }
+.ps-shell-pw-body { padding: 8px 16px 16px; }
+.ps-shell-pw-sub { margin-bottom: 12px; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.ps-shell-input { width: 100%; height: 32px; padding: 4px 10px; border: 1px solid var(--tr-input); border-radius: var(--tr-radius-md); background: color-mix(in oklab, var(--tr-input) 30%, transparent); color: var(--tr-foreground); font: 14px/20px var(--tr-font-ui); outline: none; }
+.ps-shell-input::placeholder { color: var(--tr-muted-foreground); }
+.ps-shell-input:focus { border-color: var(--tr-ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--tr-ring) 50%, transparent); }
+.ps-shell-error { margin-top: 8px; color: var(--tr-destructive); font-size: 12px; line-height: 18px; }
+.ps-shell-modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--tr-border); background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }
+.ps-shell-bell { position: relative; }
+.ps-shell-notification-dot { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--tr-warning); box-shadow: 0 0 0 2px var(--tr-canvas); }
+.ps-shell-notifications.tr-menu { width: min(90vw, 384px); }
+.ps-shell-notification-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.ps-shell-notification-copy strong { font-size: 14px; line-height: 20px; font-weight: 500; }
+.ps-shell-notification-copy small { font-size: 12px; line-height: 16px; color: var(--tr-muted-foreground); }
+.ps-shell-notification-row { align-items: baseline; font-size: 12px; line-height: 18px; }
+.ps-shell-toast-dot.is-error { color: var(--tr-destructive); }
+.ps-shell-toast-dot.is-success { color: var(--tr-success); }
+.ps-shell-toast-dot.is-info { color: var(--tr-info); }
+.ps-shell-notifications-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 16px; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.ps-shell-usage.tr-menu { width: min(90vw, 320px); }
+.ps-shell-usage-note { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--tr-muted-foreground); font-size: 12px; line-height: 18px; }
+.ps-shell-usage-body { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+.ps-shell-usage-body > strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.ps-shell-usage-body p, .ps-shell-usage-body small { margin: 0; font-size: 12px; line-height: 18px; color: var(--tr-muted-foreground); }
+.ps-shell-menubar button:focus-visible, .ps-shell-window-controls button:focus-visible, .ps-shell-rail-item:focus-visible, .ps-shell-status-item:focus-visible, .ps-shell-search-file-head:focus-visible, .ps-shell-search-match:focus-visible, .ps-shell-session-open:focus-visible, .ps-shell-session-del:focus-visible, .ps-shell-host-connect:focus-visible { outline: 2px solid var(--tr-ring); outline-offset: -2px; }
+@media (max-width: 1000px) { .ps-shell-status-model { max-width: 160px; } .ps-shell-menu-trigger { padding-inline: 5px; } }
+@media (max-width: 760px) { .ps-shell-status-model { max-width: 100px; } .ps-shell-status-clock { display: none; } .ps-shell-header-actions { gap: 2px; } .ps-shell-menu-trigger { padding-inline: 3px; font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { .ps-shell-rail-item { transition: none; } }
+
+.ps-shell-modal-header p { margin: 8px 0 0; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; }
+.ps-shell-connect-dialog { width: min(480px, calc(100vw - 32px)); }
+.ps-shell-connect-body { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+.ps-shell-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 14px; line-height: 20px; }
+.ps-shell-field > span { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.ps-shell-field small { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--tr-muted-foreground); }
+.ps-shell-field-row { display: flex; align-items: flex-end; gap: 12px; }
+.ps-shell-grow { flex: 1; min-width: 0; }
+.ps-shell-port { width: 80px; flex-shrink: 0; }
+.ps-shell-field-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.ps-shell-confirm-dialog { width: min(448px, calc(100vw - 32px)); }
+.ps-shell-confirm-body { display: flex; align-items: flex-start; gap: 12px; padding: 20px; }
+.ps-shell-confirm-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; color: var(--tr-destructive); background: color-mix(in oklab, var(--tr-destructive) 10%, transparent); }
+.ps-shell-confirm-body h3 { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; overflow-wrap: anywhere; }
+.ps-shell-confirm-body p { margin: 6px 0 0; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; }
+.ps-shell-command-dialog { position: fixed; top: 15vh; width: min(90vw, 640px); overflow: hidden; }
+.ps-shell-command { display: flex; flex-direction: column; padding: 4px; border-radius: var(--tr-radius-xl); background: var(--tr-popover); }
+.ps-shell-command-input-wrap { padding: 4px 4px 0; }
+.ps-shell-command-input-wrap .tr-input-group { height: 32px; background: color-mix(in oklab, var(--tr-input) 30%, var(--tr-popover)); border-color: color-mix(in oklab, var(--tr-input) 30%, var(--tr-popover)); }
+.ps-shell-command-list { max-height: 288px; overflow-x: hidden; overflow-y: auto; overflow-anchor: none; scroll-padding-block: 4px; padding: 4px; scrollbar-width: none; }
+.ps-shell-command-list::-webkit-scrollbar { display: none; }
+.ps-shell-command-group { padding: 8px 8px 4px; color: var(--tr-muted-foreground); font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.025em; }
+.ps-shell-command-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin: 2px 0; padding: 6px 8px; text-align: left; border: 1px solid transparent; border-radius: var(--tr-radius-lg); background: transparent; color: var(--tr-muted-foreground); font: 14px/20px var(--tr-font-ui); cursor: pointer; outline: none; }
+.ps-shell-command-item[aria-selected='true'] { border-color: color-mix(in oklab, var(--tr-primary) 10%, transparent); background: color-mix(in oklab, var(--tr-primary) 5%, transparent); color: var(--tr-foreground); box-shadow: var(--tr-shadow-sm); }
+.ps-shell-command-item svg { flex-shrink: 0; }
+.ps-shell-command-item > .tr-kbd { margin-left: auto; }
+.ps-shell-command-empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px 12px; text-align: center; color: var(--tr-muted-foreground); font-size: 14px; line-height: 20px; }
+.ps-shell-file-name { flex-shrink: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-shell-file-path { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.ps-shell-toaster { position: fixed; z-index: 11000; right: 32px; bottom: 40px; width: min(356px, calc(100vw - 32px)); font: 13px/18px var(--tr-font-ui); }
+.ps-shell-toaster ol { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.ps-shell-toast { position: relative; display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-md); background: var(--tr-popover); color: var(--tr-popover-foreground); box-shadow: var(--tr-shadow-lg); animation: ps-shell-toast-in 150ms var(--tr-ease-out); }
+.ps-shell-toast > svg { flex-shrink: 0; }
+.ps-shell-toast > span { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.ps-shell-toast-close { position: absolute; top: 0; left: 0; transform: translate(-35%, -35%); display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--tr-border); border-radius: 50%; background: var(--tr-popover); color: var(--tr-muted-foreground); opacity: 0; pointer-events: none; cursor: pointer; }
+.ps-shell-toast:hover .ps-shell-toast-close, .ps-shell-toast:focus-within .ps-shell-toast-close, .ps-shell-toast-close:focus-visible { opacity: 1; pointer-events: auto; }
+.ps-shell-remote-control-dialog { width: min(720px, calc(100vw - 32px)); }
+.ps-shell-control-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 20px; }
+.ps-shell-control-qr-side { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; }
+.ps-shell-control-qr { display: flex; align-items: center; justify-content: center; width: 240px; height: 240px; max-width: 100%; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-lg); }
+.ps-shell-control-scan { color: var(--tr-muted-foreground); text-align: center; font-size: 12px; line-height: 18px; }
+.ps-shell-control-scan b { color: var(--tr-foreground); font-weight: 500; }
+.ps-shell-control-link { display: flex; align-items: center; gap: 2px; width: 100%; padding: 2px 4px; border: 1px solid var(--tr-input); border-radius: var(--tr-radius-md); background: color-mix(in oklab, var(--tr-input) 30%, transparent); }
+.ps-shell-control-link input { min-width: 0; flex: 1; border: 0; outline: none; background: transparent; color: var(--tr-muted-foreground); font: 11px/16px var(--tr-font-mono); }
+.ps-shell-control-status { display: flex; align-items: center; gap: 6px; color: var(--tr-muted-foreground); font-size: 12px; line-height: 16px; }
+.ps-shell-control-status.on { color: var(--tr-success); }
+.ps-shell-control-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ps-shell-control-list-side { display: flex; min-width: 0; flex-direction: column; gap: 12px; padding-left: 20px; border-left: 1px solid var(--tr-border); }
+.ps-shell-control-list-label { color: var(--tr-muted-foreground); font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; }
+.ps-shell-control-list { min-height: 0; max-height: 240px; overflow: auto; }
+.ps-shell-control-chat { display: flex; align-items: center; gap: 4px; padding: 2px; margin-bottom: 2px; border-radius: var(--tr-radius-lg); }
+.ps-shell-control-chat.active { background: color-mix(in oklab, var(--tr-foreground) 8%, transparent); }
+.ps-shell-control-chat:hover { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }
+.ps-shell-control-chat-open { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; padding: 6px; border: 0; border-radius: var(--tr-radius-md); background: transparent; color: var(--tr-foreground); text-align: left; cursor: pointer; }
+.ps-shell-control-chat-open svg { flex-shrink: 0; }
+.ps-shell-control-chat-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 14px/20px var(--tr-font-ui); }
+.ps-shell-control-note, .ps-shell-control-empty { color: var(--tr-muted-foreground); font-size: 12px; line-height: 18px; }
+.ps-shell-control-note { margin-top: auto; }
+.ps-shell-control-stop { width: 100%; }
+@keyframes ps-shell-dialog-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes ps-shell-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) { .ps-shell-control-body { grid-template-columns: minmax(0, 1fr); } .ps-shell-control-list-side { padding-left: 0; padding-top: 16px; border-left: 0; border-top: 1px solid var(--tr-border); } .ps-shell-modal-footer { flex-wrap: wrap; } .ps-shell-toaster { right: 16px; } }
+@media (pointer: coarse) { .ps-shell-toast { padding-right: 40px; } .ps-shell-toast-close { left: auto; right: 8px; top: 8px; transform: none; opacity: 1; pointer-events: auto; } .ps-shell-toast-close::after { content: ''; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); } }
+@media (prefers-reduced-motion: reduce) { .ps-shell-dialog, .ps-shell-toast { animation: none; } }
+
+.ps-shell-control-chat-select { display: flex; flex: 1; min-width: 0; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; }
+.ps-shell-control-chat-select input { accent-color: var(--tr-primary); flex-shrink: 0; }
+.ps-shell-control-chat-select .ps-shell-control-chat-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

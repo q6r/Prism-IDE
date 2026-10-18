@@ -1,0 +1,113 @@
+{
+  "cliVersion": "2.1.289",
+  "sdkVersion": "0.3.295",
+  "recordedAt": "2026-10-09",
+  "platform": "win32-x64",
+  "processes": [
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--thinking=adaptive",
+        "--effort=high",
+        "--model=sonnet",
+        "--permission-prompt-tool=stdio",
+        "--setting-sources=user,project,local",
+        "--permission-mode=default",
+        "--include-partial-messages",
+        "--settings",
+        "{\"fastMode\":false}"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1",
+        "CLAUDE_CODE_QUESTION_PREVIEW_FORMAT": "markdown"
+      },
+      "removedEnv": []
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--thinking=disabled",
+        "--effort=max",
+        "--model=opus",
+        "--permission-prompt-tool=stdio",
+        "--resume=resume-id",
+        "--setting-sources=user,project,local",
+        "--permission-mode=plan",
+        "--include-partial-messages",
+        "--settings",
+        "{\"fastMode\":true}"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1",
+        "CLAUDE_CODE_QUESTION_PREVIEW_FORMAT": "markdown"
+      },
+      "removedEnv": []
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--model=claude-haiku-4-5",
+        "--permission-prompt-tool=stdio",
+        "--setting-sources=user,project,local",
+        "--permission-mode=acceptEdits",
+        "--include-partial-messages",
+        "--settings",
+        "{\"fastMode\":false}"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1",
+        "CLAUDE_CODE_QUESTION_PREVIEW_FORMAT": "markdown"
+      },
+      "removedEnv": []
+    },
+    {
+      "command": "<CLI>",
+      "args": [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--thinking=adaptive",
+        "--permission-prompt-tool=stdio",
+        "--setting-sources=user,project,local",
+        "--permission-mode=bypassPermissions",
+        "--include-partial-messages",
+        "--settings",
+        "{\"fastMode\":false}"
+      ],
+      "env": {
+        "CLAUDE_CODE_ENTRYPOINT": "sdk-ts",
+        "CLAUDE_AGENT_SDK_VERSION": "0.3.295",
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": "true",
+        "CLAUDE_CODE_SDK_READS_SESSION_STATE": "1",
+        "CLAUDE_CODE_QUESTION_PREVIEW_FORMAT": "markdown"
+      },
+      "removedEnv": []
+    }
+  ]
+}

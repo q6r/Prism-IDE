@@ -1,0 +1,5 @@
+# The host's copy of the phone's page stays byte-identical to mobilePage(),
+# whose template literal always yields LF (tests/remote-control-page.test.cjs).
+host/crates/prism-host/src/domains/remote/page.html text eol=lf
+# License inventory hashes are calculated over these exact LF bytes.
+third-party-licenses/** text eol=lf
