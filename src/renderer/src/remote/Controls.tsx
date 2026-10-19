@@ -2,12 +2,14 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { ChevronDown, FilePen, ImageIcon, Play, Trash2, X } from 'lucide-react'
 import type { AgentModel, AgentSelection } from '../../../shared/agents'
 import type { RemoteImageIpc, RemoteQueuedMessageIpc } from '../../../preload'
+import { resolveChatImageSource } from '../../../shared/chatImageSource'
 export type Request = (action: string, payload?: Record<string, unknown>) => Promise<any>
 export const RemoteContext = createContext<{ request: Request; command: (action: string, payload?: Record<string, unknown>) => void }>({ request: async () => { throw new Error('Sem conexão') }, command: () => {} })
 
 export function RemoteImage({ src, asset, alt = 'Imagem da conversa' }: { src?: string; asset?: RemoteImageIpc['ref']; alt?: string }) {
   const { request } = useContext(RemoteContext)
-  const direct = src && /^(https?:|data:image\/(png|jpeg|gif|webp);base64,)/i.test(src) ? src : undefined
+  const resolved = src ? resolveChatImageSource(src, '/') : undefined
+  const direct = resolved?.kind === 'direct' ? resolved.url : undefined
   const [url, setUrl] = useState<string | undefined>(direct)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -15,13 +17,15 @@ export function RemoteImage({ src, asset, alt = 'Imagem da conversa' }: { src?: 
   useEffect(() => {
     let alive = true; setUrl(direct); setError('')
     if ((src || asset) && !direct) {
-      const path = src ? decodeURIComponent(src.replace(/^file:\/\//i, '').replace(/^\/(?:([A-Za-z]:))/, '$1')) : ''
-      void request('image', asset ? { ...asset } : { path }).then(data => { if (alive) setUrl(data.url) }, e => { if (alive) setError(e.message) })
+      if (resolved?.kind === 'error') { setError(resolved.message); return }
+      // The host authorizes the original Markdown reference, then decodes the
+      // file URL and resolves it inside this chat's shared workspace.
+      void request('image', asset ? { ...asset } : { path: src }).then(data => { if (alive) setUrl(data.url) }, e => { if (alive) setError(e.message) })
     }
     return () => { alive = false }
   }, [src, asset?.turnId, asset?.toolId, asset?.queueId, asset?.index, request])
   useEffect(() => { if (open) dialog.current?.showModal(); else dialog.current?.close() }, [open])
-  return <span className="rm-image-wrap">{url ? <button type="button" className="rm-image" onClick={() => setOpen(true)} aria-label={`Ampliar ${alt}`}><img src={url} alt={alt} loading="lazy" onError={() => setError('Imagem indisponível')} /></button> : <span role="status"><ImageIcon size={16} /> {error || 'Carregando imagem…'}</span>}
+  return <span className="rm-image-wrap">{url && !error ? <button type="button" className="rm-image" onClick={() => setOpen(true)} aria-label={`Ampliar ${alt}`}><img src={url} alt={alt} loading="lazy" onError={() => setError('Imagem indisponível')} /></button> : <span role="status"><ImageIcon size={16} /> {error ? `${alt}: ${error}` : 'Carregando imagem…'}</span>}
     <dialog ref={dialog} className="rm-image-dialog" aria-label={alt} onCancel={() => setOpen(false)} onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}><button type="button" className="rm-icon" aria-label="Fechar imagem" onClick={() => setOpen(false)}><X size={20} /></button><img src={url} alt={alt} /></dialog></span>
 }
 export function Images({ images }: { images?: RemoteImageIpc[] }) {

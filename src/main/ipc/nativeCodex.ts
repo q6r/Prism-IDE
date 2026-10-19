@@ -43,6 +43,7 @@ export function nativeItem(item: any, complete: boolean): SharedSegment | undefi
 
 interface Session { server: CodexServer; owner: WebContents; signature: string; threadId?: string; active?: CodexSend; nativeTurnId?: string; segments: Map<string, SharedSegment>; requests: Map<string, number | string>; abortRequested?: boolean; failure?: string; grants: Map<string, unknown>; questionKeys: Map<string, {id:string;question:string}[]>
   subagents?: CodexSubagents
+  childRequests: Map<string, string>
   /** The thread total before the active turn (undefined until its first update; null when unknown). */
   turnBase?: CodexBreakdown | null
   /** The last thread total this process reported. */
@@ -93,7 +94,8 @@ export function registerNativeCodexHandlers(): void {
   const finish = (s: Session, error?: string, aborted?: boolean): void => {
     if (!s.active) return
     emit(s, error ? { id: s.active.id, kind: 'error', message: error } : { id: s.active.id, kind: 'done', aborted })
-    s.active = undefined; s.nativeTurnId = undefined; s.abortRequested = false; s.requests.clear(); s.questionKeys.clear(); s.grants.clear(); s.turnBase = undefined
+    s.active = undefined; s.nativeTurnId = undefined; s.abortRequested = false; s.turnBase = undefined
+    for (const key of s.requests.keys()) if (!s.childRequests.has(key)) { s.requests.delete(key); s.questionKeys.delete(key); s.grants.delete(key) }
   }
   const bind = (chatId: string, s: Session): void => {
     s.subagents = new CodexSubagents((origin, agent) => {
@@ -104,27 +106,40 @@ export function registerNativeCodexHandlers(): void {
     s.server.onClose = (err) => { s.subagents?.close(); finish(s, s.abortRequested ? undefined : s.failure || err.message, !!s.abortRequested); if (sessions.get(chatId) === s) sessions.delete(chatId) }
     s.server.onMessage = (msg) => {
       const p = msg.params || {}, active = s.active
-      if (s.subagents?.handle(s.threadId || '', active ? { id: active.id, journal: !!active.chat } : undefined, msg)) return
-      const childRequest = msg.id !== undefined && !!active && s.subagents?.belongsTo(p.threadId, active.id)
-      if (!active || s.failure || p.threadId && p.threadId !== s.threadId && !childRequest) { if (msg.id !== undefined) s.server.reject(msg.id); return }
+      if (s.subagents?.handle(s.threadId || '', active ? { id: active.id, journal: !!active.chat } : undefined, msg)) {
+        if (['turn/completed', 'thread/closed'].includes(msg.method) && !s.subagents.activeTurn(p.threadId)) {
+          for (const [key, child] of s.childRequests) if (child === p.threadId) { s.childRequests.delete(key); s.requests.delete(key); s.grants.delete(key); s.questionKeys.delete(key) }
+        }
+        return
+      }
+      const childOrigin = msg.id !== undefined ? s.subagents?.origin(p.threadId) : undefined
+      const childRequest = !!childOrigin
+      if (!active && !childRequest || s.failure || p.threadId && p.threadId !== s.threadId && !childRequest) { if (msg.id !== undefined) s.server.reject(msg.id); return }
       if (!childRequest && p.turnId && s.nativeTurnId && p.turnId !== s.nativeTurnId) return
       if (msg.id !== undefined) {
         const requestId = `codex:${chatId}:${msg.id}`
         s.requests.set(requestId, msg.id)
+        if (childOrigin) s.childRequests.set(requestId, p.threadId)
+        const request = (field: 'permission' | 'question', payload: Record<string, unknown>): void => {
+          if (childOrigin) s.subagents?.pendingRequest(p.threadId, field, payload)
+          else if (!s.owner.isDestroyed()) s.owner.send(`agent:${field}`, payload)
+        }
+        const originId = childOrigin?.id ?? active!.id
         if (['item/commandExecution/requestApproval', 'item/fileChange/requestApproval'].includes(msg.method)) {
-          s.owner.send('agent:permission', { id: active.id, permId: requestId, toolUseId: p.itemId, toolName: msg.method.includes('commandExecution') ? 'Bash' : 'Write', input: { command: p.command, cwd: p.cwd, grantRoot: p.grantRoot }, title: p.reason || 'Codex solicita permissão' })
+          request('permission', { id: originId, permId: requestId, toolUseId: p.itemId, toolName: msg.method.includes('commandExecution') ? 'Bash' : 'Write', input: { command: p.command, cwd: p.cwd, grantRoot: p.grantRoot }, title: p.reason || 'Codex solicita permissão' })
         } else if (msg.method === 'item/permissions/requestApproval') {
           s.grants.set(requestId, p.permissions)
-          s.owner.send('agent:permission', { id: active.id, permId: requestId, toolUseId: p.itemId, toolName: 'Permissões', input: { cwd: p.cwd, permissions: p.permissions }, title: p.reason || 'Codex solicita acesso a arquivos ou rede' })
+          request('permission', { id: originId, permId: requestId, toolUseId: p.itemId, toolName: 'Permissões', input: { cwd: p.cwd, permissions: p.permissions }, title: p.reason || 'Codex solicita acesso a arquivos ou rede' })
         } else if (msg.method === 'item/tool/requestUserInput') {
           const questions = (Array.isArray(p.questions) ? p.questions : []).filter((q: any) => q && typeof q.question === 'string' && q.question.trim())
             .map((q: any, index: number) => ({ ...q, id: typeof q.id === 'string' ? q.id : typeof q.questionId === 'string' ? q.questionId : String(index), question: q.question, options: Array.isArray(q.options) ? q.options : [] }))
-          if (!questions.length) { s.requests.delete(requestId); s.server.reject(msg.id); return }
+          if (!questions.length) { s.requests.delete(requestId); s.childRequests.delete(requestId); s.server.reject(msg.id); return }
           s.questionKeys.set(requestId, questions.map((q: any) => ({ id: q.id, question: q.question })))
-          s.owner.send('agent:question', { id: active.id, dialogId: requestId, toolUseId: p.itemId, questions })
-        } else { s.requests.delete(requestId); s.server.reject(msg.id) }
+          request('question', { id: originId, dialogId: requestId, toolUseId: p.itemId, questions })
+        } else { s.requests.delete(requestId); s.childRequests.delete(requestId); s.server.reject(msg.id) }
         return
       }
+      if (!active) return
       if (msg.method === 'turn/started') { s.nativeTurnId = p.turn.id; if (s.abortRequested) void s.server.request('turn/interrupt', { threadId: s.threadId, turnId: s.nativeTurnId }).catch(() => s.server.close()) }
       else if (msg.method === 'thread/tokenUsage/updated') emit(s, { id: active.id, kind: 'metrics', metrics: codexMetrics(p.tokenUsage, turnFromUpdate(s, p.tokenUsage)) })
       else if (msg.method === 'item/started' || msg.method === 'item/completed') {
@@ -149,7 +164,7 @@ export function registerNativeCodexHandlers(): void {
       // history. Never silently reuse the older thread of the returning agent.
       if (s && (signature !== s.signature || !payload.resume || s.threadId !== payload.resume)) { s.server.close(); s = undefined }
       if (!s) {
-        s = { server: new CodexServer(payload.selection.profileId, payload.cwd), owner: e.sender, signature, segments: new Map(), requests: new Map(), questionKeys: new Map(), grants: new Map() }
+        s = { server: new CodexServer(payload.selection.profileId, payload.cwd), owner: e.sender, signature, segments: new Map(), requests: new Map(), questionKeys: new Map(), grants: new Map(), childRequests: new Map() }
         sessions.set(payload.chatId, s); bind(payload.chatId, s)
         const created = s
         e.sender.once('destroyed', () => { if (sessions.get(payload.chatId) === created) created.server.close() })
@@ -202,6 +217,26 @@ export function registerNativeCodexHandlers(): void {
       input: [{ type: 'text', text, text_elements: [] }, ...(p.images || []).map(i => ({ type: 'image', url: `data:${i.mime};base64,${i.data}` }))] })
     if (s.active?.chat) agentStore.appendEvent(p.chatId, p.turnId, { kind: 'segment', segment: { kind: 'user', toolId: p.messageId || crypto.randomUUID(), text, images: p.images, sentAt: Date.now() } })
   })
+  ipcMain.handle('codex:subagent-message', async (e, p: { rootChatId: string; rootTurnId: string; agentId: string; text: string; context?: string; images?: { mime: string; data: string }[] }) => {
+    if (typeof p?.text !== 'string' || !p.text.trim() && !p.images?.length) throw new Error('Digite uma mensagem.')
+    const s = sessions.get(p.rootChatId)
+    if (!s || s.owner.id !== e.sender.id || s.failure || !s.subagents) throw new Error('A conexão original deste subagente Codex não está mais disponível.')
+    const target = s.subagents.beginMessage(p.agentId, p.rootTurnId)
+    try {
+      if (target.resume) {
+        const response = await s.server.request('thread/resume', { threadId: p.agentId })
+        if (response.thread?.id !== p.agentId) throw new Error('O Codex não confirmou a retomada deste subagente.')
+      }
+      const text = p.context ? `${p.text}\n\n${p.context}` : p.text
+      const input = [{ type: 'text', text, text_elements: [] }, ...(p.images || []).map(image => ({ type: 'image', url: `data:${image.mime};base64,${image.data}` }))]
+      const steered = !!target.turn
+      const response = await s.server.request(steered ? 'turn/steer' : 'turn/start', { threadId: p.agentId, ...(target.turn ? { expectedTurnId: target.turn } : {}), input })
+      const nativeTurnId = steered ? response.turnId : response.turn?.id
+      if (typeof nativeTurnId !== 'string' || !nativeTurnId) throw new Error('O Codex não confirmou o turno do subagente. Confira a conversa antes de reenviar.')
+      s.subagents.acceptMessage(p.agentId, target, nativeTurnId)
+      return { delivery: 'direct', nativeTurnId, steered }
+    } finally { s.subagents.finishMessage(p.agentId) }
+  })
   ipcMain.on('codex:abort', (e, chatId: string) => {
     const s = sessions.get(chatId)
     if (!s || s.owner.id !== e.sender.id || !s.active) return
@@ -213,22 +248,26 @@ export function registerNativeCodexHandlers(): void {
   })
   ipcMain.on('codex:permission', (e, chatId: string, requestId: string, decision: string) => {
     const s = sessions.get(chatId), request = s?.requests.get(requestId)
-    if (!s?.active || s.owner.id !== e.sender.id || request === undefined) return
+    if (!s || !s.active && !s.childRequests.has(requestId) || s.owner.id !== e.sender.id || request === undefined) return
     s.requests.delete(requestId)
+    const child = s.childRequests.get(requestId); s.childRequests.delete(requestId)
     if (s.grants.has(requestId)) {
       s.server.answer(request, { permissions: decision === 'deny' ? {} : s.grants.get(requestId), scope: decision === 'allow_always' ? 'session' : 'turn' })
       s.grants.delete(requestId)
     } else s.server.answer(request, { decision: decision === 'allow_always' ? 'acceptForSession' : decision === 'allow' ? 'accept' : 'decline' })
+    if (child) s.subagents?.answered(child, 'permission', requestId)
   })
   ipcMain.on('codex:question', (e, chatId: string, requestId: string, answers?: Record<string, string>) => {
     const s = sessions.get(chatId), request = s?.requests.get(requestId)
-    if (!s?.active || s.owner.id !== e.sender.id || request === undefined) return
+    if (!s || !s.active && !s.childRequests.has(requestId) || s.owner.id !== e.sender.id || request === undefined) return
     s.requests.delete(requestId)
+    const child = s.childRequests.get(requestId); s.childRequests.delete(requestId)
     const keys = s.questionKeys.get(requestId) || []; s.questionKeys.delete(requestId)
     s.server.answer(request, { answers: Object.fromEntries(keys.map(q => {
       const answer = answers?.[q.id] ?? answers?.[q.question]
       return [q.id, { answers: answer ? [answer] : [] }]
     })) })
+    if (child) s.subagents?.answered(child, 'question', requestId)
   })
   app.on('before-quit', () => { for (const s of sessions.values()) s.server.close() })
   ;(app as unknown as EventEmitter).on('prism:profile-changed', (profileId: string) => {

@@ -47,6 +47,8 @@ interface AgentChatsState {
   editingQueue: Record<string, QueuedMessage | undefined>
   setEditingQueued: (id: string, item?: QueuedMessage) => void
   steering: Record<string, QueuedMessage | undefined>
+  subagentSending: Record<string, boolean>
+  messageSubagent: (id: string, text: string) => Promise<boolean>
   init: () => Promise<void>
   /** Reads the profile list again; `profiles` is one the host just announced (`providers.changed`). */
   refreshProfiles: (profiles?: ProviderProfile[]) => Promise<void>
@@ -387,15 +389,22 @@ function receiveSubagent(turnId: string, agent: SubagentUpdate): void {
   const root = state.chats.find(chat => !chat.nativeAgent && chat.turns.some(turn => turn.id === turnId))
   if (!root || (onHost() && !state.runtime[root.id]?.local && !localSubagentOrigins.has(turnId))) return
   localSubagentOrigins.add(turnId)
-  const projected = projectSubagent(state.chats, root.id, turnId, agent)
+  const known = state.chats.find(c => c.nativeAgent?.rootChatId === root.id && (c.nativeAgent.controlId === agent.id || (agent.messageTarget && c.nativeAgent.messageTarget === agent.messageTarget)))
+  const parent = agent.parentId ? state.chats.find(c => c.nativeAgent?.rootChatId === root.id && (c.nativeAgent.id === agent.parentId || c.nativeAgent.controlId === agent.parentId)) : undefined
+  const update = { ...agent, ...(known?.nativeAgent ? { id: known.nativeAgent.id } : {}), ...(parent?.nativeAgent ? { parentId: parent.nativeAgent.id } : {}), controlId: agent.id, controlTurnId: turnId }
+  const projected = projectSubagent(state.chats, root.id, known?.nativeAgent?.rootTurnId ?? parent?.nativeAgent?.rootTurnId ?? turnId, update)
   if (!projected.length) return
   const replacements = new Map(projected.map(chat => [chat.id, chat]))
-  const child = projected.find(chat => chat.nativeAgent?.id === agent.id)
+  const child = projected.find(chat => chat.nativeAgent?.id === update.id)
   useAgentChats.setState(current => ({
     chats: [...current.chats.map(chat => replacements.get(chat.id) ?? chat), ...projected.filter(chat => !current.chats.some(before => before.id === chat.id))],
     ...(child?.nativeAgent ? { runtime: { ...current.runtime, [child.id]: {
       turnId: child.pendingTurnId ?? child.turns.at(-1)!.id, route: routeKey(child.selection),
-      busy: subagentActive(child.nativeAgent.status), local: true
+      busy: subagentActive(child.nativeAgent.status), local: true,
+      permission: subagentActive(child.nativeAgent.status)
+        ? agent.permission === undefined ? current.runtime[child.id]?.permission : (agent.permission ?? undefined) as unknown as PendingPerm | undefined : undefined,
+      question: subagentActive(child.nativeAgent.status)
+        ? agent.question === undefined ? current.runtime[child.id]?.question : (agent.question ?? undefined) as unknown as PendingQuestion | undefined : undefined
     } } } : {})
   }))
   for (const chat of projected) persist(chat.id)
@@ -470,7 +479,7 @@ function finish(turnId: string, error?: string, aborted = false, errorCode?: str
 
 let initialization: Promise<void> | undefined
 export const useAgentChats = create<AgentChatsState>((set, get) => ({
-  ready: false, mode: null, hostError: null, chats: [], profiles: [], activeId: null, runtime: {}, attachments: {}, stopping: {}, steering: {}, editingQueue: {},
+  ready: false, mode: null, hostError: null, chats: [], profiles: [], activeId: null, runtime: {}, attachments: {}, stopping: {}, steering: {}, editingQueue: {}, subagentSending: {},
   setEditingQueued: (id, item) => {
     const chat = get().chats.find(c => c.id === id)
     if (item && sharedQueue(chat) && !chat?.queuePaused) {
@@ -700,6 +709,38 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       return { chats: s.chats.filter((c) => c.id !== id), activeId: next?.id ?? null }
     })
   },
+  messageSubagent: async (id, text) => {
+    const chat = get().chats.find(c => c.id === id)
+    const native = chat?.nativeAgent
+    if (!chat || !native || !text.trim() || get().subagentSending[id]) return false
+    const admittedTurn = get().runtime[id]?.turnId ?? native.turnId ?? chat.turns.at(-1)?.id
+    set(s => ({ subagentSending: { ...s.subagentSending, [id]: true } }))
+    try {
+      let delivery: string
+      if (hostDrives(chat) && !get().runtime[id]?.local) {
+        if (!hostCaps.includes('chats.subagents.message@1')) throw new Error('Atualize o host do Prism para enviar mensagens a subagentes.')
+        const reply = await window.prism.chats.host.messageSubagent(id, text.trim())
+        if (!reply.ok) throw new Error(reply.error)
+        delivery = reply.delivery
+      } else {
+        const payload = { rootChatId: native.rootChatId, rootTurnId: native.controlTurnId ?? native.rootTurnId, agentId: native.controlId ?? native.id, text: text.trim() }
+        const result = chat.selection.provider === 'codex'
+          ? await window.prism.codex.messageSubagent(payload) : await window.prism.claude.agentMessageSubagent(payload)
+        delivery = result.delivery
+        if (delivery === 'direct') editChat(id, c => {
+          const turnId = result.nativeTurnId && c.nativeAgent?.nativeTurns?.[result.nativeTurnId]
+            || (result.steered ? admittedTurn : c.pendingTurnId ?? c.turns.at(-1)?.id)
+          return { ...c, turns: c.turns.map(t => t.id === turnId ? { ...t, segments: [...(t.segments || []), { kind: 'user', toolId: crypto.randomUUID(), text: text.trim(), sentAt: Date.now() }] } : t) }
+        })
+      }
+      useStore.getState().addToast('success', delivery === 'parent' ? 'Instrução encaminhada ao agente principal para entregar ao subagente.' : 'Mensagem enviada ao subagente.')
+      return true
+    } catch (error) {
+      const message = (error as Error).message?.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, '')
+      useStore.getState().addToast('error', message || 'Não foi possível enviar ao subagente. Seu rascunho foi mantido.')
+      return false
+    } finally { set(s => ({ subagentSending: { ...s.subagentSending, [id]: false } })) }
+  },
   send: (id, text, context, images, onRefused) => {
     const chat = stableLocalImages(id)
     if (!chat || chat.nativeAgent || (!text.trim() && !images?.length) || get().runtime[id]?.busy) return false
@@ -790,8 +831,8 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       return hostCommand(window.prism.chats.host.respondPermission({ chatId: id, permId: r.permission.permId, decision }), 'Esta permissão já foi respondida.')
     }
     const chat = get().chats.find(c => c.id === id)
-    if (chat?.selection.provider === 'codex') window.prism.codex.permission(id,r.permission.permId,decision)
-    else window.prism.claude.agentRespondPermission({ id: r.turnId, permId: r.permission.permId, decision })
+    if (chat?.selection.provider === 'codex') window.prism.codex.permission(chat.nativeAgent?.rootChatId ?? id,r.permission.permId,decision)
+    else window.prism.claude.agentRespondPermission({ id: chat?.nativeAgent?.rootTurnId ?? r.turnId, permId: r.permission.permId, decision })
     editTurn(r.turnId, (t) => ({ ...t, segments: t.segments?.map((s) => s.toolId === r.permission?.toolUseId
       ? { ...s, status: decision === 'deny' ? 'denied' : 'running' } : s) }))
     set((s) => ({ runtime: { ...s.runtime, [id]: { ...r, permission: undefined } } }))
@@ -808,8 +849,8 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
           useStore.getState().addToast('error', reply.code === 'gone' ? 'Esta pergunta já foi respondida.' : reply.error)
           return false
         }
-      } else if (chat.selection.provider === 'codex') window.prism.codex.question(id, question.dialogId, answers)
-      else window.prism.claude.agentRespondQuestion({ id: r.turnId, dialogId: question.dialogId, answers, response, cancelled: !answers })
+      } else if (chat.selection.provider === 'codex') window.prism.codex.question(chat.nativeAgent?.rootChatId ?? id, question.dialogId, answers)
+      else window.prism.claude.agentRespondQuestion({ id: chat.nativeAgent?.rootTurnId ?? r.turnId, dialogId: question.dialogId, answers, response, cancelled: !answers })
       // A host delta may already have removed this question or delivered the next
       // one. Clear only the answered dialog, retaining the latest runtime fields.
       set(s => {

@@ -1,8 +1,19 @@
 /** Claude's child frames must never become output or context of the main agent. */
 type Frame = Record<string, any>
 type Emit = (channel: string, payload: unknown) => void
-type Child = { id: string; turn: string; parentId?: string; status: string }
+type Child = { id: string; turn: string; parentId?: string; status: string; messageTarget?: string; spawnToolCallId?: string }
 type StreamBlock = { kind: string; text: string; consumed?: boolean }
+
+/** A request to the parent, never a fabricated child input or delivery receipt. */
+export function formatSubagentMessage(messageTarget: string, text: string): string {
+  if (!messageTarget || messageTarget !== messageTarget.trim() || messageTarget.length > 1024 || /[\u0000-\u001f\u007f]/.test(messageTarget)) throw new Error('Este subagente ainda não informou um destinatário nativo válido.')
+  if (!text.trim()) throw new Error('Digite uma mensagem.')
+  return 'Encaminhe esta mensagem do usuário ao subagente já existente usando SendMessage.\n'
+    + 'Use exatamente o ID do campo "to" abaixo; não crie outro agente nem execute a tarefa no lugar dele.\n'
+    + 'Se esse destinatário não existir ou não aceitar mensagens, informe a falha sem escolher outro.\n'
+    + 'Confirme a entrega somente após o resultado de SendMessage.\n\n'
+    + JSON.stringify({ to: messageTarget, message: text })
+}
 
 function contentText(content: unknown): string {
   if (typeof content === 'string') return content
@@ -18,6 +29,7 @@ export class ClaudeSubagents {
   private messages = new Map<string, string>()
   private tools = new Map<string, Frame>()
   private runs = new Map<string, string>()
+  private peerMessages = new Set<string>()
 
   private child(nativeId: string, turn: string | null | undefined, emit: Emit, metadata: Frame = {}): Child | undefined {
     const id = this.aliases.get(nativeId) ?? nativeId
@@ -32,7 +44,15 @@ export class ClaudeSubagents {
 
   private update(child: Child, update: Frame, emit: Emit): void {
     if (update.status) child.status = update.status
-    emit('agent:subagent', { id: child.turn, agent: { id: child.id, ...(child.parentId ? { parentId: child.parentId } : {}), ...update } })
+    if (typeof update.messageTarget === 'string' && update.messageTarget) child.messageTarget = update.messageTarget
+    if (typeof update.spawnToolCallId === 'string' && update.spawnToolCallId) child.spawnToolCallId = update.spawnToolCallId
+    emit('agent:subagent', { id: child.turn, agent: { id: child.id, ...(child.parentId ? { parentId: child.parentId } : {}), ...(child.messageTarget ? { messageTarget: child.messageTarget } : {}), ...update } })
+  }
+
+  /** Accept only a provider-reported recipient owned by this original parent turn. */
+  messageTarget(agentId: string, rootTurnId: string): string | undefined {
+    const child = this.children.get(this.aliases.get(agentId) ?? agentId)
+    return child?.turn === rootTurnId ? child.messageTarget : undefined
   }
 
   private spawn(block: Frame, parent: Child | undefined, turn: string | null | undefined, emit: Emit): void {
@@ -52,13 +72,15 @@ export class ClaudeSubagents {
   handle(msg: Frame, turn: string | null | undefined, emit: Emit): boolean {
     if (msg.type === 'system' && ['task_started', 'task_progress', 'task_notification', 'task_updated'].includes(msg.subtype)) {
       if (msg.ambient || msg.skip_transcript) return true
-      const native = msg.tool_use_id || msg.task_id
+      // SendMessage resumes the same task under a new tool id, if any.
+      const taskAlias = this.aliases.get(msg.task_id) ?? (this.children.has(msg.task_id) ? msg.task_id : undefined)
+      const native = taskAlias || msg.tool_use_id || msg.task_id
       if (typeof native !== 'string' || !native) return true
       // Shell/monitor tasks use the same envelope and are not separate agents.
       const known = this.aliases.has(native) || this.children.has(native) || this.aliases.has(msg.task_id)
       if (!known && !['local_agent', 'subagent'].includes(msg.task_type) && !msg.subagent_type) return true
       const parentId = this.aliases.get(msg.parent_task_id) ?? (this.children.has(msg.parent_task_id) ? msg.parent_task_id : undefined)
-      const child = this.child(native, turn, emit, { ...(parentId ? { parentId } : {}), ...(msg.subagent_type ? { name: msg.subagent_type } : {}), ...(msg.description ? { description: msg.description } : {}) })
+      const child = this.child(native, turn, emit, { ...(parentId ? { parentId } : {}), ...(typeof msg.task_id === 'string' && msg.task_id ? { messageTarget: msg.task_id } : {}), ...(msg.subagent_type ? { name: msg.subagent_type } : {}), ...(msg.description ? { description: msg.description } : {}) })
       if (!child) return true
       if (msg.task_id) this.aliases.set(msg.task_id, child.id)
       if (msg.tool_use_id) this.aliases.set(msg.tool_use_id, child.id)
@@ -68,9 +90,10 @@ export class ClaudeSubagents {
       const patch = msg.patch ?? {}
       const status = msg.subtype === 'task_notification' ? msg.status : patch.status
       const update: Frame = {}
+      if (typeof msg.task_id === 'string' && msg.task_id) update.messageTarget = msg.task_id
       if (status) update.status = status === 'killed' ? 'stopped' : status === 'paused' ? 'waiting' : status
       else if (msg.subtype === 'task_started' || !['completed', 'failed', 'stopped'].includes(child.status)) update.status = 'running'
-      if (msg.tool_use_id) update.spawnToolCallId = msg.tool_use_id
+      if (msg.tool_use_id && !child.spawnToolCallId) update.spawnToolCallId = msg.tool_use_id
       if (msg.description || patch.description) update.description = msg.description || patch.description
       if (msg.summary || patch.error) update.summary = msg.summary || patch.error
       if (msg.last_tool_name) update.description = `${msg.description || 'Trabalhando'} · ${msg.last_tool_name}`
@@ -82,8 +105,11 @@ export class ClaudeSubagents {
     const alias = typeof msg.agent_id === 'string' ? this.aliases.get(msg.agent_id) : undefined
     const knownParent = parentTool && (this.aliases.has(parentTool) || this.children.has(parentTool))
     const native = knownParent ? parentTool : alias || parentTool
-    const child = native ? this.child(native, turn, emit, { ...(msg.subagent_type ? { name: msg.subagent_type } : {}), ...(msg.task_description ? { description: msg.task_description } : {}) }) : undefined
-    if (child && msg.agent_id) this.aliases.set(msg.agent_id, child.id)
+    const child = native ? this.child(native, turn, emit, { ...(typeof msg.agent_id === 'string' && msg.agent_id ? { messageTarget: msg.agent_id } : {}), ...(msg.subagent_type ? { name: msg.subagent_type } : {}), ...(msg.task_description ? { description: msg.task_description } : {}) }) : undefined
+    if (child && typeof msg.agent_id === 'string' && msg.agent_id) {
+      this.aliases.set(msg.agent_id, child.id)
+      if (child.messageTarget !== msg.agent_id) this.update(child, { messageTarget: msg.agent_id }, emit)
+    }
     if (child && parentTool) this.aliases.set(parentTool, child.id)
 
     if (msg.type === 'assistant') {
@@ -100,6 +126,7 @@ export class ClaudeSubagents {
           if (output.agentId) this.aliases.set(output.agentId, spawned.id)
           const background = output.status === 'async_launched' || output.isAsync || /running in the background|launched successfully|agent is running/i.test(contentText(block.content))
           this.update(spawned, {
+            ...(typeof output.agentId === 'string' && output.agentId ? { messageTarget: output.agentId } : {}),
             status: block.is_error ? 'failed' : background ? ['completed', 'failed', 'stopped'].includes(spawned.status) ? spawned.status : 'running' : 'completed',
             ...(output.resolvedModel ? { model: output.resolvedModel } : {}),
             ...(!background ? { summary: contentText(output.content) || contentText(block.content) } : {})
@@ -141,6 +168,15 @@ export class ClaudeSubagents {
         }
       }
     } else if (msg.type === 'user') {
+      // SDKMessageOrigin.peer.body is the harness-decoded native inbox body.
+      // Only this CLI echo confirms child input; parent forwarding acks do not.
+      if (msg.origin?.kind === 'peer' && typeof msg.origin.body === 'string' && typeof msg.uuid === 'string' && msg.uuid) {
+        const key = `${child.id}:${msg.uuid}`
+        if (!this.peerMessages.has(key)) {
+          this.peerMessages.add(key)
+          this.update(child, { segment: { kind: 'user', toolId: msg.uuid, text: msg.origin.body } }, emit)
+        }
+      }
       for (const block of msg.message?.content ?? []) {
         if (block.type !== 'tool_result') continue
         const previous = this.tools.get(block.tool_use_id) ?? { kind: 'tool', toolId: block.tool_use_id, name: 'Ferramenta' }

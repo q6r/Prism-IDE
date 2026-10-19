@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, IpcRendererEvent } from 'electron'
-import type { Provider, ProviderProfile, ProfileStatus, UnifiedChat, AgentTask, AgentModel, ProfileDetails, ChatImage, CodexSend, CodexEvent, SteerMessage, LoginEvent, SubagentUpdate, SubagentInfo } from '../shared/agents'
+import type { Provider, ProviderProfile, ProfileStatus, UnifiedChat, AgentTask, AgentModel, ProfileDetails, ChatImage, CodexSend, CodexEvent, SteerMessage, LoginEvent, SubagentUpdate, SubagentInfo, SubagentMessage, SubagentMessageResult } from '../shared/agents'
 import type { TraycerImportPreview, TraycerImportRequest, TraycerImportResult, TraycerActivity, TraycerTaskRecord } from '../shared/traycerImport'
 import { HostClient, type HostStatus } from '../shared/host/client'
 import { firstHelloGate, gated, routeFor, stickyRoute, type Route } from '../shared/host/routing'
@@ -177,6 +177,7 @@ const api = {
     send: (payload: CodexSend): void => ipcRenderer.send('codex:send', payload),
     abort: (chatId: string): void => ipcRenderer.send('codex:abort', chatId),
     steer: (payload: SteerMessage): Promise<void> => ipcRenderer.invoke('codex:steer', payload),
+    messageSubagent: (payload: SubagentMessage): Promise<SubagentMessageResult> => ipcRenderer.invoke('codex:subagent-message', payload),
     onEvent: (cb: (event: CodexEvent) => void): Unsub => on('codex:event', cb)
   }, (ipc) => createHostCodex(hostClient, ipc, {
     onProfileChanged: (cb) => on('codex:profile-changed', cb)
@@ -353,6 +354,7 @@ const api = {
     }): void => ipcRenderer.send('agent:send', payload),
     agentAbort: (id: string): void => ipcRenderer.send('agent:abort', id),
     agentSteer: (payload: SteerMessage): Promise<void> => ipcRenderer.invoke('agent:steer', payload),
+    agentMessageSubagent: (payload: SubagentMessage): Promise<SubagentMessageResult> => ipcRenderer.invoke('agent:subagent-message', payload),
     // Streaming chats: gracefully stop the current turn (session stays alive) /
     // tear the whole chat session down.
     agentInterrupt: (chatId: string): void => ipcRenderer.send('agent:interrupt', chatId),

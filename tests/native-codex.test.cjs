@@ -24,6 +24,7 @@ test('Codex child threads stream separately, keep nested links and retain their 
  assert.ok(first.some(e=>e.agent.id==='child'&&e.agent.name==='Ada'))
  assert.ok(first.some(e=>e.agent.id==='nested'&&e.agent.parentId==='child'))
  assert.ok(first.some(e=>e.agent.segment?.text==='Analisando os arquivos…'))
+ assert.ok(first.some(e=>e.agent.id==='child'&&e.agent.nativeTurnId==='child-turn'&&e.agent.status==='running'))
  assert.equal(f.events.filter(e=>e.payload.kind==='segment'&&e.payload.segment?.text?.includes('Analisando')).length,0,'child text never enters the parent reply')
  s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
  s.message('item/agentMessage/delta',{threadId:'child',turnId:'child-turn',itemId:'reply',delta:' concluído'})
@@ -38,15 +39,128 @@ test('Codex child threads stream separately, keep nested links and retain their 
  assert.equal(f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='stranger').length,0)
 })
 
-test('Codex child approval stays on its originating active turn and closing the server stops unfinished children', async () => {
+test('Codex child approval is emitted on the child and closing the server stops unfinished children', async () => {
  const f=fixture();await f.send('first');const s=f.servers[0]
  s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
  s.message('item/commandExecution/requestApproval',{threadId:'child',turnId:'child-turn',itemId:'cmd',command:'npm test'},51)
- const approval=f.events.find(e=>e.channel==='agent:permission').payload
+ const approval=f.events.find(e=>e.payload.kind==='subagent'&&e.payload.agent.permission).payload.agent.permission
  assert.equal(approval.id,'first')
+ assert.equal(f.events.filter(e=>e.channel==='agent:permission').length,0,'child approval never occupies the parent runtime')
  f.handlers['codex:permission']({sender:f.owner},'chat',approval.permId,'allow');assert.deepEqual(s.answers.at(-1),{id:51,result:{decision:'accept'}})
  s.close()
  assert.equal(f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child').at(-1).payload.agent.status,'stopped')
+})
+
+test('Codex direct child messages steer its native turn and start the next child turn after the parent finishes', async () => {
+ const f=fixture();await f.send('first');const s=f.servers[0]
+ s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
+ s.message('turn/started',{threadId:'child',turn:{id:'child-live'}})
+ const message=(text,extra={})=>f.handlers['codex:subagent-message']({sender:f.owner},{rootChatId:'chat',rootTurnId:'first',agentId:'child',text,...extra})
+ const image={mime:'image/png',data:'aGVsbG8='}
+ const live=await message('Revise a imagem',{images:[image]})
+ assert.deepEqual(live,{delivery:'direct',nativeTurnId:'child-live',steered:true})
+ assert.deepEqual(s.calls.at(-1),{method:'turn/steer',params:{threadId:'child',expectedTurnId:'child-live',input:[{type:'text',text:'Revise a imagem',text_elements:[]},{type:'image',url:'data:image/png;base64,aGVsbG8='}]}})
+ assert.equal(s.calls.filter(c=>c.method==='turn/start').length,1)
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
+ s.message('turn/completed',{threadId:'child',turn:{id:'child-live',status:'completed'}})
+ const next=await message('Agora confira os testes')
+ assert.equal(next.steered,false)
+ assert.equal(s.calls.at(-1).method,'turn/start');assert.equal(s.calls.at(-1).params.threadId,'child')
+ assert.deepEqual(Object.keys(s.calls.at(-1).params).sort(),['input','threadId'],'preserve the child model, permissions and configuration')
+ s.message('item/agentMessage/delta',{threadId:'child',turnId:next.nativeTurnId,itemId:'reply2',delta:'Resposta individual'})
+ assert.ok(f.journal.some(e=>e.kind==='subagent'&&e.id==='first'&&e.agent.segment?.text==='Resposta individual'))
+ assert.equal(f.servers.length,1);assert.equal(s.calls.filter(c=>c.method==='thread/start').length,1)
+ assert.equal(s.calls.filter(c=>c.method==='turn/interrupt').length,0)
+})
+
+test('Codex direct child messages enforce owner, original spawn origin and one request at a time', async () => {
+ const f=fixture();await f.send('first');const s=f.servers[0]
+ s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
+ const p={rootChatId:'chat',rootTurnId:'first',agentId:'child',text:'Mensagem individual'}
+ const handler=f.handlers['codex:subagent-message']
+ await assert.rejects(handler({sender:{id:99}},p),/conexão original/)
+ await assert.rejects(handler({sender:f.owner},{...p,agentId:'stranger'}),/indisponível/)
+ await assert.rejects(handler({sender:f.owner},{...p,rootTurnId:'wrong'}),/indisponível/)
+ await assert.rejects(handler({sender:f.owner},p),/iniciando/)
+ s.message('turn/started',{threadId:'child',turn:{id:'live'}})
+ const original=s.request.bind(s);let reply
+ s.request=async(method,params)=>method==='turn/steer'?new Promise(resolve=>{reply=()=>resolve({turnId:'live'})}):original(method,params)
+ const first=handler({sender:f.owner},p)
+ await assert.rejects(handler({sender:f.owner},p),/já está sendo enviada/)
+ reply();await first
+ s.request=async()=>{throw new Error('expected turn no longer active')}
+ await assert.rejects(handler({sender:f.owner},p),/no longer active/)
+ s.request=original
+ await handler({sender:f.owner},p)
+ assert.equal(f.servers.length,1)
+})
+
+test('Codex child pending approvals and questions survive parent completion and remain answerable while idle', async () => {
+ const f=fixture();await f.send('first');const s=f.servers[0]
+ s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
+ s.message('turn/started',{threadId:'child',turn:{id:'live'}})
+ s.message('item/commandExecution/requestApproval',{threadId:'child',turnId:'live',itemId:'cmd',command:'npm test'},61)
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
+ const approval=f.events.find(e=>e.payload.kind==='subagent'&&e.payload.agent.permission).payload.agent.permission
+ f.handlers['codex:permission']({sender:{id:99}},'chat',approval.permId,'allow');assert.equal(s.answers.length,0)
+ f.handlers['codex:permission']({sender:f.owner},'chat',approval.permId,'allow');assert.deepEqual(s.answers.at(-1),{id:61,result:{decision:'accept'}})
+ s.message('item/tool/requestUserInput',{threadId:'child',turnId:'live',itemId:'ask',questions:[{id:'q',question:'Qual modo?',options:[]}]},62)
+ const question=f.events.find(e=>e.payload.kind==='subagent'&&e.payload.agent.question).payload.agent.question
+ assert.equal(question.id,'first')
+ await assert.rejects(f.handlers['codex:subagent-message']({sender:f.owner},{rootChatId:'chat',rootTurnId:'first',agentId:'child',text:'Espere'}),/Responda/)
+ f.handlers['codex:question']({sender:f.owner},'chat',question.dialogId,{'Qual modo?':'Seguro'})
+ assert.deepEqual(s.answers.at(-1),{id:62,result:{answers:{q:{answers:['Seguro']}}}})
+ assert.ok(f.events.some(e=>e.payload.kind==='subagent'&&e.payload.agent.permission===null))
+ assert.ok(f.events.some(e=>e.payload.kind==='subagent'&&e.payload.agent.question===null))
+ assert.equal(f.events.filter(e=>['agent:permission','agent:question'].includes(e.channel)).length,0)
+})
+
+test('Codex child queues parallel approvals and questions independently while its parent is idle', async () => {
+ const f=fixture();await f.send('first');const s=f.servers[0]
+ s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
+ s.message('turn/started',{threadId:'child',turn:{id:'live'}})
+ s.message('item/commandExecution/requestApproval',{threadId:'child',turnId:'live',command:'first'},71)
+ s.message('item/commandExecution/requestApproval',{threadId:'child',turnId:'live',command:'second'},72)
+ for(const id of [73,74]) s.message('item/tool/requestUserInput',{threadId:'child',turnId:'live',questions:[{id:'q',question:'Pergunta '+id,options:[]}]},id)
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
+ const updates=()=>f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child').map(e=>e.payload.agent)
+ assert.deepEqual(updates().filter(a=>a.permission).map(a=>a.permission.permId),['codex:chat:71'])
+ assert.deepEqual(updates().filter(a=>a.question).map(a=>a.question.dialogId),['codex:chat:73'])
+ f.handlers['codex:permission']({sender:f.owner},'chat','codex:chat:71','allow')
+ assert.equal(updates().filter(a=>a.permission).at(-1).permission.permId,'codex:chat:72')
+ assert.deepEqual(s.answers.at(-1),{id:71,result:{decision:'accept'}})
+ f.handlers['codex:question']({sender:f.owner},'chat','codex:chat:73',{'Pergunta 73':'A'})
+ assert.equal(updates().filter(a=>a.question).at(-1).question.dialogId,'codex:chat:74')
+ f.handlers['codex:permission']({sender:f.owner},'chat','codex:chat:72','deny')
+ assert.equal(updates().filter(a=>a.status).at(-1).status,'waiting','the second question still blocks messages')
+ await assert.rejects(f.handlers['codex:subagent-message']({sender:f.owner},{rootChatId:'chat',rootTurnId:'first',agentId:'child',text:'Espere'}),/Responda/)
+ f.handlers['codex:question']({sender:f.owner},'chat','codex:chat:74',{'Pergunta 74':'B'})
+ assert.equal(updates().filter(a=>a.status).at(-1).status,'running')
+ assert.deepEqual(s.answers.map(a=>a.id),[71,73,72,74])
+ s.message('item/fileChange/requestApproval',{threadId:'child',turnId:'live',itemId:'last'},75)
+ s.message('turn/completed',{threadId:'child',turn:{id:'live',status:'interrupted'}})
+ f.handlers['codex:permission']({sender:f.owner},'chat','codex:chat:75','allow')
+ assert.equal(s.answers.length,4,'cancelled turn drops its obsolete approvals')
+})
+
+test('Codex reopens only the closed child and never revives a child completed before its start acknowledgement', async () => {
+ const f=fixture();await f.send('first');const s=f.servers[0]
+ s.message('thread/started',{thread:{id:'child',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0',depth:1}}}}})
+ s.message('thread/closed',{threadId:'child'})
+ const request=s.request.bind(s)
+ s.request=async(method,params)=>{
+  if(method==='turn/start'&&params.threadId==='child') {
+   s.calls.push({method,params})
+   s.message('turn/started',{threadId:'child',turn:{id:'fast'}})
+   s.message('turn/completed',{threadId:'child',turn:{id:'fast',status:'completed'}})
+   return {turn:{id:'fast'}}
+  }
+  return request(method,params)
+ }
+ await f.handlers['codex:subagent-message']({sender:f.owner},{rootChatId:'chat',rootTurnId:'first',agentId:'child',text:'Continue'})
+ assert.deepEqual(s.calls.find(c=>c.method==='thread/resume').params,{threadId:'child'})
+ assert.equal(f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child').at(-1).payload.agent.status,'completed')
+ assert.equal(s.calls.filter(c=>c.method==='thread/start').length,1)
 })
 
 test('Codex listAgents refreshes known states without registering unrelated threads or reviving stale child turns', async () => {
@@ -72,7 +186,7 @@ function fixture(){
  const handlers={},servers=[],events=[],journal=[],appEvents={},appHandlers={},windows=[]
  class Server {
   constructor(profile,cwd){this.profile=profile;this.cwd=cwd;this.ready=Promise.resolve();this.calls=[];this.answers=[];servers.push(this)}
-  async request(method,params){this.calls.push({method,params});if(method.startsWith('thread/'))return{thread:{id:params.threadId||`thread-${servers.indexOf(this)}`}};return{turn:{id:`native-${this.calls.length}`}}}
+  async request(method,params){this.calls.push({method,params});if(method.startsWith('thread/'))return{thread:{id:params.threadId||`thread-${servers.indexOf(this)}`}};if(method==='turn/steer')return{turnId:params.expectedTurnId};return{turn:{id:`native-${this.calls.length}`}}}
   message(method,params,id){this.onMessage({method,params,...(id!==undefined?{id}: {})})}
   answer(id,result){this.answers.push({id,result})} reject(id){this.answers.push({id,rejected:true})}
   close(){this.closed=true;this.onClose?.(new Error('closed'))}

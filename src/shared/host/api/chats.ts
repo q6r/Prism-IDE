@@ -1,4 +1,4 @@
-import type { AgentSelection, SteerMessage, UnifiedChat } from '../../agents'
+import type { AgentSelection, SteerMessage, SubagentMessageResult, UnifiedChat } from '../../agents'
 import type { HostCallErrorCode, HostStatus } from '../client'
 import type { BindWorkspaceParams } from '../generated/BindWorkspaceParams'
 import type { ChatDelta } from '../generated/ChatDelta'
@@ -57,6 +57,7 @@ export interface HostChatsApi {
   send(params: SendParams): Promise<ChatsReply<SendResult>>
   stop(chatId: string): Promise<ChatsReply>
   steer(params: SteerMessage): Promise<ChatsReply>
+  messageSubagent(chatId: string, text: string): Promise<ChatsReply<SubagentMessageResult>>
   respondPermission(params: PermissionParams): Promise<ChatsReply>
   respondQuestion(params: QuestionParams): Promise<ChatsReply>
   /**
@@ -183,6 +184,7 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
     send: (params) => command<SendResult>('send', params, SEND_MS),
     stop: (chatId) => command('stop', { chatId }),
     steer: (params) => command('steer', params),
+    messageSubagent: (chatId, text) => command('messageSubagent', { chatId, text }),
     respondPermission: (params) => command('respondPermission', params),
     respondQuestion: (params) => command('respondQuestion', params),
     follow

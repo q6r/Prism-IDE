@@ -16,6 +16,21 @@ function fixture() {
     return changes
   }, get(nativeId) { return chats.find(chat => chat.id === subagentChatId('root', nativeId)) } }
 }
+
+test('resuming a native child creates a new turn and keeps native turn identities for message echoes', () => {
+  const f = fixture()
+  f.update({ id: 'a', status: 'running', nativeTurnId: 'native-first', text: 'first answer' })
+  const first = f.get('a').turns[0]
+  f.update({ id: 'a', status: 'completed' })
+  f.update({ id: 'a', status: 'running', nativeTurnId: 'native-second', text: 'second answer' })
+  const child = f.get('a')
+  assert.equal(child.turns.length, 2)
+  assert.equal(child.turns[0].id, first.id)
+  assert.equal(child.turns[0].segments[0].text, 'first answer')
+  assert.equal(child.turns[1].segments[0].text, 'second answer')
+  assert.equal(child.nativeAgent.nativeTurns['native-first'], first.id)
+  assert.equal(child.nativeAgent.nativeTurns['native-second'], child.turns[1].id)
+})
 test('native child snapshots preserve output, nesting and parent links without mixing transcripts', () => {
   const f = fixture()
   f.update({ id: 'a', name: 'Explore', description: 'Inspect code', spawnToolCallId: 'spawn', status: 'running' })

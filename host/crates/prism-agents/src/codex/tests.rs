@@ -10,7 +10,7 @@
 //!   and tests/codex-reset-and-plan.test.cjs.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -447,13 +447,158 @@ async fn subagent_approval_uses_originating_root_and_process_close_stops_childre
     let server = f.started("root-first", json!({})).await;
     server.notify("thread/started", json!({"thread":{"id":"child", "source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
     server.request(51, "item/commandExecution/requestApproval", json!({"threadId":"child", "turnId":"child-turn", "itemId":"cmd", "command":"npm test"}));
-    eventually("child approval", || !f.sink.of("agent:permission").is_empty()).await;
-    let approval = f.sink.of("agent:permission")[0].clone();
+    eventually("child approval", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["permission"].is_object())).await;
+    let approval = f.sink.kinds("subagent").into_iter().find(|e| e["agent"]["permission"].is_object()).unwrap()["agent"]["permission"].clone();
     assert_eq!(approval["id"], "root-first");
+    assert!(f.sink.of("agent:permission").is_empty(), "child approvals never occupy the parent runtime");
     f.sessions.permission(OWNER, "chat", approval["permId"].as_str().unwrap(), "allow");
     eventually("approval answer", || server.received.lock().unwrap().iter().any(|message| message["id"] == 51 && message["result"]["decision"] == "accept")).await;
     f.sessions.close_all();
     eventually("child stops", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "child" && e["agent"]["status"] == "stopped")).await;
+}
+
+#[tokio::test]
+async fn direct_subagent_messages_steer_the_child_then_start_its_next_turn_without_restarting_the_root() {
+    let base = turn_responder();
+    let f = Fixture::with(Arc::new(move |method, params, index| {
+        if method == "turn/steer" { Some(json!({"turnId":params["expectedTurnId"]})) } else { base(method, params, index) }
+    }));
+    let server = f.started("root-first", json!({})).await;
+    server.notify("thread/started", json!({"thread":{"id":"child","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
+    server.notify("turn/started", json!({"threadId":"child","turn":{"id":"child-live"}}));
+    eventually("child running", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "running")).await;
+    assert!(f.sink.kinds("subagent").iter().any(|e| e["agent"]["nativeTurnId"] == "child-live"));
+    let live = f.sessions.message_subagent(OWNER, "chat", "root-first", "child", "Revisar a imagem".into(), vec![json!({"mime":"image/png","data":"aGVsbG8="})]).await.unwrap();
+    assert_eq!(live, json!({"delivery":"direct","nativeTurnId":"child-live","steered":true}));
+    assert_eq!(server.calls("turn/steer")[0]["params"], json!({"threadId":"child","expectedTurnId":"child-live","input":[
+        {"type":"text","text":"Revisar a imagem","text_elements":[]},{"type":"image","url":"data:image/png;base64,aGVsbG8="}
+    ]}));
+    assert_eq!(server.calls("turn/start").len(), 1);
+    server.notify("turn/completed", json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
+    server.notify("turn/completed", json!({"threadId":"child","turn":{"id":"child-live","status":"completed"}}));
+    eventually("parent and child idle", || !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "completed")).await;
+    let next_sink: Arc<Sink> = Arc::default();
+    f.sessions.send(OWNER, next_sink.clone(), payload("root-second", json!({"resume":"thread-0"})), None).await.unwrap();
+    eventually("next parent turn", || server.calls("turn/start").len() == 2).await;
+    let next = f.sessions.message_subagent(OWNER, "chat", "root-first", "child", "Agora os testes".into(), vec![]).await.unwrap();
+    assert_eq!(next["steered"], false);
+    assert_eq!(server.calls("turn/start").last().unwrap()["params"], json!({"threadId":"child","input":[{"type":"text","text":"Agora os testes","text_elements":[]}]}));
+    server.notify("item/agentMessage/delta", json!({"threadId":"child","turnId":next["nativeTurnId"],"itemId":"answer","delta":"Resposta individual"}));
+    eventually("child reply stays on original sink", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["segment"]["text"] == "Resposta individual")).await;
+    assert!(next_sink.kinds("subagent").is_empty());
+    assert_eq!(f.launcher.fakes.lock().unwrap().len(), 1);
+    assert_eq!(server.calls("thread/start").len(), 1);
+    assert!(server.calls("turn/interrupt").is_empty());
+}
+
+#[tokio::test]
+async fn direct_subagent_messages_reject_unrelated_origins_and_release_claims_after_a_native_refusal() {
+    let refused = Arc::new(AtomicBool::new(false));
+    let refusals = refused.clone();
+    let base = turn_responder();
+    let f = Fixture::with(Arc::new(move |method, params, index| {
+        if method == "turn/steer" {
+            Some(if refusals.swap(false, Ordering::SeqCst) { json!({"__error":"expected turn is no longer active"}) } else { json!({"turnId":params["expectedTurnId"]}) })
+        } else { base(method, params, index) }
+    }));
+    let server = f.started("root-first", json!({})).await;
+    server.notify("thread/started", json!({"thread":{"id":"child","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
+    eventually("child discovered", || !f.sink.kinds("subagent").is_empty()).await;
+    for (owner, origin, child) in [(OTHER,"root-first","child"),(OWNER,"wrong","child"),(OWNER,"root-first","stranger"),(OWNER,"root-first","thread-0")] {
+        assert!(f.sessions.message_subagent(owner, "chat", origin, child, "Mensagem".into(), vec![]).await.is_err());
+    }
+    assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Mensagem".into(),vec![]).await.unwrap_err().contains("iniciando"));
+    assert!(server.calls("turn/steer").is_empty());
+    server.notify("turn/started", json!({"threadId":"child","turn":{"id":"child-live"}}));
+    eventually("child live", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "running")).await;
+    refused.store(true, Ordering::SeqCst);
+    assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Mensagem".into(),vec![]).await.unwrap_err().contains("no longer active"));
+    assert_eq!(server.calls("turn/start").len(),1,"a failed steer is never retried as another turn");
+    f.sessions.message_subagent(OWNER,"chat","root-first","child","Mensagem".into(),vec![]).await.unwrap();
+    assert_eq!(server.calls("turn/steer").len(),2);
+}
+
+#[tokio::test]
+async fn subagent_pending_approvals_and_questions_survive_root_completion() {
+    let f = Fixture::new();
+    let server = f.started("root-first", json!({})).await;
+    server.notify("thread/started", json!({"thread":{"id":"child","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
+    server.notify("turn/started", json!({"threadId":"child","turn":{"id":"child-live"}}));
+    server.request(61,"item/commandExecution/requestApproval",json!({"threadId":"child","turnId":"child-live","itemId":"cmd","command":"npm test"}));
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
+    eventually("parent done and child approval", || !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["permission"].is_object())).await;
+    let permission = f.sink.kinds("subagent").into_iter().find(|e| e["agent"]["permission"].is_object()).unwrap()["agent"]["permission"].clone();
+    let request_id = permission["permId"].as_str().unwrap();
+    f.sessions.permission(OTHER,"chat",request_id,"allow");
+    assert!(server.answers().is_empty());
+    f.sessions.permission(OWNER,"chat",request_id,"allow");
+    eventually("child approval answered while parent idle", || server.answers().iter().any(|m| m["id"] == 61 && m["result"]["decision"] == "accept")).await;
+    server.request(62,"item/tool/requestUserInput",json!({"threadId":"child","turnId":"child-live","itemId":"ask","questions":[{"id":"q","question":"Qual modo?","options":[]}]}));
+    eventually("child question", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"].is_object())).await;
+    let question = f.sink.kinds("subagent").into_iter().find(|e| e["agent"]["question"].is_object()).unwrap()["agent"]["question"].clone();
+    assert_eq!(question["id"],"root-first");
+    assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Espere".into(),vec![]).await.unwrap_err().contains("Responda"));
+    f.sessions.question(OWNER,"chat",question["dialogId"].as_str().unwrap(),json!({"Qual modo?":"Seguro"}).as_object());
+    eventually("child question answered", || server.answers().iter().any(|m| m["id"] == 62 && m["result"]["answers"]["q"]["answers"] == json!(["Seguro"]))).await;
+    assert!(f.sink.kinds("subagent").iter().any(|e| e["agent"].as_object().unwrap().get("permission") == Some(&Value::Null)));
+    assert!(f.sink.kinds("subagent").iter().any(|e| e["agent"].as_object().unwrap().get("question") == Some(&Value::Null)));
+    assert!(f.sink.of("agent:permission").is_empty());
+    assert!(f.sink.of("agent:question").is_empty());
+}
+
+#[tokio::test]
+async fn direct_subagent_messages_claim_once_resume_only_the_closed_child_and_keep_fast_completion_terminal() {
+    let base = turn_responder();
+    let f = Fixture::with(Arc::new(move |method, params, index| {
+        if method == "turn/start" && params["threadId"] == "child" { None } else { base(method,params,index) }
+    }));
+    let server = f.started("root-first",json!({})).await;
+    server.notify("thread/started",json!({"thread":{"id":"child","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
+    server.notify("thread/closed",json!({"threadId":"child"}));
+    eventually("closed child",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "stopped")).await;
+    let sessions = f.sessions.clone();
+    let send = tokio::spawn(async move { sessions.message_subagent(OWNER,"chat","root-first","child","Continue".into(),vec![]).await });
+    eventually("child turn/start",|| server.calls("turn/start").len() == 2).await;
+    assert_eq!(server.calls("thread/resume")[0]["params"],json!({"threadId":"child"}));
+    assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Duplicada".into(),vec![]).await.unwrap_err().contains("já está sendo enviada"));
+    server.notify("turn/started",json!({"threadId":"child","turn":{"id":"fast"}}));
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"fast","status":"completed"}}));
+    eventually("fast child completion",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "completed")).await;
+    server.send(json!({"id":server.calls("turn/start")[1]["id"],"result":{"turn":{"id":"fast"}}}));
+    send.await.unwrap().unwrap();
+    assert_eq!(f.sink.kinds("subagent").last().unwrap()["agent"]["status"],"completed");
+    assert_eq!(server.calls("thread/start").len(),1);
+    assert!(server.calls("turn/interrupt").is_empty());
+}
+
+#[tokio::test]
+async fn subagent_parallel_approval_and_question_queues_preserve_each_head_while_root_idle() {
+    let f = Fixture::new();
+    let server = f.started("root-first",json!({})).await;
+    server.notify("thread/started",json!({"thread":{"id":"child","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"thread-0","depth":1}}}}}));
+    server.notify("turn/started",json!({"threadId":"child","turn":{"id":"live"}}));
+    for request in [71,72] { server.request(request,"item/commandExecution/requestApproval",json!({"threadId":"child","turnId":"live","command":format!("command-{request}")})); }
+    for request in [73,74] { server.request(request,"item/tool/requestUserInput",json!({"threadId":"child","turnId":"live","questions":[{"id":"q","question":format!("Pergunta {request}"),"options":[]}]})); }
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
+    eventually("root done and first question",|| !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:73")).await;
+    let permissions: Vec<Value> = f.sink.kinds("subagent").iter().filter_map(|e| e["agent"]["permission"].as_object().map(|p| json!(p))).collect();
+    assert_eq!(permissions.len(),1); assert_eq!(permissions[0]["permId"],"codex:chat:71");
+    assert!(!f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:74"));
+    f.sessions.permission(OWNER,"chat","codex:chat:71","allow");
+    eventually("second permission",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["permission"]["permId"] == "codex:chat:72")).await;
+    f.sessions.question(OWNER,"chat","codex:chat:73",json!({"Pergunta 73":"A"}).as_object());
+    eventually("second question",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:74")).await;
+    f.sessions.permission(OWNER,"chat","codex:chat:72","deny");
+    assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Espere".into(),vec![]).await.unwrap_err().contains("Responda"));
+    f.sessions.question(OWNER,"chat","codex:chat:74",json!({"Pergunta 74":"B"}).as_object());
+    eventually("all child requests answered",|| server.answers().len() == 4).await;
+    assert_eq!(server.answers().iter().map(|m| m["id"].as_i64().unwrap()).collect::<Vec<_>>(),vec![71,73,72,74]);
+    assert_eq!(f.sink.kinds("subagent").iter().rfind(|e| e["agent"]["status"].is_string()).unwrap()["agent"]["status"],"running");
+    server.request(75,"item/fileChange/requestApproval",json!({"threadId":"child","turnId":"live","itemId":"last"}));
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"live","status":"interrupted"}}));
+    eventually("child stopped",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "stopped")).await;
+    f.sessions.permission(OWNER,"chat","codex:chat:75","allow");
+    assert_eq!(server.answers().len(),4,"obsolete approvals are removed when their child turn stops");
 }
 
 #[tokio::test]

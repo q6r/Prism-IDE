@@ -15,6 +15,7 @@ before(async () => {
   })
   const dependencies = {
     react: React,
+    '../../../../shared/chatImageSource': require('./helpers/load-typescript.cjs')('src/shared/chatImageSource.ts'),
     'react/jsx-runtime': require('react/jsx-runtime'),
     'react-markdown': { __esModule: true, ...await import('react-markdown') },
     'remark-gfm': { __esModule: true, ...await import('remark-gfm') }
@@ -79,4 +80,11 @@ test('desktop and mobile Markdown retain unsafe URL filtering', () => {
     return React.createElement('span', null, props.alt)
   })
   assert.deepEqual(seen, [''])
+})
+
+test('desktop image renderer receives Windows, file URI, and relative image locations', () => {
+  const seen = []
+  const Image = props => { seen.push(props.src); return React.createElement('span', null, props.alt) }
+  render('![Absolute](C:/screens/modal.png)\n\n![File](file:///C:/screens/modal%20copy.png)\n\n![Relative](./screens/modal.png)\n\n![Backslash](C:\\screens\\modal.png)', Image)
+  assert.deepEqual(seen, ['C:/screens/modal.png', 'file:///C:/screens/modal%20copy.png', './screens/modal.png', 'C:%5Cscreens%5Cmodal.png'])
 })

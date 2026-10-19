@@ -29,6 +29,7 @@ pub use launch::{CliCommand, LaunchEnv, LaunchSpec};
 pub use meta::Catalog;
 pub use profiles::ClaudeProfiles;
 pub use session::{ClientKey, Emitter};
+pub use subagents::format_subagent_message;
 pub use transport::{Exit, Input, Launcher, ProcessLauncher, Spawned};
 
 use launch::{Purpose, SessionOptions, launch_env, session_args};
@@ -291,6 +292,13 @@ impl ClaudeAgents {
             }
         }
         Err("O turno já terminou ou está sendo interrompido. A mensagem continua na fila.".into())
+    }
+
+    /// Routes a request through the live parent, preserving the native child.
+    /// Acceptance here confirms only the parent input, not SendMessage delivery.
+    pub fn message_subagent(&self, client: ClientKey, chat_key: &str, root_turn: &str, agent_id: &str, message: &str) -> Result<Value, String> {
+        let key = if chat_key.starts_with("unified:") { chat_key.to_string() } else { format!("unified:{chat_key}") };
+        self.session(&key).ok_or("A sessão principal do Claude não está conectada. Abra a conversa principal e tente novamente.")?.message_subagent(client, root_turn, agent_id, message)
     }
 
     /// `agent:end`: tears a chat's process down.

@@ -317,6 +317,20 @@ test('a successful result is spread with ok: true', async () => {
   assert.deepEqual(await p, { turnId: 't9', ok: true })
 })
 
+test('messageSubagent targets the selected child and preserves direct or parent-mediated delivery results', async () => {
+  const t = setup()
+  const direct = t.api.messageSubagent('child-chat', 'Confira os testes')
+  assert.deepEqual(t.calls.at(-1), { method: 'chats.messageSubagent', params: { chatId: 'child-chat', text: 'Confira os testes' }, timeout: undefined })
+  t.pending.at(-1).resolve({ delivery: 'direct', nativeTurnId: 'native-child-turn', steered: true })
+  assert.deepEqual(await direct, { ok: true, delivery: 'direct', nativeTurnId: 'native-child-turn', steered: true })
+  const viaParent = t.api.messageSubagent('child-chat', 'Reveja o log')
+  t.pending.at(-1).resolve({ delivery: 'parent' })
+  assert.deepEqual(await viaParent, { ok: true, delivery: 'parent' })
+  const refused = t.api.messageSubagent('child-chat', 'Tente novamente')
+  t.pending.at(-1).reject(Object.assign(new Error('Subagente desconectado'), { code: 'gone' }))
+  assert.deepEqual(await refused, { ok: false, code: 'gone', error: 'Subagente desconectado' })
+})
+
 test('an error with a code becomes { ok: false, code, error } and never rejects', async () => {
   const t = setup()
   const p = t.api.stop('c')

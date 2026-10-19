@@ -54,6 +54,7 @@ pub(crate) struct State {
     pub model: String,
     pub emit: Emitter,
     subagents: super::subagents::Subagents,
+    can_message_subagents: bool,
     perms: HashMap<String, PendingPermission>,
     dialogs: HashMap<String, PendingDialog>,
     /// The model `system/init` reported (an alias such as "haiku" resolved).
@@ -157,6 +158,7 @@ impl Session {
             model: s.model,
             emit: s.emit,
             subagents: super::subagents::Subagents::default(),
+            can_message_subagents: false,
             perms: HashMap::new(),
             dialogs: HashMap::new(),
             resolved_model: None,
@@ -187,6 +189,22 @@ impl Session {
         let mut message: Value = serde_json::from_str(&wire::user_message(text, images)).expect("user_message is JSON");
         message["priority"] = json!("now");
         self.write(message.to_string());
+    }
+
+    pub fn message_subagent(&self, client: ClientKey, root_turn: &str, agent_id: &str, text: &str) -> Result<Value, String> {
+        let st = self.state.lock().unwrap();
+        if st.owner != client || st.aborted || st.closed || st.closing || self.input_closed() {
+            return Err("A sessão principal do Claude não está conectada. A mensagem não foi encaminhada.".into());
+        }
+        let current_turn = st.active_turn.as_ref().ok_or("O agente principal está parado. Envie o encaminhamento pela conversa principal.")?;
+        if !st.perms.is_empty() || !st.dialogs.is_empty() { return Err("Responda à aprovação ou pergunta do agente principal antes de encaminhar a mensagem.".into()); }
+        if !st.can_message_subagents { return Err("A sessão do Claude não disponibilizou a ferramenta SendMessage.".into()); }
+        let target = st.subagents.message_target(agent_id, root_turn).ok_or("Este subagente ainda não informou um destinatário nativo nesta sessão.")?;
+        let prompt = super::subagents::format_subagent_message(&target, text)?;
+        let mut frame: Value = serde_json::from_str(&wire::user_message(&prompt, &[])).expect("user_message is JSON");
+        frame["priority"] = "now".into();
+        self.input.send(Input::Line(frame.to_string())).map_err(|_| "O canal do agente principal foi fechado. A mensagem não foi encaminhada.")?;
+        Ok(json!({"delivery": "parent", "rootTurnId": current_turn, "messageTarget": target}))
     }
 
     /// A host → CLI control request; its answer is not awaited.
@@ -387,6 +405,7 @@ fn translate(st: &mut State, key: &str, msg: &Value, shared: &Shared) -> Events 
     let id = || st.active_turn.clone().map(Value::String);
     match kind {
         "system" if subtype == "init" => {
+            st.can_message_subagents = msg.get("tools").and_then(Value::as_array).is_some_and(|tools| tools.iter().any(|tool| tool.as_str() == Some("SendMessage")));
             st.session_id = msg.get("session_id").and_then(Value::as_str).map(str::to_string);
             if let Some(model) = text(msg.get("model")) {
                 st.resolved_model = Some(model.to_string());

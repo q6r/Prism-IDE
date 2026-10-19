@@ -98,7 +98,7 @@ export default function AgentTranscript({ onStarter }: { onStarter: (text: strin
     {chat && (chat.readOnly || chat.workspaceNeedsBinding || chat.accountNeedsSelection) ? <div className="ch-notices">
       {chat.readOnly ? <Notice tone="info" icon={<Info size={14} />}
         action={chat.nativeAgent ? <Button variant="outline" size="xs" onClick={() => useAgentChats.getState().select(chat.nativeAgent!.rootChatId)}>Voltar à conversa principal</Button> : undefined}>
-        {chat.nativeAgent ? 'Subagente nativo · atividade acompanhada ao vivo. O controle fica na conversa principal.'
+        {chat.nativeAgent ? 'Subagente nativo · acompanhe a atividade e envie instruções abaixo. A conversa continua vinculada ao agente principal.'
           : <>Agente {chat.sourceHarness} · histórico em leitura. Continue a execução no Traycer.</>}
       </Notice> : null}
       {chat.workspaceNeedsBinding && !chat.readOnly ? <Notice tone="warning" icon={<FolderOpen size={14} />}

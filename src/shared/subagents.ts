@@ -18,6 +18,7 @@ export function subagentLink(rootChatId: string, update: SubagentUpdate, previou
   const info: SubagentInfo = {
     ...old, id: update.id, chatId: subagentChatId(rootChatId, update.id), name: update.name || old?.name || 'Agente',
     status, startedAt: old?.startedAt ?? at, updatedAt: at,
+    ...(update.messageTarget ? { messageTarget: update.messageTarget } : {}),
     ...(update.description ? { description: update.description } : {}),
     ...(update.model ? { model: update.model } : {}),
     ...(update.spawnToolCallId ? { spawnToolCallId: update.spawnToolCallId } : {}),
@@ -51,12 +52,15 @@ export function projectSubagent(chats: readonly UnifiedChat[], rootChatId: strin
   const parentId = before?.nativeAgent ? before.nativeAgent.parentId : update.parentId
   const parent = parentId ? chats.find(c => c.id === subagentChatId(rootChatId, parentId)) : root
   if (parentId && (!parent?.nativeAgent || parent.nativeAgent.rootTurnId !== rootTurnId)) return []
-  const parentTurnId = parentId ? subagentTurnId(rootTurnId, parentId) : rootTurnId
+  const parentTurnId = before?.nativeAgent?.parentTurnId ?? (parentId ? parent?.nativeAgent?.turnId ?? subagentTurnId(rootTurnId, parentId) : rootTurnId)
   const parentTurn = parent?.turns.find(t => t.id === parentTurnId)
   const oldLink = parentTurn?.segments?.find(s => s.subagent?.id === update.id)
   const link = subagentLink(rootChatId, update, oldLink, at)
   const info = link.subagent!
-  const turnId = subagentTurnId(before?.nativeAgent?.rootTurnId ?? rootTurnId, update.id)
+  const restarted = !!before?.nativeAgent && subagentActive(info.status) && !subagentActive(before.nativeAgent.status)
+  const generation = (before?.nativeAgent?.generation ?? 0) + (restarted ? 1 : 0)
+  const baseTurnId = subagentTurnId(before?.nativeAgent?.rootTurnId ?? rootTurnId, update.id)
+  const turnId = restarted ? `${baseTurnId}:${generation}` : before?.nativeAgent?.turnId ?? baseTurnId
   const childTurn: SharedTurn = before?.turns.find(t => t.id === turnId) ?? {
     id: turnId, role: 'assistant', text: '', segments: [], startedAt: at,
     provider: origin.provider ?? root.selection.provider, profileName: origin.profileName, model: update.model || origin.model || root.selection.model
@@ -78,6 +82,12 @@ export function projectSubagent(chats: readonly UnifiedChat[], rootChatId: strin
     title: info.name === 'Agente' ? (info.description || 'Subagente').slice(0, 100) : info.name,
     readOnly: true, sourceHarness: turn.provider, parentChatId: parentId ? subagentChatId(rootChatId, parentId) : rootChatId,
     nativeAgent: { id: update.id, rootChatId, rootTurnId: before?.nativeAgent?.rootTurnId ?? rootTurnId, ...(parentId ? { parentId } : {}),
+      messageTarget: info.messageTarget,
+      controlId: update.controlId ?? before?.nativeAgent?.controlId ?? update.id,
+      controlTurnId: update.controlTurnId ?? before?.nativeAgent?.controlTurnId ?? rootTurnId,
+      turnId, generation,
+      parentTurnId,
+      nativeTurns: { ...before?.nativeAgent?.nativeTurns, ...(update.nativeTurnId ? { [update.nativeTurnId]: turnId } : {}) },
       status: info.status, name: info.name, description: info.description, summary: info.summary, updatedAt: at },
     pendingTurnId: active ? turnId : undefined, updatedAt: at,
     turns: before?.turns.some(t => t.id === turnId) ? before.turns.map(t => t.id === turnId ? turn : t) : [...(before?.turns || []), turn]

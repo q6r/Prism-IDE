@@ -60,6 +60,52 @@ test('Claude SDK forwards live subagents and background completion without leaki
  first.q.close();await tick()
 })
 
+test('Claude child messages are explicitly forwarded to the live parent using the verified native target',async()=>{
+ const f=fixture();await f.send('origin-turn');const first=f.calls[0]
+ await first.prompt.next() // initial parent input
+ first.q.emit({type:'system',subtype:'init',session_id:'native',tools:['Task','SendMessage']})
+ first.q.emit({type:'assistant',message:{content:[{type:'tool_use',id:'spawn',name:'Agent',input:{name:'reviewer',description:'Review'}}]}})
+ await tick()
+ const payload={rootChatId:'chat',rootTurnId:'origin-turn',agentId:'spawn',text:'Compare "a"\ncom b'}
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},payload),/destinatário nativo/)
+ first.q.emit({type:'system',subtype:'task_started',task_id:'real-native-target',tool_use_id:'spawn',task_type:'local_agent'})
+ await tick()
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:{id:2}},payload),/não está conectada/)
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},{...payload,rootTurnId:'wrong-origin'}),/destinatário nativo/)
+ const accepted=f.handlers['agent:subagent-message']({sender:f.owner},payload)
+ assert.deepEqual(accepted,{delivery:'parent',rootTurnId:'origin-turn',messageTarget:'real-native-target'})
+ const input=(await first.prompt.next()).value
+ assert.equal(input.parent_tool_use_id,null);assert.equal(input.priority,'now')
+ assert.deepEqual(JSON.parse(input.message.content.split('\n\n').at(-1)),{to:'real-native-target',message:payload.text})
+ assert.ok(f.journal.some(event=>event.id==='origin-turn'&&event.segment?.kind==='user'&&event.segment.text.includes('SendMessage')))
+ assert.equal(f.events.some(event=>event.channel==='agent:subagent'&&event.payload.agent.segment?.kind==='user'),false,'a parent ack is not a native child receipt')
+ first.q.emit({type:'result',subtype:'success',session_id:'native'});await tick()
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},payload),/principal está parado/)
+ await f.send('current-parent-turn','native');await first.prompt.next()
+ const later=f.handlers['agent:subagent-message']({sender:f.owner},payload)
+ assert.equal(later.delivery,'parent');assert.equal(later.rootTurnId,'current-parent-turn')
+ await first.prompt.next()
+ first.q.emit({type:'system',subtype:'task_started',task_id:'real-native-target',tool_use_id:'new-send-message-tool',task_type:'local_agent',run_id:'002'});await tick()
+ const resumed=f.events.filter(event=>event.channel==='agent:subagent').at(-1).payload
+ assert.equal(resumed.id,'origin-turn');assert.equal(resumed.agent.id,'spawn')
+ first.q.close();await tick()
+})
+
+test('Claude child forwarding requires SendMessage capability and respects a pending parent approval',async()=>{
+ const f=fixture();await f.send('origin');const first=f.calls[0]
+ first.q.emit({type:'system',subtype:'init',session_id:'native',tools:['Task']})
+ first.q.emit({type:'assistant',message:{content:[{type:'tool_use',id:'spawn',name:'Agent',input:{description:'Review'}}]}})
+ first.q.emit({type:'system',subtype:'task_started',task_id:'native-child',tool_use_id:'spawn',task_type:'local_agent'});await tick()
+ const payload={rootChatId:'chat',rootTurnId:'origin',agentId:'spawn',text:'Continue'}
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},payload),/SendMessage/)
+ first.q.emit({type:'system',subtype:'init',session_id:'native',tools:['Task','SendMessage']});await tick()
+ const answer=first.options.canUseTool('Bash',{command:'echo test'},{signal:new AbortController().signal,toolUseID:'root-bash'})
+ assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},payload),/aprovação ou pergunta/)
+ const permission=f.events.filter(event=>event.channel==='agent:permission').at(-1).payload
+ f.handlers['agent:permission-response']({sender:f.owner},{id:'origin',permId:permission.permId,decision:'deny'})
+ await answer;first.q.close();await tick()
+})
+
 test('Claude image-only messages contain no empty text blocks',async()=>{
  const f=fixture()
  await f.handlers['agent:send']({sender:f.owner},{id:'image',chat:{id:'chat'},prompt:'',cwd:'C:\\QA',model:'opus',profileId:'ambient-claude',images:[{mime:'image/png',data:'aGVsbG8='}]})

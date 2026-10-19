@@ -11,6 +11,7 @@ import { Button, cn, ToolbarChip, Tooltip } from '../ui'
 import MessageQueue from '../composer/MessageQueue'
 import ModelPicker from '../composer/ModelPicker'
 import PermissionPicker from '../composer/PermissionPicker'
+import { SubagentComposer } from './SubagentComposer'
 import { useComposerMenus } from '../composer/useComposerMenus'
 import { catalogKey, normalizeForModel, recordSelection, selectedModelFor, useModelCatalog } from '../../lib/modelCatalog'
 import { imageReferenceInsertion, imageReferenceRemoval, rebaseInsertionPoint } from '../../lib/composerMenu'
@@ -295,7 +296,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
     focusEditor()
   }
 
-  if (chat?.nativeAgent) return <div className="tcm-area ch-subagent-readonly">Acompanhe a atividade aqui. Envie instruções ao agente na conversa principal.</div>
+  if (chat?.nativeAgent) return <SubagentComposer key={chat.id} chatId={chat.id} />
 
   return <div className="tcm-area">
     <div className="tcm-lower-dock" data-testid="chat-lower-dock">

@@ -4,8 +4,23 @@ import { Check, Copy } from 'lucide-react'
 import { cn } from '../ui'
 import { useCopy } from './primitives'
 import { useHighlighted } from './highlight'
+import { useShallow } from 'zustand/react/shallow'
+import { useAgentChats } from '../../lib/agentChats'
+import { useStore } from '../../store'
+import { sameRemoteTarget } from '../../../../shared/agents'
+import { ChatImage } from './ChatImage'
 
 const openChatLink = (href: string): void => { void window.prism.app.openExternal(href) }
+
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  const chat = useAgentChats(useShallow(state => {
+    const chat = state.chats.find(chat => chat.id === state.activeId)
+    return { cwd: chat?.cwd, remoteId: chat?.remoteId, remoteTarget: chat?.remoteTarget }
+  }))
+  const remote = useStore(state => state.remote)
+  return <ChatImage src={src} alt={alt} route={{ cwd: chat.cwd, remoteId: chat.remoteId,
+    remoteReady: !!chat.remoteId && remote?.id === chat.remoteId && sameRemoteTarget(chat.remoteTarget, remote ?? undefined) }} />
+}
 
 /** Fenced block: language strip, hover copy, Monaco-coloured body (code-block.tsx). */
 function FencedCode({ code, language, streaming }: { code: string; language: string; streaming: boolean }) {
@@ -38,6 +53,6 @@ export const Markdown = memo(function Markdown({ text, size = 'normal', muted, s
   className?: string
 }) {
   return <div className={cn('ch-md', size === 'compact' ? 'ch-md-sm' : 'ch-md-base', muted && 'ch-md-muted', className)}>
-    <MarkdownContent text={text} streaming={streaming} CodeBlock={FencedCode} openLink={openChatLink} />
+    <MarkdownContent text={text} streaming={streaming} CodeBlock={FencedCode} openLink={openChatLink} Image={MarkdownImage} />
   </div>
 })

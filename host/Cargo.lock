@@ -950,7 +950,7 @@ dependencies = [
 
 [[package]]
 name = "prism-agents"
-version = "0.3.12"
+version = "0.3.13"
 dependencies = [
  "chrono",
  "prism-proc",
@@ -965,7 +965,7 @@ dependencies = [
 
 [[package]]
 name = "prism-host"
-version = "0.3.12"
+version = "0.3.13"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -999,7 +999,7 @@ dependencies = [
 
 [[package]]
 name = "prism-proc"
-version = "0.3.12"
+version = "0.3.13"
 dependencies = [
  "libc",
  "tokio",
@@ -1008,7 +1008,7 @@ dependencies = [
 
 [[package]]
 name = "prism-protocol"
-version = "0.3.12"
+version = "0.3.13"
 dependencies = [
  "serde",
  "serde_json",
@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "prism-store"
-version = "0.3.12"
+version = "0.3.13"
 dependencies = [
  "rusqlite",
  "serde",

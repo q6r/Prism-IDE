@@ -115,6 +115,9 @@ pub trait Runner: Send + Sync + 'static {
     fn steer(&self, _chat_id: String, _turn_id: String, _text: String, _images: Vec<Value>) -> BoxFuture<Result<(), String>> {
         Box::pin(async { Err("Este provedor não suporta envio durante o turno.".into()) })
     }
+    fn message_subagent(&self, _root_chat: String, _root_turn: String, _agent_id: String, _text: String) -> BoxFuture<Result<Value, String>> {
+        Box::pin(async { Err("Este provedor não suporta mensagens para subagentes.".into()) })
+    }
     /// `decision`: `allow`, `allow_always` or `deny`.
     fn permission(&self, chat_id: &str, turn_id: &str, perm_id: &str, decision: &str, updated_input: Option<Value>);
     /// `answers` maps question text to the chosen answer; `None` cancels.
@@ -225,6 +228,14 @@ pub(crate) enum Msg {
         result: Result<(), String>,
         reply: oneshot::Sender<Result<Value, HostError>>,
     },
+    SubagentMessaged {
+        chat_id: String,
+        turn_id: String,
+        text: String,
+        actor: String,
+        result: Result<Value, String>,
+        reply: oneshot::Sender<Result<Value, HostError>>,
+    },
     Disconnected(ClientId),
 }
 
@@ -247,6 +258,7 @@ const METHODS: &[&str] = &[
     methods::SEND,
     methods::STOP,
     methods::STEER,
+    methods::MESSAGE_SUBAGENT,
     methods::QUEUE,
     methods::RESPOND_PERMISSION,
     methods::RESPOND_QUESTION,
@@ -353,7 +365,7 @@ fn stopped() -> HostError {
 }
 
 impl Domain for ChatsDomain {
-    fn features(&self) -> &'static [&'static str] { &["chats.queue@1"] }
+    fn features(&self) -> &'static [&'static str] { &["chats.queue@1", "chats.subagents.message@1"] }
     fn name(&self) -> &'static str {
         "chats"
     }

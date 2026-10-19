@@ -139,7 +139,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
     if (chat.nativeStatus) return chat.nativeStatus === 'completed' ? 'done' : chat.nativeStatus === 'failed' ? 'failure'
       : chat.nativeStatus === 'stopped' ? 'idle' : 'running'
     const run = runs[chat.id]
-    return chatStatusKind({ busy: !!run, permission: run === 'approval', question: run === 'interview', unread: unread[chat.id], readOnly: chat.readOnly })
+    return chatStatusKind({ busy: !!run, permission: run === 'approval', question: run === 'interview', unread: unread[chat.id], readOnly: chat.readOnly && !chat.nativeAgent })
   }, [runs, unread])
   const icon = useCallback((chat: ChatRow, ctx: ChatTreeRowContext<ChatRow>): ReactNode => {
     const own = statusOf(chat)
@@ -173,7 +173,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
       {c.nativeAgent ? <span>Subagente nativo · vinculado à conversa principal</span> : null}
       {run ? <span>{run === 'approval' ? 'Aguardando permissão' : run === 'interview' ? 'Aguardando resposta' : 'Em execução'}</span> : null}</span>
   }, [runs])
-  const rowLabel = useCallback((c: ChatRow): string => [c.title, c.archived && 'arquivado', runs[c.id] && 'em execução', c.readOnly && 'somente leitura'].filter(Boolean).join(', '), [runs])
+  const rowLabel = useCallback((c: ChatRow): string => [c.title, c.archived && 'arquivado', runs[c.id] && 'em execução', c.readOnly && !c.nativeAgent && 'somente leitura'].filter(Boolean).join(', '), [runs])
   const onSelect = useCallback((id: string) => chats().select(id), [])
   const onContextMenu = useCallback((c: ChatRow, point: { x: number; y: number }, row: HTMLElement) => setMenu({ chat: c, point, row }), [])
   const isOpen = useCallback((id: string, depth: number) => branchOpen(expansion, id, depth), [expansion])

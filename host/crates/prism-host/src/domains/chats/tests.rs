@@ -32,11 +32,18 @@ pub(super) struct Fake {
     pub panic_start: std::sync::atomic::AtomicBool,
     pub panic_constructor: std::sync::atomic::AtomicBool,
     pub steers: Mutex<Vec<Steered>>,
+    pub child_messages: Mutex<Vec<(String, String, String, String)>>,
+    pub child_reply: Mutex<Option<Result<Value, String>>>,
 }
 
 struct FakeRunner(Arc<Fake>);
 
 impl Runner for FakeRunner {
+    fn message_subagent(&self, root: String, turn: String, agent: String, text: String) -> BoxFuture<Result<Value, String>> {
+        self.0.child_messages.lock().unwrap().push((root, turn, agent, text));
+        let result = self.0.child_reply.lock().unwrap().clone().unwrap_or_else(|| Ok(json!({"delivery":"direct"})));
+        Box::pin(async move { result })
+    }
     fn start(&self, turn: TurnStart, sink: TurnSink) -> BoxFuture<Result<(), String>> {
         let refuse = self.0.refuse.lock().unwrap().clone();
         self.0.starts.lock().unwrap().push((turn, sink));
@@ -366,6 +373,131 @@ async fn native_children_have_linked_readonly_conversations_and_outlive_their_ro
     assert_eq!(ui.chat(child_id),h.stored(child_id));
     h.emit(1,TurnEvent::Done{aborted:false}).await;
     assert_eq!(h.activity.holds(),0);
+}
+
+async fn message_child(h: &mut Harness, ui: &Client, chat: &str, text: &str) -> Result<Value, HostError> {
+    let (reply, answer) = oneshot::channel();
+    h.engine.handle(Msg::Call { method: "messageSubagent".into(), params: json!({"chatId":chat,"text":text}),
+        user:owner(),client:ui.id,notifier:ui.notifier.clone(),activity:Arc::clone(&h.activity),reply });
+    h.settle().await;
+    answer.await.unwrap()
+}
+
+#[tokio::test]
+async fn native_child_messages_use_the_original_session_without_starting_or_interrupting_the_parent() {
+    let (mut h, mut ui, origin) = Harness::running("codex").await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"review","status":"running"}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    h.call(&ui,"send",json!({"chatId":"c1","text":"second parent turn"})).unwrap();
+    h.settle().await;
+    let before = h.stored("c1");
+    let reply = message_child(&mut h,&ui,"subagent:c1:review","focus on tests").await.unwrap();
+    assert_eq!(reply["delivery"],"direct");
+    assert_eq!(h.fake.child_messages.lock().unwrap()[0],("c1".into(),origin,"review".into(),"focus on tests".into()));
+    assert_eq!(h.fake.starts.lock().unwrap().len(),2);
+    assert!(h.fake.aborts.lock().unwrap().is_empty());
+    assert_eq!(h.stored("c1"),before);
+    ui.sync();
+    let child = h.stored("subagent:c1:review");
+    assert_eq!(child["readOnly"],true,"a child cannot start an independent runner");
+    assert!(child["turns"][0]["segments"].as_array().unwrap().iter().any(|s|s["kind"]=="user"&&s["text"]=="focus on tests"));
+    assert_eq!(ui.chat("subagent:c1:review"),child);
+}
+
+#[tokio::test]
+async fn refused_native_child_messages_do_not_append_fake_user_messages_and_can_be_retried() {
+    let (mut h, ui, _) = Harness::running("codex").await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"review","status":"completed"}))).await;
+    *h.fake.child_reply.lock().unwrap()=Some(Err("thread unavailable".into()));
+    let before=h.stored("subagent:c1:review");
+    assert!(message_child(&mut h,&ui,"subagent:c1:review","keep this draft").await.is_err());
+    assert_eq!(h.stored("subagent:c1:review"),before);
+    assert!(message_child(&mut h,&ui,"c1","do not impersonate a child").await.is_err());
+    *h.fake.child_reply.lock().unwrap()=None;
+    assert!(message_child(&mut h,&ui,"subagent:c1:review","retry").await.is_ok());
+}
+
+#[tokio::test]
+async fn native_child_prompts_remain_answerable_after_parent_finishes() {
+    let (mut h, mut ui, _) = Harness::running("codex").await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"review","status":"waiting","permission":{"permId":"child-perm","toolName":"Bash"}}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    ui.sync();
+    assert_eq!(ui.mirror.runtime["subagent:c1:review"]["permission"]["permId"],"child-perm");
+    h.call(&ui,"respondPermission",json!({"chatId":"subagent:c1:review","permId":"child-perm","decision":"allow"})).unwrap();
+    assert_eq!(h.fake.permissions.lock().unwrap()[0],("c1".into(),"child-perm".into(),"allow".into()));
+    h.emit(0,TurnEvent::Subagent(json!({"id":"review","status":"waiting","question":{"dialogId":"child-question","questions":[]}}))).await;
+    h.call(&ui,"respondQuestion",json!({"chatId":"subagent:c1:review","dialogId":"child-question","answers":{"Q":"A"}})).unwrap();
+    assert_eq!(h.fake.questions.lock().unwrap()[0].0,"c1");
+    assert_eq!(h.fake.questions.lock().unwrap()[0].1,"child-question");
+    ui.sync();
+    assert!(ui.mirror.runtime["subagent:c1:review"].get("question").is_none());
+    assert!(ui.mirror.runtime["subagent:c1:review"].get("permission").is_none());
+}
+
+#[tokio::test]
+async fn claude_child_messages_resume_the_same_idle_parent_with_an_explicit_native_inbox_target() {
+    let (mut h, ui, _) = Harness::running("claude").await;
+    h.emit(0,TurnEvent::Session("native-parent-session".into())).await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"spawn","messageTarget":"native-child","status":"completed"}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    let reply=message_child(&mut h,&ui,"subagent:c1:spawn","review these changes").await.unwrap();
+    assert_eq!(reply["delivery"],"parent");
+    let starts=h.fake.starts.lock().unwrap();
+    assert_eq!(starts.len(),2);
+    assert_eq!(starts[1].0.chat_id,"c1");
+    assert_eq!(starts[1].0.resume.as_deref(),Some("native-parent-session"));
+    assert!(starts[1].0.prompt.contains("native-child"));
+    assert!(starts[1].0.prompt.contains("review these changes"));
+    assert!(starts[1].0.prompt.contains("SendMessage"));
+    assert!(h.fake.child_messages.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn child_message_ack_cannot_move_a_steered_message_into_the_next_native_generation() {
+    let (mut h, ui, origin)=Harness::running("codex").await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"a","status":"running","nativeTurnId":"first-native"}))).await;
+    let first=h.stored("subagent:c1:a")["nativeAgent"]["turnId"].clone();
+    *h.fake.child_reply.lock().unwrap()=Some(Ok(json!({"delivery":"direct","steered":true,"nativeTurnId":"first-native"})));
+    let (reply,answer)=oneshot::channel();
+    h.engine.handle(Msg::Call{method:"messageSubagent".into(),params:json!({"chatId":"subagent:c1:a","text":"belongs to first"}),user:owner(),client:ui.id,notifier:ui.notifier.clone(),activity:Arc::clone(&h.activity),reply});
+    h.engine.handle(Msg::Turn{chat_id:"c1".into(),turn_id:origin.clone(),event:TurnEvent::Subagent(json!({"id":"a","status":"completed"}))});
+    h.engine.handle(Msg::Turn{chat_id:"c1".into(),turn_id:origin,event:TurnEvent::Subagent(json!({"id":"a","status":"running","nativeTurnId":"second-native"}))});
+    h.settle().await;
+    assert!(answer.await.unwrap().is_ok());
+    let child=h.stored("subagent:c1:a");
+    assert_ne!(child["nativeAgent"]["turnId"],first);
+    assert!(child["turns"][0]["segments"].as_array().unwrap().iter().any(|s|s["text"]=="belongs to first"));
+    assert!(!child["turns"][1]["segments"].as_array().unwrap().iter().any(|s|s["kind"]=="user"));
+}
+
+#[tokio::test]
+async fn resumed_claude_inbox_reuses_persisted_child_identity_after_the_host_restarts() {
+    let (mut h, ui, origin)=Harness::running("claude").await;
+    h.emit(0,TurnEvent::Session("original-session".into())).await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"original-spawn","messageTarget":"native-inbox","status":"completed"}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    let runner:Arc<dyn Runner>=Arc::new(FakeRunner(Arc::clone(&h.fake)));
+    let(tx,rx)=channel();
+    h.engine=Engine::new(Arc::clone(&h.store),Runners{claude:Some(runner),codex:None},Handle::current(),tx);
+    h.rx=rx;
+    assert_eq!(message_child(&mut h,&ui,"subagent:c1:original-spawn","resume this inbox").await.unwrap()["delivery"],"parent");
+    h.emit(1,TurnEvent::Subagent(json!({"id":"new-send-tool","messageTarget":"native-inbox","status":"running","text":"continued child"}))).await;
+    let child=h.stored("subagent:c1:original-spawn");
+    assert_eq!(child["nativeAgent"]["rootTurnId"],origin);
+    assert_eq!(child["turns"].as_array().unwrap().len(),2);
+    assert!(h.store.chat("subagent:c1:new-send-tool").unwrap().is_none());
+    let transport_origin=h.fake.starts.lock().unwrap()[1].0.turn_id.clone();
+    assert_eq!(child["nativeAgent"]["controlId"],"new-send-tool");
+    assert_eq!(child["nativeAgent"]["controlTurnId"],transport_origin);
+    message_child(&mut h,&ui,"subagent:c1:original-spawn","another message").await.unwrap();
+    let routed=h.fake.child_messages.lock().unwrap()[0].clone();
+    assert_eq!(routed.1,transport_origin);
+    assert_eq!(routed.2,"new-send-tool");
+    h.emit(1,TurnEvent::Subagent(json!({"id":"grandchild","parentId":"new-send-tool","status":"running","text":"nested resumed output"}))).await;
+    let grandchild=h.stored("subagent:c1:grandchild");
+    assert_eq!(grandchild["parentChatId"],"subagent:c1:original-spawn");
+    assert_eq!(grandchild["nativeAgent"]["rootTurnId"],origin);
 }
 
 #[tokio::test]

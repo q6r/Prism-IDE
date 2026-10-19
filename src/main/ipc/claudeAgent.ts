@@ -1,6 +1,6 @@
 import { claudeContext, claudeMetrics, claudeTurnUsage, NO_CLAUDE_TOTALS, type ClaudeTotals } from '../../shared/providerUsage'
 import type { EventEmitter } from 'events'
-import type { ChatImage, UnifiedChat, SharedSegment, TurnUsage, SteerMessage } from '../../shared/agents'
+import type { ChatImage, UnifiedChat, SharedSegment, TurnUsage, SteerMessage, SubagentMessage } from '../../shared/agents'
 import { ipcMain, WebContents, app, BrowserWindow } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { existsSync } from 'fs'
@@ -10,7 +10,7 @@ import { join } from 'path'
 import { agentStore, profileEnvironment, providerCommand } from '../providers'
 import type { Client, ClientChannel } from 'ssh2'
 import { getSshClient, matchesSshTarget } from './ssh'
-import { ClaudeSubagents } from './claudeSubagents'
+import { ClaudeSubagents, formatSubagentMessage } from './claudeSubagents'
 
 // Resolve the locally-installed Claude Code CLI. The Agent SDK ships an optional
 // per-platform native binary that package managers (pnpm) may omit; when that
@@ -232,6 +232,8 @@ function userMsg(text: string, priority?: 'now' | 'next' | 'later', images?: Cha
 }
 
 interface StreamSession {
+  subagents: ClaudeSubagents
+  canMessageSubagents: boolean
   contextUsage?: unknown
   chatId: string
   owner?: number
@@ -341,6 +343,7 @@ async function sendToStreamingSession(payload: SendPayload, send: SendFn, owner?
   let release!:()=>void
   const closed=new Promise<void>(resolve=>{release=resolve})
   const session: StreamSession = {
+    subagents: new ClaudeSubagents(), canMessageSubagents: false,
     chatId, owner, unified:!!payload.chat, signature, send, closed, release,
     abort,
     activeTurnId: payload.chat ? payload.id : null,
@@ -511,13 +514,14 @@ async function sendToStreamingSession(payload: SendPayload, send: SendFn, owner?
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function consumeStream(session: StreamSession, q: any, send: SendFn): Promise<void> {
   const { chatId } = session
-  const subagents = new ClaudeSubagents()
+  const subagents = session.subagents
   try {
     for await (const msg of q as AsyncIterable<Record<string, any>>) {
       if (subagents.handle(msg, session.activeTurnId, send)) continue
       switch (msg.type) {
         case 'system':
           if (msg.subtype === 'init') {
+            session.canMessageSubagents = Array.isArray(msg.tools) && msg.tools.includes('SendMessage')
             session.sessionId=msg.session_id
             if (typeof msg.model === 'string' && msg.model) session.resolvedModel = msg.model
             if(session.unified) {
@@ -1180,6 +1184,22 @@ export function registerClaudeAgentHandlers(): void {
     const text = p.context ? `${p.text}\n\n${p.context}` : p.text
     if (s.unified) agentStore.appendEvent(p.chatId, p.turnId, { kind: 'segment', segment: { kind: 'user', toolId: p.messageId || crypto.randomUUID(), text, images: p.images, sentAt: Date.now() } })
     s.push(text, 'now', p.images)
+  })
+
+  ipcMain.handle('agent:subagent-message', (e, p: SubagentMessage) => {
+    const s = streamSessions.get(`unified:${p.rootChatId}`) ?? streamSessions.get(p.rootChatId)
+    if (!s || s.owner !== e.sender.id || !s.reusable() || s.stoppingTurnId || s.closing) throw new Error('A sessão principal do Claude não está conectada. A mensagem não foi encaminhada.')
+    const rootTurnId = s.activeTurnId
+    if (!rootTurnId) throw new Error('O agente principal está parado. Envie o encaminhamento pela conversa principal.')
+    if (s.perms.size || s.dialogs.size) throw new Error('Responda à aprovação ou pergunta do agente principal antes de encaminhar a mensagem.')
+    if (!s.canMessageSubagents) throw new Error('A sessão do Claude não disponibilizou a ferramenta SendMessage.')
+    const messageTarget = s.subagents.messageTarget(p.agentId, p.rootTurnId)
+    if (!messageTarget) throw new Error('Este subagente ainda não informou um destinatário nativo nesta sessão.')
+    const text = formatSubagentMessage(messageTarget, p.text)
+    s.push(text, 'now')
+    // This records the actual parent input. It is not a child-native message.
+    if (s.unified) agentStore.appendEvent(p.rootChatId, rootTurnId, { kind: 'segment', segment: { kind: 'user', toolId: crypto.randomUUID(), text, sentAt: Date.now() } })
+    return { delivery: 'parent', rootTurnId, messageTarget }
   })
 
   ipcMain.on('agent:abort', (e, id: string) => {

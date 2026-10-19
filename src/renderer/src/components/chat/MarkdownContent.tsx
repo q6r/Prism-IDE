@@ -1,6 +1,7 @@
 import { useMemo, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { isChatImagePath, resolveChatImageSource } from '../../../../shared/chatImageSource'
 
 const REMARK = [remarkGfm]
 function textOf(node: ReactNode): string {
@@ -26,14 +27,16 @@ export function MarkdownContent({ text, streaming = false, CodeBlock, openLink, 
     // react-markdown treats an own key with `undefined` as a component override.
     // Omit it when the desktop uses the default HTML image renderer.
     ...(Image ? { img: ({ src, alt }: ComponentProps<'img'>) => <Image src={src} alt={alt} /> } : {}),
-    a: ({ href, children }) => Image && href && /\.(png|jpe?g|gif|webp)(?:[?#]|$)/i.test(href) && !/^https?:/i.test(href)
+    a: ({ href, children }) => Image && href && isChatImagePath(href) && !/^https?:/i.test(href)
       ? <Image src={href} alt={textOf(children)} /> : <a href={href} title={href} onClick={e => { e.preventDefault(); if (href && /^(https?:|mailto:)/i.test(href)) openLink(href) }}>{children}</a>,
     table: ({ children }) => <div className="ch-md-table-wrap"><table>{children}</table></div>,
     input: ({ type, checked }) => type === 'checkbox' ? <input type="checkbox" checked={!!checked} readOnly disabled /> : null
   }), [CodeBlock, Image, openLink, streaming])
-  return <ReactMarkdown urlTransform={(url) => {
-    if (Image && /^data:image\/(png|jpeg|gif|webp);base64,/i.test(url)) return url
-    if (Image && /\.(png|jpe?g|gif|webp)(?:[?#]|$)/i.test(url) && !/^(javascript|vbscript|data):/i.test(url)) return url
+  return <ReactMarkdown urlTransform={(url, key, node) => {
+    if (Image && (key === 'src' || (node.tagName === 'a' && isChatImagePath(url)))) {
+      const source = resolveChatImageSource(url, '/')
+      if (source.kind !== 'error') return url
+    }
     return defaultUrlTransform(url)
   }} remarkPlugins={REMARK} components={components}>{text}</ReactMarkdown>
 }

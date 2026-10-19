@@ -90,6 +90,10 @@ impl ClaudeRunner {
 }
 
 impl Runner for ClaudeRunner {
+    fn message_subagent(&self, root_chat: String, root_turn: String, agent_id: String, text: String) -> BoxFuture<Result<Value, String>> {
+        let agents = self.agents.clone();
+        Box::pin(async move { agents.message_subagent(ENGINE_OWNER, &root_chat, &root_turn, &agent_id, &text) })
+    }
     fn configure(&self, chat_id: &str, selection: &Value) {
         let key = format!("unified:{chat_id}");
         if let Some(model) = selection.get("model").and_then(Value::as_str) { self.agents.set_model(&key, model); }
@@ -212,6 +216,10 @@ impl CodexSink for EngineSink {
 }
 
 impl Runner for CodexRunner {
+    fn message_subagent(&self, root_chat: String, root_turn: String, agent_id: String, text: String) -> BoxFuture<Result<Value, String>> {
+        let sessions = Arc::clone(&self.sessions);
+        Box::pin(async move { sessions.message_subagent(ENGINE_OWNER, &root_chat, &root_turn, &agent_id, text, vec![]).await })
+    }
     fn start(&self, turn: TurnStart, sink: TurnSink) -> BoxFuture<Result<(), String>> {
         // `{ ...chat.selection, serviceTier: serviceTier || '' }`, without nulls.
         let mut selection = turn.selection.as_object().cloned().unwrap_or_default();

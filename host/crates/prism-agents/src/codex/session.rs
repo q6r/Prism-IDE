@@ -125,6 +125,8 @@ struct State {
     segments: HashMap<String, Segment>,
     /// `codex:<chat>:<id>` → the server request's own id.
     requests: HashMap<String, Value>,
+    /// Pending descendant requests survive completion of the originating root.
+    child_requests: HashMap<String, String>,
     abort_requested: bool,
     failure: Option<String>,
     grants: HashMap<String, Option<Value>>,
@@ -143,6 +145,15 @@ struct Session {
     /// Closed (or abandoned) while its process was still starting.
     dead: AtomicBool,
     st: Mutex<State>,
+}
+
+struct ChildMessageClaim {
+    session: Arc<Session>,
+    id: String,
+}
+
+impl Drop for ChildMessageClaim {
+    fn drop(&mut self) { self.session.st.lock().unwrap().subagents.finish_message(&self.id); }
 }
 
 type Chats = Mutex<HashMap<String, Arc<Session>>>;
@@ -174,9 +185,11 @@ impl Session {
         st.active = None;
         st.native_turn_id = None;
         st.abort_requested = false;
-        st.requests.clear();
-        st.question_keys.clear();
-        st.grants.clear();
+        let child_requests = &st.child_requests;
+        let child_keys: Vec<String> = child_requests.keys().cloned().collect();
+        st.requests.retain(|key, _| child_keys.contains(key));
+        st.question_keys.retain(|key, _| child_keys.contains(key));
+        st.grants.retain(|key, _| child_keys.contains(key));
         st.turn_base = Base::Unset;
     }
 
@@ -197,10 +210,17 @@ impl Session {
         let mut st = self.st.lock().unwrap();
         let root = st.thread_id.clone().unwrap_or_default();
         let origin = st.active.as_ref().map(|active| super::subagents::Origin { id: active.id.clone(), sink: Arc::clone(&active.sink) });
-        if st.subagents.handle(&root, origin.as_ref(), &msg) { return; }
-        let child_request = request_id.is_some() && p["threadId"].as_str().is_some_and(|id| origin.as_ref().is_some_and(|o| st.subagents.belongs_to(id, &o.id)));
+        if st.subagents.handle(&root, origin.as_ref(), &msg) {
+            if matches!(method,"turn/completed" | "thread/closed") && p["threadId"].as_str().is_some_and(|id| st.subagents.active_turn(id).is_none()) {
+                let keys: Vec<String> = st.child_requests.iter().filter(|(_, child)| Some(child.as_str()) == p["threadId"].as_str()).map(|(key, _)| key.clone()).collect();
+                for key in keys { st.child_requests.remove(&key); st.requests.remove(&key); st.grants.remove(&key); st.question_keys.remove(&key); }
+            }
+            return;
+        }
+        let child_thread = p["threadId"].as_str().filter(|id| request_id.is_some() && st.subagents.contains(id)).map(str::to_string);
+        let child_request = child_thread.is_some();
         let other_thread = p.get("threadId").filter(|t| js_truthy(t)).is_some_and(|t| st.thread_id.as_deref().map(|id| json!(id)).as_ref() != Some(t));
-        if st.active.is_none() || st.failure.is_some() || (other_thread && !child_request) {
+        if (st.active.is_none() && !child_request) || st.failure.is_some() || (other_thread && !child_request) {
             if let Some(id) = &request_id {
                 server.reject(id);
             }
@@ -211,11 +231,12 @@ impl Session {
         {
             return;
         }
-        let active_id = st.active.as_ref().map(|a| a.id.clone()).unwrap_or_default();
+        let active_id = child_thread.as_deref().and_then(|id| st.subagents.origin_id(id)).map(str::to_string).or_else(|| st.active.as_ref().map(|a| a.id.clone())).unwrap_or_default();
         if let Some(id) = request_id {
-            let sink = Arc::clone(&st.active.as_ref().unwrap().sink);
+            let sink = st.active.as_ref().map(|active| Arc::clone(&active.sink));
             let key = format!("codex:{}:{}", self.chat_id, js_string(&id));
             st.requests.insert(key.clone(), id.clone());
+            if let Some(child) = &child_thread { st.child_requests.insert(key.clone(), child.clone()); }
             let mut payload = Map::new();
             payload.insert("id".into(), json!(active_id));
             match method {
@@ -231,7 +252,8 @@ impl Session {
                     payload.insert("toolName".into(), json!(if method.contains("commandExecution") { "Bash" } else { "Write" }));
                     payload.insert("input".into(), Value::Object(input));
                     payload.insert("title".into(), json!(reason(&p, "Codex solicita permissão")));
-                    sink.permission(Value::Object(payload));
+                    if let Some(child) = &child_thread { st.subagents.pending_request(child, "permission", Value::Object(payload)); }
+                    else if let Some(sink) = &sink { sink.permission(Value::Object(payload)); }
                 }
                 "item/permissions/requestApproval" => {
                     st.grants.insert(key.clone(), p.get("permissions").cloned());
@@ -245,7 +267,8 @@ impl Session {
                     payload.insert("toolName".into(), json!("Permissões"));
                     payload.insert("input".into(), Value::Object(input));
                     payload.insert("title".into(), json!(reason(&p, "Codex solicita acesso a arquivos ou rede")));
-                    sink.permission(Value::Object(payload));
+                    if let Some(child) = &child_thread { st.subagents.pending_request(child, "permission", Value::Object(payload)); }
+                    else if let Some(sink) = &sink { sink.permission(Value::Object(payload)); }
                 }
                 "item/tool/requestUserInput" => {
                     let questions: Vec<Value> = p
@@ -264,7 +287,7 @@ impl Session {
                             Some(Value::Object(out))
                         })
                         .collect();
-                    if questions.is_empty() { st.requests.remove(&key); server.reject(&id); return; }
+                    if questions.is_empty() { st.requests.remove(&key); st.child_requests.remove(&key); server.reject(&id); return; }
                     let keys = questions
                         .iter()
                         .map(|q| (q.get("id").cloned().unwrap_or(Value::Null), q.get("question").cloned().unwrap_or(Value::Null)))
@@ -273,10 +296,12 @@ impl Session {
                     payload.insert("dialogId".into(), json!(key));
                     if let Some(item) = p.get("itemId") { payload.insert("toolUseId".into(), item.clone()); }
                     payload.insert("questions".into(), Value::Array(questions));
-                    sink.question(Value::Object(payload));
+                    if let Some(child) = &child_thread { st.subagents.pending_request(child, "question", Value::Object(payload)); }
+                    else if let Some(sink) = &sink { sink.question(Value::Object(payload)); }
                 }
                 _ => {
                     st.requests.remove(&key);
+                    st.child_requests.remove(&key);
                     server.reject(&id);
                 }
             }
@@ -571,15 +596,44 @@ impl CodexSessions {
         Ok(())
     }
 
+    /// Sends to a known native descendant in the original app-server. A busy
+    /// child receives guarded same-turn input; an idle child starts its next
+    /// native turn with the child's own existing configuration and history.
+    pub async fn message_subagent(&self, owner: Owner, chat_id: &str, root_turn_id: &str, agent_id: &str, text: String, images: Vec<Value>) -> Result<Value, String> {
+        if text.trim().is_empty() && images.is_empty() { return Err("Digite uma mensagem.".into()); }
+        let session = self.owned(owner, chat_id).ok_or("A conexão original deste subagente Codex não está mais disponível.")?;
+        let server = session.server.get().filter(|server| !server.is_closed()).ok_or("Codex desconectado.")?;
+        let target = {
+            let mut st = session.st.lock().unwrap();
+            if session.dead.load(Ordering::SeqCst) || st.failure.is_some() { return Err("Codex desconectado.".into()); }
+            st.subagents.begin_message(agent_id, root_turn_id)?
+        };
+        let _claim = ChildMessageClaim { session: Arc::clone(&session), id: agent_id.to_string() };
+        if target.resume {
+            let response = server.request("thread/resume", json!({"threadId": agent_id})).await?;
+            if response["thread"]["id"] != agent_id { return Err("O Codex não confirmou a retomada deste subagente.".into()); }
+        }
+        let mut input = vec![json!({"type":"text", "text":text, "text_elements":[]})];
+        input.extend(images.iter().map(|image| json!({"type":"image", "url":format!("data:{};base64,{}", image["mime"].as_str().unwrap_or_default(), image["data"].as_str().unwrap_or_default())})));
+        let steered = target.turn.is_some();
+        let params = if let Some(turn) = &target.turn { json!({"threadId":agent_id,"expectedTurnId":turn,"input":input}) }
+            else { json!({"threadId":agent_id,"input":input}) };
+        let response = server.request(if steered { "turn/steer" } else { "turn/start" }, params).await?;
+        let native_turn = if steered { response["turnId"].as_str() } else { response["turn"]["id"].as_str() }.ok_or("O Codex não confirmou o turno do subagente. Confira a conversa antes de reenviar.")?;
+        session.st.lock().unwrap().subagents.accept_message(agent_id, &target, native_turn);
+        Ok(json!({"delivery":"direct", "nativeTurnId":native_turn, "steered":steered}))
+    }
+
     /// Answers an approval: `allow`, `allow_always` or anything else (deny).
     pub fn permission(&self, owner: Owner, chat_id: &str, request_id: &str, decision: &str) {
         let Some(s) = self.owned(owner, chat_id) else { return };
         let Some(server) = s.server.get() else { return };
         let mut st = s.st.lock().unwrap();
-        if st.active.is_none() {
+        if st.active.is_none() && !st.child_requests.contains_key(request_id) {
             return;
         }
         let Some(request) = st.requests.remove(request_id) else { return };
+        let child = st.child_requests.remove(request_id);
         if let Some(grant) = st.grants.remove(request_id) {
             let mut result = Map::new();
             if decision == "deny" {
@@ -597,6 +651,7 @@ impl CodexSessions {
             };
             server.answer(&request, json!({ "decision": decision }));
         }
+        if let Some(child) = child { st.subagents.answered(&child, "permission", request_id); }
     }
 
     /// Answers a question dialog; `answers` maps question text to the chosen answer.
@@ -604,16 +659,18 @@ impl CodexSessions {
         let Some(s) = self.owned(owner, chat_id) else { return };
         let Some(server) = s.server.get() else { return };
         let mut st = s.st.lock().unwrap();
-        if st.active.is_none() {
+        if st.active.is_none() && !st.child_requests.contains_key(request_id) {
             return;
         }
         let Some(request) = st.requests.remove(request_id) else { return };
+        let child = st.child_requests.remove(request_id);
         let mut out = Map::new();
         for (id, question) in st.question_keys.remove(request_id).into_iter().flatten() {
             let chosen = answers.and_then(|a| a.get(&js_string(&id)).or_else(|| a.get(&js_string(&question)))).filter(|v| js_truthy(v));
             out.insert(js_string(&id), json!({ "answers": chosen.map(|v| vec![v.clone()]).unwrap_or_default() }));
         }
         server.answer(&request, json!({ "answers": out }));
+        if let Some(child) = child { st.subagents.answered(&child, "question", request_id); }
     }
 
     /// A login changed: idle processes of that profile restart on their next turn.

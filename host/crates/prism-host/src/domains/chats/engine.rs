@@ -139,6 +139,8 @@ pub(super) struct Engine {
     runs: HashMap<String, Run>,
     queue_sending: HashMap<String, String>,
     native_children: HashMap<String, subagents::Child>,
+    child_aliases: HashMap<String, (String, String)>,
+    child_sending: std::collections::HashSet<String>,
     rev: u64,
     events: Vec<NewEvent>,
     deltas: Vec<ChatDelta>,
@@ -260,6 +262,8 @@ impl Engine {
             runs: HashMap::new(),
             queue_sending: HashMap::new(),
             native_children: HashMap::new(),
+            child_aliases: HashMap::new(),
+            child_sending: std::collections::HashSet::new(),
             rev: 0,
             events: Vec::new(),
             deltas: Vec::new(),
@@ -279,6 +283,10 @@ impl Engine {
                 }
                 if method == methods::STEER {
                     self.steer(params, &user, reply);
+                    return;
+                }
+                if method == methods::MESSAGE_SUBAGENT {
+                    self.message_subagent(params, &user, reply);
                     return;
                 }
                 let result = self.call(&method, params, &user, client, notifier);
@@ -313,6 +321,9 @@ impl Engine {
                 });
                 let _ = reply.send(result);
                 if queue_id.is_some() && !self.running(&chat_id) { self.flush_queue(&chat_id); }
+            }
+            Msg::SubagentMessaged { chat_id, turn_id, text, actor, result, reply } => {
+                self.subagent_messaged(chat_id, turn_id, text, actor, result, reply);
             }
             Msg::Disconnected(client) => {
                 self.subscribers.remove(&client);
@@ -1035,6 +1046,7 @@ impl Engine {
     }
 
     fn respond_permission(&mut self, p: PermissionParams, user: &UserInfo) -> Result<Value, HostError> {
+        if self.native_children.contains_key(&p.chat_id) { return self.respond_subagent_permission(p); }
         let Some(run) = self.runs.get_mut(&p.chat_id) else { return Err(gone(PERMISSION_GONE)) };
         let Some(index) = run.permissions.iter().position(|q| q.get("permId").and_then(Value::as_str) == Some(p.perm_id.as_str())) else {
             return Err(gone(PERMISSION_GONE));
@@ -1061,6 +1073,7 @@ impl Engine {
     }
 
     fn respond_question(&mut self, p: QuestionParams) -> Result<Value, HostError> {
+        if self.native_children.contains_key(&p.chat_id) { return self.respond_subagent_question(p); }
         let Some(run) = self.runs.get_mut(&p.chat_id) else { return Err(gone(QUESTION_GONE)) };
         let Some(index) = run.questions.iter().position(|q| q.get("dialogId").and_then(Value::as_str) == Some(p.dialog_id.as_str())) else {
             return Err(gone(QUESTION_GONE));

@@ -109,6 +109,9 @@
 .ch-copy.ch-user-copy:hover { background: color-mix(in oklab, var(--tr-foreground) 5%, transparent); }
 
 .ch-assistant { display: flex; width: 100%; max-width: none; flex-direction: column; gap: 8px; padding: 4px 0; }
+.ch-subagent-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; }
+.ch-subagent-composer-actions > span { color: var(--tr-muted-foreground); font-size: 12px; line-height: 18px; }
+.ch-subagent-composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Copy button (segment-copy / assistant reply copy). */
 .ch-copy {
@@ -628,6 +631,14 @@
 .ch-image-preview::backdrop { background: rgb(0 0 0 / .7); }
 .ch-image-preview > img { display: block; max-width: 85vw; max-height: 80vh; object-fit: contain; }
 .ch-image-preview > button { display: block; margin: 0 0 10px auto; padding: 6px 10px; background: var(--tr-muted); color: inherit; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-md); cursor: pointer; }
+
+.ch-markdown-image { display: inline-block; min-width: 0; max-width: 100%; }
+.ch-markdown-image-button { display: block; max-width: 100%; padding: 0; border: 0; border-radius: var(--tr-radius-md); background: transparent; cursor: zoom-in; }
+.ch-markdown-image-button > img { display: block; max-width: 100%; max-height: 480px; margin: 0; object-fit: contain; }
+.ch-markdown-image-button:focus-visible { outline: 2px solid var(--tr-ring); outline-offset: 3px; }
+.ch-markdown-image-status { display: inline-flex; max-width: 100%; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-md); color: var(--tr-muted-foreground); font-size: 14px; line-height: 22px; }
+.ch-markdown-image-status > span { min-width: 0; overflow-wrap: anywhere; }
+.ch-markdown-image-status > button { color: var(--tr-foreground); text-decoration: underline; text-underline-offset: 3px; }
 
 /* Native subagents stay visible outside folded tool activity. */
 .ch-subagent { min-width: 0; width: 100%; }

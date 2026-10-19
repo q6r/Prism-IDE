@@ -157,6 +157,60 @@ async fn subagents_are_linked_to_the_spawning_turn_and_never_contaminate_parent_
     assert!(!f.of("agent:tool").iter().any(|tool| tool["toolId"] == "read"));
     p.exit(0);
 }
+
+#[tokio::test]
+async fn child_messages_use_verified_recipients_and_only_acknowledge_parent_forwarding() {
+    let f = Fixture::new();
+    assert!(f.send("origin", None, "ambient-claude").await);
+    let p = f.proc(0); f.started(&p).await;
+    let mut system = init("native"); system["tools"] = json!(["Task", "SendMessage"]); p.emit(system);
+    p.emit(json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "spawn", "name": "Agent", "input": {"description": "Revisar"}}]}}));
+    f.settle().await;
+    assert!(f.agents.message_subagent(OWNER, "chat", "origin", "spawn", "Continue").is_err(), "the spawn tool ID is not a native recipient");
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "real-native-target", "tool_use_id": "spawn", "task_type": "local_agent"}));
+    f.settle().await;
+    assert!(f.agents.message_subagent(OTHER, "chat", "origin", "spawn", "Continue").is_err());
+    assert!(f.agents.message_subagent(OWNER, "chat", "wrong-origin", "spawn", "Continue").is_err());
+    assert!(f.agents.message_subagent(OWNER, "another-chat", "origin", "spawn", "Continue").is_err());
+    let message = "Compare \"a\"\ncom b";
+    let ack = f.agents.message_subagent(OWNER, "chat", "origin", "spawn", message).unwrap();
+    assert_eq!(ack, json!({"delivery": "parent", "rootTurnId": "origin", "messageTarget": "real-native-target"}));
+    let input = p.line().await;
+    assert!(input["parent_tool_use_id"].is_null());
+    assert_eq!(input["priority"], "now");
+    let text = input["message"]["content"].as_str().unwrap();
+    let data: Value = serde_json::from_str(text.rsplit_once("\n\n").unwrap().1).unwrap();
+    assert_eq!(data, json!({"to": "real-native-target", "message": message}));
+    assert!(!f.of("agent:subagent").iter().any(|event| event["agent"]["segment"]["kind"] == "user"), "the parent receipt does not fabricate a child transcript entry");
+    p.emit(result(json!({}))); f.settle().await;
+    assert!(f.agents.message_subagent(OWNER, "chat", "origin", "spawn", message).is_err(), "an idle parent must start a separate visible turn in the engine");
+    assert!(f.send("current-parent", Some("native"), "ambient-claude").await);
+    assert_eq!(p.line().await["message"]["content"], "hello");
+    let ack = f.agents.message_subagent(OWNER, "unified:chat", "origin", "real-native-target", message).unwrap();
+    assert_eq!(ack["rootTurnId"], "current-parent");
+    p.line().await;
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "real-native-target", "tool_use_id": "new-send-message-tool", "task_type": "local_agent", "run_id": "002"}));
+    f.settle().await;
+    let resumed = f.of("agent:subagent").pop().unwrap();
+    assert_eq!(resumed["id"], "origin"); assert_eq!(resumed["agent"]["id"], "spawn");
+    p.exit(0);
+}
+
+#[tokio::test]
+async fn child_forwarding_requires_send_message_capability_and_respects_parent_approval() {
+    let f = Fixture::new();
+    assert!(f.send("origin", None, "ambient-claude").await);
+    let p = f.proc(0); f.started(&p).await; p.emit(init("native"));
+    p.emit(json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "spawn", "name": "Agent", "input": {"description": "Revisar"}}]}}));
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "native-child", "tool_use_id": "spawn", "task_type": "local_agent"}));
+    f.settle().await;
+    assert!(f.agents.message_subagent(OWNER, "chat", "origin", "spawn", "Continue").unwrap_err().contains("SendMessage"));
+    let mut system = init("native"); system["tools"] = json!(["Task", "SendMessage"]); p.emit(system);
+    p.emit(can_use_tool("root-permission", "Bash")); f.settle().await;
+    assert!(f.agents.message_subagent(OWNER, "chat", "origin", "spawn", "Continue").unwrap_err().contains("aprovação ou pergunta"));
+    assert!(p.quiet().await);
+    p.exit(0);
+}
 fn text(t: &str) -> Value {
     json!({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": t}}})
 }

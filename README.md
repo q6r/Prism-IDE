@@ -18,6 +18,8 @@ Prism é uma aplicação desktop independente feita com Electron, React, TypeScr
 - **Conversas e projetos:** Claude Code e Codex no mesmo histórico, contas isoladas por perfil, rascunhos por chat, importação local do Traycer e várias tarefas em paralelo.
 - **Execução dos agentes:** aprovações, perguntas interativas, anexos com referências `#image 1`, fila compartilhada de mensagens e acompanhamento de subagentes vinculados à conversa principal.
 - **Host local em Rust:** mantém as execuções e o histórico em SQLite, separado da janela Electron. Cada subagente pode ser acompanhado pela árvore e por seus cartões de tarefa, atividade e resultado.
+- **Mensagens para subagentes:** no Codex, o envio usa a conversa nativa do filho. No Claude, a instrução é encaminhada pelo principal com `SendMessage`, quando o filho possui um endereço nativo disponível. O recebimento no filho aparece quando a CLI o confirma.
+- **Imagens do agente:** prévias locais usam a pasta da conversa; imagens podem ser ampliadas, e arquivos ausentes exibem um erro legível.
 - **Editor e ferramentas:** Monaco, abas, busca global, Quick Open, terminal PTY, Git com diffs e conexão SSH.
 - **Controle remoto no celular:** QR por conversa ou seleção de chats, imagens, configurações do agente, aprovações, fila e acompanhamento das alterações. Um link compartilhado concede acesso às conversas selecionadas.
 - **Uso e interface:** limites informados pelos provedores, métricas nativas quando disponíveis, temas, atalhos e extensão opcional de Discord Rich Presence.

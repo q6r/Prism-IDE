@@ -106,6 +106,14 @@ export type SubagentStatus = 'pending' | 'running' | 'waiting' | 'completed' | '
 /** Native child events remain addressed to the turn which created the child. */
 export interface SubagentUpdate {
   id: string
+  /** Transport address can change when a persisted native inbox is resumed. */
+  controlId?: string
+  controlTurnId?: string
+  nativeTurnId?: string
+  /** Native inbox address, when distinct from the activity-card identity. */
+  messageTarget?: string
+  permission?: Record<string, unknown> | null
+  question?: Record<string, unknown> | null
   parentId?: string
   spawnToolCallId?: string
   name?: string
@@ -121,6 +129,7 @@ export interface SubagentUpdate {
 
 export interface SubagentInfo {
   id: string
+  messageTarget?: string
   chatId: string
   name: string
   description?: string
@@ -135,6 +144,13 @@ export interface SubagentInfo {
 
 export interface NativeAgentInfo {
   id: string
+  controlId?: string
+  controlTurnId?: string
+  parentTurnId?: string
+  turnId?: string
+  generation?: number
+  nativeTurns?: Record<string, string>
+  messageTarget?: string
   rootChatId: string
   rootTurnId: string
   parentId?: string
@@ -190,7 +206,7 @@ export interface UnifiedChat {
   readOnly?: boolean
   sourceHarness?: string
   parentChatId?: string
-  /** Read-only view of a native child; its parent controls the provider session. */
+    /** Projection of a native child; messages use its provider session, without an independent runner. */
   nativeAgent?: NativeAgentInfo
   archived?: boolean
   // `syncedTurns`: how many turns the last import/refresh brought from Traycer.
@@ -312,6 +328,20 @@ export interface SteerMessage {
   text: string
   context?: string
   images?: ChatImage[]
+}
+
+/** A message to one existing native child; never creates a separate agent. */
+export interface SubagentMessage {
+  rootChatId: string
+  rootTurnId: string
+  agentId: string
+  text: string
+}
+
+export interface SubagentMessageResult {
+  delivery: 'direct' | 'parent'
+  nativeTurnId?: string
+  steered?: boolean
 }
 
 export interface CodexSend {

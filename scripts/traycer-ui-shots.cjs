@@ -238,6 +238,12 @@ handle('chats:list', () => qaChats)
 handle('chats:save', () => true)
 ipcMain.on('chats:flush', (e) => { e.returnValue = { ok: true } })
 handle('chats:delete', () => true)
+const qaSubagentMessages = []
+handle('codex:subagent-message', payload => {
+  qaSubagentMessages.push(payload)
+  if (payload.text === 'refusar') throw new Error('fixture: subagent unavailable')
+  return { delivery: 'direct', nativeTurnId: 'qa-native-child-turn', steered: true }
+})
 // Queue/interrupt QA uses the real renderer and preload without launching a provider.
 let qaActiveTurn = null
 const qaSteers = []
@@ -350,7 +356,8 @@ async function untilOn(evaluate, source, label, timeout = 10000) {
 const until = (source, label, timeout) => untilOn(js, source, label, timeout)
 /** Types into the composer the way React expects. */
 const type = (text) => js(`(() => {
-  const box = document.querySelector('[data-composer-shell] textarea')
+  const box = document.querySelector('#subagent-message') ?? document.querySelector('[data-composer-shell] textarea')
+  if (!box) throw new Error('No active composer textarea')
   const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
   set.call(box, ${JSON.stringify(text)})
   box.dispatchEvent(new Event('input', { bubbles: true }))
@@ -407,14 +414,24 @@ const scenes = {
     await click('.ch-subagent[data-agent-id=audit] .ch-card-trigger')
     assert.equal(await js('document.querySelector(".ch-subagent[data-agent-id=audit]").textContent.includes("Lendo src/api")'), true)
     await click('[aria-label="Abrir agente Auditar API"]')
-    await until('!!document.querySelector(".ch-subagent-readonly")', 'native child conversation opens')
+    await until('!!document.querySelector(".ch-subagent-composer")', 'native child conversation opens with a routed composer')
     assert.equal(await js('document.querySelector(".ch-notices").textContent.includes("conversa principal")'), true)
-    assert.equal(await js('!!document.querySelector(".tcm-send.stop, .tcm-editor, .tmp-trigger, .tpm-trigger")'), false, 'native child offers no independent send, stop or model controls')
+    assert.equal(await js('!!document.querySelector(".tcm-send.stop, .tmp-trigger, .tpm-trigger")'), false, 'native child keeps native session configuration')
+    await type('refusar')
+    await click('[aria-label="Enviar ao subagente"]')
+    assert.equal(await js('document.querySelector("#subagent-message").value'), 'refusar', 'refusal keeps the child draft')
+    await type('Confira os testes deste subagente')
+    await click('[aria-label="Enviar ao subagente"]')
+    await until('document.querySelector("#subagent-message").value === ""', 'confirmed native send clears its draft')
+    assert.equal(qaSubagentMessages.at(-1).rootChatId, 'qa-chat')
+    assert.equal(qaSubagentMessages.at(-1).rootTurnId, 'qa-subagents-parent')
+    assert.equal(qaSubagentMessages.at(-1).agentId, 'audit')
+    assert.equal(qaSubagentMessages.at(-1).text, 'Confira os testes deste subagente')
     assert.equal(await js('document.querySelector(".ch-header-name").textContent'), 'Auditar API')
     await shot('subagents-child')
     await clickText('.ch-notice button', 'Voltar à conversa principal')
     await until('document.querySelectorAll(".ch-subagent").length === 2', 'return to parent conversation')
-    console.log('subagents: promoted native cards with independent status, expanded activity, linked sidebar children, native read-only view and parent navigation')
+    console.log('subagents: linked native activity, direct child messages, refusals preserve drafts, native identity retained and parent navigation')
   },
   async 'repro-chat'() {
     await pause(1500)

@@ -67,6 +67,8 @@ pub mod methods {
     pub const STOP: &str = "stop";
     /// `SteerParams` ? `OkResult`: a follow-up in the exact active turn.
     pub const STEER: &str = "steer";
+    /// `MessageSubagentParams` -> `{ ok, delivery }`: address an existing native child.
+    pub const MESSAGE_SUBAGENT: &str = "messageSubagent";
     /// Shared persisted send queue, addressed by message id.
     pub const QUEUE: &str = "queue";
     /// `PermissionParams` → `OkResult` (`gone` when no longer pending).
@@ -405,6 +407,15 @@ pub struct SteerParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub images: Option<Vec<ChatImageInput>>,
+}
+
+/// A message to a projected native child, never an independent conversation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MessageSubagentParams {
+    pub chat_id: String,
+    pub text: String,
 }
 
 /// An image attached to a message. Data contains base64 bytes without a URL prefix.

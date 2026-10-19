@@ -3,7 +3,7 @@
 use super::convert::{Segment, apply_delta, delta_kind, native_item};
 use super::session::{CodexEvent, CodexSink, EventBody};
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -18,11 +18,22 @@ struct Child {
     status: String,
     turn: Option<String>,
     segments: HashMap<String, Segment>,
+    sending: bool,
+    closed: bool,
+    revision: u64,
+    permissions: VecDeque<Value>,
+    questions: VecDeque<Value>,
+}
+#[derive(Clone)]
+pub(super) struct MessageTarget {
+    pub turn: Option<String>,
+    pub resume: bool,
+    revision: u64,
 }
 impl Child {
     fn emit(&self, patch: Value) {
         let mut agent = patch.as_object().cloned().unwrap_or_default();
-        agent.retain(|_, value| !value.is_null());
+        agent.retain(|key, value| !value.is_null() || matches!(key.as_str(), "permission" | "question"));
         agent.insert("id".into(), json!(self.id));
         if let Some(parent) = &self.parent {
             agent.insert("parentId".into(), json!(parent));
@@ -60,6 +71,68 @@ impl Subagents {
             .get(id)
             .is_some_and(|child| child.origin.id == turn)
     }
+    pub fn origin_id(&self, id: &str) -> Option<&str> {
+        self.children.get(id).map(|child| child.origin.id.as_str())
+    }
+    pub fn active_turn(&self, id: &str) -> Option<&str> {
+        self.children.get(id).and_then(|child| child.turn.as_deref())
+    }
+    /// Claims only a descendant established by a native spawn edge. The root
+    /// can be idle or running another turn without changing this ownership.
+    pub fn begin_message(&mut self, id: &str, origin: &str) -> Result<MessageTarget, String> {
+        if !self.belongs_to(id, origin) { return Err("Subagente Codex indisponível nesta conversa.".into()); }
+        let child = self.children.get_mut(id).unwrap();
+        if child.sending { return Err("Uma mensagem já está sendo enviada a este subagente.".into()); }
+        if child.status == "waiting" || !child.permissions.is_empty() || !child.questions.is_empty() { return Err("Responda à aprovação ou pergunta do subagente antes de enviar outra mensagem.".into()); }
+        if child.turn.is_none() && matches!(child.status.as_str(), "pending" | "running") {
+            return Err("O subagente ainda está iniciando. Tente novamente quando o turno começar.".into());
+        }
+        child.sending = true;
+        Ok(MessageTarget { turn: child.turn.clone(), resume: child.closed, revision: child.revision })
+    }
+    pub fn finish_message(&mut self, id: &str) {
+        if let Some(child) = self.children.get_mut(id) { child.sending = false; }
+    }
+    pub fn accept_message(&mut self, id: &str, target: &MessageTarget, turn: &str) {
+        let Some(child) = self.children.get_mut(id) else { return };
+        // Notifications may complete a very short child turn before its start
+        // acknowledgement reaches this task. Never revive that completed turn.
+        if target.turn.is_none() && child.revision == target.revision {
+            child.turn = Some(turn.to_string());
+            child.closed = false;
+            child.segments.clear();
+            child.status = "running".into();
+            child.emit(json!({"status":"running","nativeTurnId":turn}));
+        }
+    }
+    pub fn pending_request(&mut self, id: &str, field: &str, payload: Value) {
+        if let Some(child) = self.children.get_mut(id) {
+            child.status("waiting");
+            let queue = if field == "permission" { &mut child.permissions } else { &mut child.questions };
+            let first = queue.is_empty();
+            queue.push_back(payload.clone());
+            if first {
+                let mut patch = json!({});
+                patch[field] = payload;
+                child.emit(patch);
+            }
+        }
+    }
+    pub fn answered(&mut self, id: &str, field: &str, request_id: &str) {
+        if let Some(child) = self.children.get_mut(id) {
+            let key = if field == "permission" { "permId" } else { "dialogId" };
+            let queue = if field == "permission" { &mut child.permissions } else { &mut child.questions };
+            let Some(index) = queue.iter().position(|payload| payload[key] == request_id) else { return };
+            queue.remove(index);
+            let next = queue.front().cloned().unwrap_or(Value::Null);
+            if index == 0 {
+                let mut patch = json!({});
+                patch[field] = next;
+                child.emit(patch);
+            }
+            if child.status == "waiting" && child.permissions.is_empty() && child.questions.is_empty() { child.status(if child.turn.is_some() { "running" } else { "pending" }); }
+        }
+    }
     fn discover(&mut self, root: &str, parent: &str, id: &str, origin: Option<&Origin>) -> bool {
         if id.is_empty() || id == root {
             return false;
@@ -82,6 +155,11 @@ impl Subagents {
             status: "pending".into(),
             turn: None,
             segments: HashMap::new(),
+            sending: false,
+            closed: false,
+            revision: 0,
+            permissions: VecDeque::new(),
+            questions: VecDeque::new(),
         };
         child.emit(json!({"status":"pending"}));
         self.children.insert(id.into(), child);
@@ -214,9 +292,12 @@ impl Subagents {
         }
         match method {
             "turn/started" => {
+                child.revision += 1;
+                child.closed = false;
                 child.turn = p["turn"]["id"].as_str().map(str::to_string);
                 child.segments.clear();
-                child.status("running");
+                child.status = "running".into();
+                child.emit(json!({"status":"running","nativeTurnId":child.turn}));
             }
             "thread/status/changed" => {
                 match p["status"]["type"].as_str() {
@@ -243,6 +324,9 @@ impl Subagents {
                 }
             }
             "turn/completed" => {
+                child.revision += 1;
+                child.permissions.clear();
+                child.questions.clear();
                 child.status(match p["turn"]["status"].as_str() {
                     Some("failed") => "failed",
                     Some("interrupted") => "stopped",
@@ -253,7 +337,7 @@ impl Subagents {
                 }
                 child.turn = None;
             }
-            "thread/closed" => child.status("stopped"),
+            "thread/closed" => { child.revision += 1; child.closed = true; child.turn = None; child.permissions.clear(); child.questions.clear(); child.status("stopped"); }
             "error" => {
                 if p["willRetry"] == false {
                     child.status("failed");
