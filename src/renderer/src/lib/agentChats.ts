@@ -48,6 +48,9 @@ interface AgentChatsState {
   setEditingQueued: (id: string, item?: QueuedMessage) => void
   steering: Record<string, QueuedMessage | undefined>
   subagentSending: Record<string, boolean>
+  historyLoading: Record<string, boolean>
+  historyErrors: Record<string, string | undefined>
+  loadHistory: (id: string) => Promise<boolean>
   messageSubagent: (id: string, text: string) => Promise<boolean>
   init: () => Promise<void>
   /** Reads the profile list again; `profiles` is one the host just announced (`providers.changed`). */
@@ -108,6 +111,11 @@ const DRAFTS_KEY = 'prism.chatDrafts'
 let hostCaps: readonly string[] = []
 /** Chats created here that the host has not stored yet: a snapshot meanwhile keeps them. */
 const creating = new Set<string>()
+const historyRequests = new Map<string, Promise<boolean>>()
+let historyEpoch = 0
+const historyVisits = new Map<string, number>()
+let historyVisit = 0
+const HISTORY_CACHE_LIMIT = 3
 /** Keep cleared/in-flight uploads reserved until their queue or turn delta arrives. */
 const imageNumberHighWater = new Map<string, number>()
 /** Retried answers reuse the same queued row, including while its delta is in flight. */
@@ -117,6 +125,19 @@ let silence: ReturnType<typeof setTimeout> | undefined
 
 function onHost(): boolean {
   return useAgentChats.getState().mode === 'host'
+}
+/** Bound renderer-only history without changing a byte in the host store. */
+function trimHistories(chats: UnifiedChat[], runtime: Record<string, ChatRuntime>, activeId: string | null): UnifiedChat[] {
+  if (!onHost() || !hostCaps.includes('chats.history@1')) return chats
+  const full = chats.filter(chat => !chat.historyPending && chat.turns.length > 0)
+  if (full.length <= HISTORY_CACHE_LIMIT) return chats
+  const keep = new Set(full.filter(chat => chat.id === activeId || runtime[chat.id]?.busy || runtime[chat.id]?.local || creating.has(chat.id)).map(chat => chat.id))
+  for (const chat of [...full].sort((a, b) => (historyVisits.get(b.id) ?? 0) - (historyVisits.get(a.id) ?? 0))) {
+    if (keep.size >= HISTORY_CACHE_LIMIT) break
+    keep.add(chat.id)
+  }
+  return chats.map(chat => !chat.historyPending && chat.turns.length > 0 && !keep.has(chat.id)
+    ? { ...chat, turns: [], historyPending: true, historyTurnCount: chat.turns.length } : chat)
 }
 /** The host runs this chat's turns; otherwise this window does, over IPC. */
 function hostDrives(chat: UnifiedChat): boolean {
@@ -251,23 +272,28 @@ async function hostOwnsChats(): Promise<readonly string[] | null> {
     // Already connected: the listener ran before `off` existed.
     if (done) off()
   })
-  hostAnswered()
-  return caps.includes('chats@1') ? caps : null
+  if (!caps.includes('chats@1')) { hostAnswered(); return null }
+  return caps
 }
 
 /** The snapshot is the truth, but turns this window runs keep its own copy, and so do chats it is creating. */
 function applySnapshot(snapshot: ChatsSnapshot): void {
+  historyEpoch++
+  historyRequests.clear()
   const s = useAgentChats.getState()
   const here = (id: string): boolean => !!s.runtime[id]?.local && !!s.runtime[id]?.busy
   const docs = snapshot.chats.map((doc) => (here(doc.id) && s.chats.find((c) => c.id === doc.id)) || withDrafts(doc))
   const kept = s.chats.filter((c) => (creating.has(c.id) || here(c.id)) && !docs.some((d) => d.id === c.id))
-  const chats = [...docs, ...kept].sort((a, b) => b.updatedAt - a.updatedAt)
+  let chats = [...docs, ...kept].sort((a, b) => b.updatedAt - a.updatedAt)
   const runtime: Record<string, ChatRuntime> = {}
   for (const [id, run] of Object.entries(s.runtime)) if (run.local) runtime[id] = run
   for (const [id, run] of Object.entries(snapshot.runtime)) if (!here(id)) runtime[id] = run as ChatRuntime
   const activeId = s.activeId && chats.some((c) => c.id === s.activeId) ? s.activeId : chats[0]?.id ?? null
+  if (activeId) historyVisits.set(activeId, ++historyVisit)
+  chats = trimHistories(chats, runtime, activeId)
   const stopping = Object.fromEntries(Object.entries(s.stopping).filter(([id]) => runtime[id]?.busy))
-  useAgentChats.setState({ chats, runtime, activeId, stopping })
+  useAgentChats.setState({ chats, runtime, activeId, stopping, historyLoading: {}, historyErrors: {} })
+  if (activeId) void useAgentChats.getState().loadHistory(activeId)
 }
 
 const deltaChat = (delta: ChatDelta): string => delta.op === 'chat' ? delta.chat.id : delta.chatId
@@ -285,12 +311,20 @@ function applyHostDeltas(deltas: ChatDelta[]): void {
   const next = applyChatDeltas<ChatRuntime>({ chats: before.chats, runtime: before.runtime }, accepted)
   if (!next.changed.length) return
   const changed = new Set(next.changed)
-  const chats = next.chats.map((c) => changed.has(c.id) ? withDrafts(c) : c)
+  let chats = next.chats.map((c) => changed.has(c.id) ? withDrafts(c) : c)
   const activeId = before.activeId && !chats.some((c) => c.id === before.activeId)
     ? nextChat(chats, before.chats.find((c) => c.id === before.activeId)) : before.activeId
+  for (const delta of accepted) if (delta.op === 'chat' && !delta.chat.historyPending) historyVisits.set(delta.chat.id, ++historyVisit)
+  chats = trimHistories(chats, next.runtime, activeId)
   useAgentChats.setState({ chats, runtime: next.runtime, activeId })
-  for (const d of accepted) if (d.op === 'remove') { forgetDrafts(d.chatId); clearTimeout(saveTimers.get(d.chatId)); saveTimers.delete(d.chatId) }
+  const loaded = chats.filter(c => changed.has(c.id) && !c.historyPending).map(c => c.id)
+  if (loaded.length) useAgentChats.setState(s => ({
+    historyLoading: { ...s.historyLoading, ...Object.fromEntries(loaded.map(id => [id, false])) },
+    historyErrors: { ...s.historyErrors, ...Object.fromEntries(loaded.map(id => [id, undefined])) }
+  }))
+  for (const d of accepted) if (d.op === 'remove') { historyVisits.delete(d.chatId); forgetDrafts(d.chatId); clearTimeout(saveTimers.get(d.chatId)); saveTimers.delete(d.chatId) }
   for (const id of next.changed) liveEffects(id, before.runtime[id], next.runtime[id])
+  if (activeId && activeId !== before.activeId) void useAgentChats.getState().loadHistory(activeId)
 }
 
 /** What a live change of a host-run chat means for this window (never a snapshot: nothing happens while it reconnects). */
@@ -330,6 +364,7 @@ function turnEnded(chatId: string, turnId: string): void {
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
 function save(chat: UnifiedChat): Promise<boolean> {
+  if (chat.historyPending) return Promise.reject(new Error('Aguarde o histórico desta conversa carregar antes de salvá-la.'))
   if (!onHost()) return window.prism.chats.save(chat)
   return window.prism.chats.host.put(withoutDrafts(chat)).then((r) => {
     if (!r.ok) throw new Error(r.error)
@@ -337,6 +372,7 @@ function save(chat: UnifiedChat): Promise<boolean> {
   })
 }
 function persist(id: string): void {
+  if (useAgentChats.getState().chats.find(chat => chat.id === id)?.historyPending) return
   // A fixed maximum interval, not a trailing debounce: continuous token output
   // must never postpone saving the prompt and visible transcript indefinitely.
   if (saveTimers.has(id)) return
@@ -358,6 +394,7 @@ function editChat(id: string, fn: (chat: UnifiedChat) => UnifiedChat): void {
 /** IPC imports are numbered at load; this also supports older/manual local queue state. */
 function stableLocalImages(id: string): UnifiedChat | undefined {
   const before = useAgentChats.getState().chats.find(chat => chat.id === id)
+  if (before?.historyPending) return undefined
   if (!before || sharedQueue(before)) return before
   const numbered = numberChatImages(before)
   imageNumberHighWater.set(id, collectChatImages(numbered).reduce((max, image) => Math.max(max, image.number), imageNumberHighWater.get(id) || 0))
@@ -479,7 +516,43 @@ function finish(turnId: string, error?: string, aborted = false, errorCode?: str
 
 let initialization: Promise<void> | undefined
 export const useAgentChats = create<AgentChatsState>((set, get) => ({
-  ready: false, mode: null, hostError: null, chats: [], profiles: [], activeId: null, runtime: {}, attachments: {}, stopping: {}, steering: {}, editingQueue: {}, subagentSending: {},
+  ready: false, mode: null, hostError: null, chats: [], profiles: [], activeId: null, runtime: {}, attachments: {}, stopping: {}, steering: {}, editingQueue: {}, subagentSending: {}, historyLoading: {}, historyErrors: {},
+  loadHistory: (id) => {
+    const chat = get().chats.find(chat => chat.id === id)
+    if (!chat?.historyPending) return Promise.resolve(!!chat)
+    const pending = historyRequests.get(id)
+    if (pending) return pending
+    if (!onHost() || !hostCaps.includes('chats.history@1') || typeof window.prism.chats.host.loadHistory !== 'function') {
+      set(s => ({ historyErrors: { ...s.historyErrors, [id]: 'Atualize o host para carregar o histórico desta conversa.' } }))
+      return Promise.resolve(false)
+    }
+    const epoch = historyEpoch
+    set(s => ({ historyLoading: { ...s.historyLoading, [id]: true }, historyErrors: { ...s.historyErrors, [id]: undefined } }))
+    const request = (async () => {
+      try {
+        await Promise.resolve() // install the deduplication entry even if a bridge throws synchronously
+        const reply = await window.prism.chats.host.loadHistory(id)
+        if (epoch !== historyEpoch || !get().chats.some(chat => chat.id === id)) return false
+        if (!reply.ok) throw new Error(reply.error)
+        // The host sends/flushes its authoritative Chat delta before ack.
+        // Never replace it from a second response or write a metadata stub.
+        if (get().chats.find(chat => chat.id === id)?.historyPending) throw new Error('O host ainda não entregou o histórico. Tente novamente.')
+        return true
+      } catch (error) {
+        if (epoch === historyEpoch && get().activeId === id && get().chats.some(chat => chat.id === id && chat.historyPending)) {
+          set(s => ({ historyErrors: { ...s.historyErrors, [id]: (error as Error).message || 'Não foi possível carregar o histórico.' } }))
+        }
+        return false
+      } finally {
+        if (epoch === historyEpoch) {
+          historyRequests.delete(id)
+          set(s => ({ historyLoading: { ...s.historyLoading, [id]: false } }))
+        }
+      }
+    })()
+    historyRequests.set(id, request)
+    return request
+  },
   setEditingQueued: (id, item) => {
     const chat = get().chats.find(c => c.id === id)
     if (item && sharedQueue(chat) && !chat?.queuePaused) {
@@ -497,15 +570,35 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       window.prism.host.onStatus((status) => {
         if (status.state !== 'connected') return waitHost()
         hostCaps = status.hello?.capabilities ?? hostCaps
-        hostAnswered()
+        // A successful hello says nothing about the history still loading.
+        if (get().ready) hostAnswered()
+        else waitHost()
       })
       // The snapshot is the truth: a turn may really be running, so nothing is normalized.
       // The first one may take a while (a new host imports the 0.2 data): still loading meanwhile.
       const first = new Promise<void>((resolve) => {
-        window.prism.chats.host.follow((snapshot) => { applySnapshot(snapshot); resolve() }, applyHostDeltas)
+        window.prism.chats.host.follow((snapshot) => { applySnapshot(snapshot); hostAnswered(); resolve() }, applyHostDeltas, (progress) => {
+          if (progress.state === 'ready') hostAnswered()
+          else if (progress.state === 'error') {
+            clearTimeout(silence); silence = undefined
+            set({ hostError: `Não foi possível carregar as conversas: ${progress.error} Tentando novamente…` })
+          } else waitHost()
+        })
       })
-      const [profiles] = await Promise.all([window.prism.providers.list(), first])
-      set({ profiles, ready: true })
+      // Accounts can be used while a large history is still loading. A
+      // failed account read must not discard a successful chat snapshot.
+      const readProfiles = async (): Promise<void> => { set({ profiles: await window.prism.providers.list() }) }
+      void readProfiles().catch(async () => {
+        // Initial host maintenance can hold the database longer than a
+        // profile RPC's deadline. The first snapshot proves it is usable;
+        // retry once then rather than leaving the account list empty forever.
+        await first
+        await readProfiles()
+      }).catch(error => {
+        useStore.getState().addToast('error', `Falha ao carregar contas: ${(error as Error).message}`)
+      })
+      await first
+      set({ ready: true })
     } else {
       const [chats, profiles] = await Promise.all([window.prism.chats.list(), window.prism.providers.list()])
       // There is no live process after restarting. Clear transient tool states.
@@ -527,7 +620,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       flushTurns()
       // Host mode: only the chats this window runs; the host keeps the rest and drafts stay on the device.
       const host = onHost()
-      const pending = get().chats.filter((c) => saveTimers.has(c.id) || get().runtime[c.id]?.busy && (!host || get().runtime[c.id]?.local))
+      const pending = get().chats.filter((c) => !c.historyPending && (saveTimers.has(c.id) || get().runtime[c.id]?.busy && (!host || get().runtime[c.id]?.local)))
       if (!pending.length) return
       const result = window.prism.chats.flush(host ? pending.map(withoutDrafts) : pending)
       if (!result.ok) {
@@ -646,7 +739,13 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
     if (onHost()) hostCreate(chat)
     else persist(chat.id)
   },
-  select: (id) => {const chat = get().chats.find(c => c.id === id); if(chat?.taskId)useAgentTasks.getState().activate(chat.taskId); set({activeId:id})},
+  select: (id) => {
+    const chat = get().chats.find(c => c.id === id)
+    if (chat?.taskId) useAgentTasks.getState().activate(chat.taskId)
+    historyVisits.set(id, ++historyVisit)
+    set(s => ({ activeId: id, chats: trimHistories(s.chats, s.runtime, id) }))
+    void get().loadHistory(id)
+  },
   configure: (id, selection) => {
     const run = get().runtime[id]
     // The active run keeps its own route; this selection also applies to the queue.
@@ -708,11 +807,12 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       const next = s.chats.filter((c) => c.id !== id && !c.archived && c.taskId === gone?.taskId).sort((a, b) => b.updatedAt - a.updatedAt)[0]
       return { chats: s.chats.filter((c) => c.id !== id), activeId: next?.id ?? null }
     })
+    if (get().activeId) void get().loadHistory(get().activeId!)
   },
   messageSubagent: async (id, text) => {
     const chat = get().chats.find(c => c.id === id)
     const native = chat?.nativeAgent
-    if (!chat || !native || !text.trim() || get().subagentSending[id]) return false
+    if (!chat || chat.historyPending || !native || !text.trim() || get().subagentSending[id]) return false
     const admittedTurn = get().runtime[id]?.turnId ?? native.turnId ?? chat.turns.at(-1)?.id
     set(s => ({ subagentSending: { ...s.subagentSending, [id]: true } }))
     try {
@@ -867,7 +967,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
   replyToQuestions: async (id, sourceKey, answers) => {
     const chat = get().chats.find(c => c.id === id)
     const source = chat && latestStructuredQuestions(chat.turns)
-    if (!chat || chat.readOnly || !source || source.key !== sourceKey) return false
+    if (!chat || chat.historyPending || chat.readOnly || !source || source.key !== sourceKey) return false
     const text = buildStructuredQuestionsReply(source, answers)
     if (!text) return false
     const message: QueuedMessage = { id: `question:${source.key}`, text }
@@ -925,7 +1025,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
     if (!images.length) return
     set((s) => {
       const chat = s.chats.find(c => c.id === id)
-      if (!chat) return {}
+      if (!chat || chat.historyPending) return {}
       const pending = s.attachments[id] || []
       const numbered = numberNewImages(chat, pending, images, imageNumberHighWater.get(id))
       imageNumberHighWater.set(id, numbered.reduce((max, image) => Math.max(max, image.number || 0), imageNumberHighWater.get(id) || 0))

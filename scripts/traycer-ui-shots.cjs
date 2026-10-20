@@ -89,6 +89,26 @@ const referenceImages = [
   { mime: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAKAAAABkCAIAAACO1KzYAAABAUlEQVR4nO3RAQkAIBDAwC9rA5tayBQijIMLMNisfQib7wU8ZXCcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEXTVKEGS+bDW0AAAAASUVORK5CYII=', name: 'antes.png', number: 1 },
   { mime: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAKAAAABkCAIAAACO1KzYAAABAUlEQVR4nO3RAQkAIBDAwA9oJmtY1xQijIMLMNisswmb7wU8ZXCcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEGxxkcZ3CcwXEXfGkzi1VTx7wAAAAASUVORK5CYII=', name: 'depois.png', number: 2 }
 ]
+const historyPaths = {
+  output: path.join(app.getPath('userData'), 'history-fixtures', 'complete-output.log'),
+  input: path.join(app.getPath('userData'), 'history-fixtures', 'complete-input.json'),
+  image: path.join(app.getPath('userData'), 'history-fixtures', 'cached-tool-image.png')
+}
+const historyReads = []
+const historyOutput = 'FULL_OUTPUT_RESTORED\n' + 'Preserved output from the original tool execution.\n'.repeat(200) + 'OUTPUT_END\n'
+const historyInput = JSON.stringify({ marker: 'FULL_INPUT_RESTORED', content: 'Preserved tool input. '.repeat(200), end: 'INPUT_END' }, null, 2)
+if (wanted.includes('history-previews')) {
+  chat.turns = [
+    { id: 'preview-u', role: 'user', text: 'Abra a saída e a entrada originais e a imagem preservada.' },
+    { id: 'preview-a', role: 'assistant', text: '', provider: 'claude', startedAt: now - 5000, completedAt: now - 1000, segments: [
+      { kind: 'tool', toolId: 'preview-tool', name: 'Bash', status: 'done',
+        input: { command: 'echo preview-input' }, inputPath: historyPaths.input,
+        result: 'PREVIEW_ONLY: a saída completa foi preservada.', outputPath: historyPaths.output,
+        images: [{ mime: 'image/png', data: '', cachedPath: historyPaths.image, cacheKey: 'isolated-qa-cached-image', name: 'Cached QA image' }] },
+      { kind: 'text', text: 'O histórico mantém prévias leves e acesso aos arquivos completos.' }
+    ] }
+  ]
+}
 if (wanted.includes('image-references')) chat.turns[0].images = referenceImages
 if (wanted.includes('async-questions')) chat.turns[1].segments.push({ kind: 'text', toolId: 'async-question-item', text: 'Escolha como devo continuar.', questions: [
   { title: 'Sobre a numeração: quer referências automáticas como `#image 1` e `#image 2`?', options: ['Automaticamente', 'Só pelo menu'] },
@@ -216,7 +236,19 @@ handle('usage:font-css', () => '')
 for (const [channel, value] of Object.entries(fixtures)) if (value !== null) handle(channel, () => value)
 handle('fs:readDir', (p) => (tree[String(p).replace(/[\\/]+$/, '')] || []).map((n) => ({ name: n.replace(/\/$/, ''), path: `${String(p).replace(/[\\/]+$/, '')}\\${n.replace(/\/$/, '')}`, isDir: n.endsWith('/') })))
 handle('fs:listFiles', () => Object.entries(tree).flatMap(([dir, names]) => names.filter((n) => !n.endsWith('/')).map((n) => ({ path: `${dir}\\${n}`, rel: `${dir.slice(ROOT.length + 1)}\\${n}`.replace(/^\\/, '') }))))
-handle('fs:readFile', () => modified)
+handle('fs:readFile', target => {
+  if (wanted.includes('history-previews')) {
+    historyReads.push({ kind: 'text', path: target })
+    if (target === historyPaths.output) return historyOutput
+    if (target === historyPaths.input) return historyInput
+  }
+  return modified
+})
+handle('fs:readFileBytes', target => {
+  if (!wanted.includes('history-previews') || path.resolve(target) !== path.resolve(historyPaths.image)) throw new Error('Unexpected synthetic image path')
+  historyReads.push({ kind: 'image', path: path.resolve(target) })
+  return referenceImages[0].data
+})
 handle('git:status', () => gitStatus)
 handle('git:statusAll', () => [gitStatus])
 handle('git:branches', () => ({ current: 'main', local: ['main', 'feat/traycer-parity'], remote: ['origin/main'] }))
@@ -402,6 +434,34 @@ const clickText = (selector, text) => js(`(() => { const el = [...document.query
 const chord = (key, mods = {}) => js(`window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, ...mods, bubbles: true })}))`).then(() => pause(600))
 
 const scenes = {
+  async 'history-previews'() {
+    const assert = require('node:assert/strict')
+    assert.equal(qaHost, null, 'history preview scene only runs against isolated mock IPC')
+    await until('!!document.querySelector(".ch-group-trigger")', 'preserved tool activity')
+    assert.equal(historyReads.length, 0, 'folded activity does not eagerly read complete payloads or image bytes')
+    await click('.ch-group-trigger')
+    await until('document.querySelectorAll(".ch-tool-complete button").length === 2', 'both complete payload actions')
+    await pause(300)
+    assert.equal(historyReads.length, 0, 'an image outside the viewport stays deferred and complete text is not read eagerly')
+    await win.webContents.removeInsertedCSS(historyImageHiddenCss)
+    await until('document.querySelector(".ch-tool-images img")?.naturalWidth === 160', 'cached local tool image pixels')
+    assert.deepEqual(historyReads, [{ kind: 'image', path: historyPaths.image }], 'the cached image is read once when it becomes visible')
+    await click('.ch-tool-images .ch-markdown-image-button')
+    await until('!!document.querySelector("dialog.ch-image-preview[open] img")', 'cached image lightbox')
+    await click('[aria-label="Fechar imagem"]')
+    await shot('history-previews')
+    await clickText('.ch-tool-complete button', 'Abrir saída completa')
+    await until('document.querySelector(".monaco-editor .view-lines")?.textContent.includes("FULL_OUTPUT_RESTORED")', 'original full output opens in the editor', 20000)
+    assert.ok(historyReads.some(read => read.kind === 'text' && read.path === historyPaths.output))
+    await chord('l', { ctrlKey: true })
+    await until('!!document.querySelector(".ch-tool-complete")', 'conversation still exposes complete input')
+    await clickText('.ch-tool-complete button', 'Abrir entrada completa')
+    await until('document.querySelector(".monaco-editor .view-lines")?.textContent.includes("FULL_INPUT_RESTORED")', 'original full input opens in the editor', 20000)
+    assert.ok(historyReads.some(read => read.kind === 'text' && read.path === historyPaths.input))
+    assert.ok(historyReads.filter(read => read.kind === 'image').every(read => read.path === historyPaths.image), 'remounting the chat after editor navigation keeps the same cached image source')
+    assert.deepEqual(errors, [], 'no renderer errors while opening preserved data')
+    console.log('history-previews: complete output/input open from their exact preserved paths; cached image waits for visibility, loads pixels and opens its lightbox.')
+  },
   async subagents() {
     const assert = require('node:assert/strict')
     await until('document.querySelectorAll(".ch-subagent").length === 2', 'two native subagents remain visible after the parent turn')
@@ -880,6 +940,7 @@ const scenes = {
 }
 
 let currentScene = 'startup'
+let historyImageHiddenCss
 async function openWindow() {
   const w = new BrowserWindow({ width: 1380, height: 880, useContentSize: true, frame: false, show: false,
     // Same as the app's main window (src/main/index.ts): the preload is not
@@ -888,6 +949,7 @@ async function openWindow() {
   w.webContents.on('console-message', (e) => { if (e.level === 'error') errors.push(`[${currentScene}] ${e.message}`) })
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   await w.loadFile(path.join(root, 'out/renderer/index.html'))
+  if (wanted.includes('history-previews')) historyImageHiddenCss = await w.webContents.insertCSS('.ch-tool-images { position: fixed !important; top: 20000px !important; }')
   return w
 }
 

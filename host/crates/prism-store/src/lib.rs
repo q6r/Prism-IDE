@@ -43,6 +43,11 @@ pub use usage::{read_desktop_turn_runs, read_traycer_usage, TraycerUsage, TurnRu
 /// The host database's file name inside the data directory.
 pub const DB_FILE: &str = "prism-host.db";
 
+/// Completed journal prefixes are checkpoints, not a permanent second copy of
+/// every cumulative tool snapshot. Small journals retain their normal cursors.
+const COMPACT_EVENT_LIMIT: i64 = 512;
+const COMPACT_BYTE_LIMIT: i64 = 16 * 1024 * 1024;
+
 /// Document kinds the app uses.
 pub mod kinds {
     pub const CHATS: &str = "chats";
@@ -209,6 +214,7 @@ impl Store {
                     "DELETE FROM events WHERE chat_id NOT IN (SELECT id FROM documents WHERE kind='chats');
                      DELETE FROM journal_meta WHERE chat_id NOT IN (SELECT id FROM documents WHERE kind='chats');",
                 )?;
+                usage::remove_orphan_compacted_runs(tx)?;
             }
             Ok(())
         })
@@ -243,14 +249,58 @@ impl Store {
         let Some(doc) = read_document(&conn, kinds::CHATS, id)? else {
             return Ok(None);
         };
-        Ok(Some(fold_chat(&conn, &doc, id)?))
+        Ok(Some(fold_chat_owned(&conn, doc, id)?))
     }
 
     /// Every chat, folded (`AgentRepository.get('chats')`).
     pub fn chats(&self) -> Result<Vec<Value>> {
         let conn = self.lock();
-        let docs = read_documents(&conn, kinds::CHATS)?;
-        docs.iter().map(|doc| fold_chat(&conn, doc, doc.get("id").and_then(Value::as_str).unwrap_or_default())).collect()
+        let mut stmt = conn.prepare_cached("SELECT body FROM documents WHERE kind=?1")?;
+        let mut rows = stmt.query([kinds::CHATS])?;
+        let mut chats = Vec::new();
+        while let Some(row) = rows.next()? {
+            let doc = json_column(row, 0)?;
+            let id = doc.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+            chats.push(fold_chat_owned(&conn, doc, &id)?);
+        }
+        Ok(chats)
+    }
+
+    /// Initial desktop navigation needs chat metadata, drafts and queues, not
+    /// every transcript. SQLite removes turns before Rust parses each result.
+    pub fn chat_summaries(&self) -> Result<Vec<Value>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached("SELECT json_set(json_remove(body, '$.turns'), '$.turns', json('[]'), '$.historyPending', json('true'), '$.historyTurnCount', COALESCE(json_array_length(body, '$.turns'), 0)) FROM documents WHERE kind='chats'")?;
+        let mut rows = stmt.query([])?;
+        let mut chats = Vec::new();
+        while let Some(row) = rows.next()? { chats.push(json_column(row, 0)?); }
+        Ok(chats)
+    }
+
+    /// Native identity/status only, without retaining any conversation turns.
+    pub fn native_chat_metadata(&self) -> Result<Vec<Value>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached("SELECT json_object('id', id, 'nativeAgent', json_extract(body, '$.nativeAgent')) FROM documents WHERE kind='chats' AND json_type(body, '$.nativeAgent')='object'")?;
+        let mut rows = stmt.query([])?;
+        let mut chats = Vec::new();
+        while let Some(row) = rows.next()? { chats.push(json_column(row, 0)?); }
+        Ok(chats)
+    }
+
+    /// Resolve a provider's child address without materializing every transcript.
+    pub fn find_native_child(&self, root_chat_id: &str, message_target: &str) -> Result<Option<Value>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached("SELECT json_object('id', id, 'nativeAgent', json_extract(body, '$.nativeAgent')) FROM documents WHERE kind='chats' AND json_extract(body, '$.nativeAgent.rootChatId')=?1 AND json_extract(body, '$.nativeAgent.messageTarget')=?2 LIMIT 1")?;
+        let mut rows = stmt.query(params![root_chat_id, message_target])?;
+        rows.next()?.map(|row| json_column(row, 0)).transpose()
+    }
+
+    /// Startup recovery only needs candidates with a stored pending marker.
+    /// Completed conversations never need their full transcript loaded here.
+    pub fn pending_chat_ids(&self) -> Result<Vec<String>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached("SELECT id FROM documents WHERE kind='chats' AND json_type(body, '$.pendingTurnId')='text' AND json_extract(body, '$.pendingTurnId')<>''")?;
+        Ok(stmt.query_map([], |row| row.get(0))?.collect::<rusqlite::Result<_>>()?)
     }
 
     /// Stores `chat` folded with its journal (`AgentRepository.upsert`) and
@@ -269,6 +319,7 @@ impl Store {
             let removed = tx.execute("DELETE FROM documents WHERE kind='chats' AND id=?1", [id])? > 0;
             tx.execute("DELETE FROM events WHERE chat_id=?1", [id])?;
             tx.execute("DELETE FROM journal_meta WHERE chat_id=?1", [id])?;
+            usage::delete_compacted_runs(tx, id)?;
             Ok(removed)
         })
     }
@@ -288,8 +339,16 @@ impl Store {
         if events.is_empty() {
             return Ok(Vec::new());
         }
+        let finished = events.iter().filter(|event| matches!(event.kind(), Some("done" | "error")))
+            .map(|event| event.chat_id.clone()).collect::<std::collections::BTreeSet<_>>();
         let now = now_ms();
-        self.transaction(|tx| events.into_iter().map(|event| insert_event(tx, event, now)).collect())
+        let records = self.transaction(|tx| events.into_iter().map(|event| insert_event(tx, event, now)).collect())?;
+        for chat_id in finished {
+            // Maintenance failure must not turn an already committed append
+            // into a false failure; its atomic transaction leaves the journal intact.
+            let _ = self.compact_chat_if_large(&chat_id);
+        }
+        Ok(records)
     }
 
     /// Starts an assistant turn the way `AgentRepository.beginRun` does, in
@@ -387,13 +446,15 @@ impl Store {
             let Some(doc) = read_document(tx, kinds::CHATS, chat_id)? else {
                 return Ok(None);
             };
-            let events = read_events(tx, chat_id, 0)?;
-            let Some(cut) = compaction_cut(events.iter().map(|e| (e.turn_id.as_str(), &e.event))) else {
+            // Only tiny event identities/kinds are retained to find a safe cut;
+            // superseded tool payloads are streamed when folding that prefix.
+            let events = event_kinds(tx, chat_id)?;
+            let Some(cut) = fold::compaction_cut_kinds(events.iter().map(|(_, turn, kind)| (turn.as_str(), kind.as_str()))) else {
                 return Ok(None);
             };
-            let prefix = &events[..=cut];
-            let through = prefix[cut].seq;
-            let folded = fold_journal(&doc, prefix.iter().map(|e| (e.turn_id.as_str(), &e.event)));
+            let through = events[cut].0;
+            usage::preserve_compacted_runs(tx, chat_id, through)?;
+            let folded = fold_rows(tx, chat_id, Some(through), fold::JournalFold::owned(doc))?;
             put_document(tx, kinds::CHATS, chat_id, &folded)?;
             tx.execute("DELETE FROM events WHERE chat_id=?1 AND seq<=?2", params![chat_id, through])?;
             tx.execute(
@@ -403,6 +464,15 @@ impl Store {
             )?;
             Ok(Some(through))
         })
+    }
+
+    fn compact_chat_if_large(&self, chat_id: &str) -> Result<Option<Seq>> {
+        let (count, bytes): (i64, i64) = {
+            let conn = self.lock();
+            conn.query_row("SELECT count(*), COALESCE(sum(length(CAST(body AS BLOB))), 0) FROM events WHERE chat_id=?1", [chat_id], |row| Ok((row.get(0)?, row.get(1)?)))?
+        };
+        if count < COMPACT_EVENT_LIMIT && bytes < COMPACT_BYTE_LIMIT { return Ok(None); }
+        self.compact_chat(chat_id)
     }
 
     /// Compacts every chat; returns how many changed.
@@ -421,6 +491,19 @@ impl Store {
         Ok(changed)
     }
 
+    /// Startup maintenance selects only oversized journals, leaving small
+    /// histories and their event cursors untouched.
+    pub fn compact_large_journals(&self) -> Result<usize> {
+        let ids: Vec<String> = {
+            let conn = self.lock();
+            let mut stmt = conn.prepare("SELECT chat_id FROM events GROUP BY chat_id HAVING count(*)>=?1 OR sum(length(CAST(body AS BLOB)))>=?2")?;
+            stmt.query_map(params![COMPACT_EVENT_LIMIT, COMPACT_BYTE_LIMIT], |row| row.get(0))?.collect::<rusqlite::Result<_>>()?
+        };
+        let mut changed = 0;
+        for id in ids { if self.compact_chat(&id)?.is_some() { changed += 1; } }
+        Ok(changed)
+    }
+
     /// Marks turns that a previous process left running as interrupted: a
     /// chat whose `pendingTurnId` has journal events but no `done`/`error`
     /// gets `done { aborted: true, at }`, `at` being the last event's time
@@ -432,37 +515,32 @@ impl Store {
             let conn = self.lock();
             let pending = {
                 let mut stmt = conn.prepare(
-                    "SELECT body FROM documents WHERE kind='chats' AND json_valid(body) AND json_extract(body, '$.pendingTurnId') IS NOT NULL",
+                    "SELECT id, json_extract(body, '$.pendingTurnId'), json_object('updatedAt', json_extract(body, '$.updatedAt')) FROM documents WHERE kind='chats' AND json_valid(body) AND json_type(body, '$.pendingTurnId')='text'",
                 )?;
-                stmt.query_map([], |row| row.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?
+                stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)))?.collect::<rusqlite::Result<Vec<_>>>()?
             };
-            for body in pending {
-                let chat: Value = serde_json::from_str(&body)?;
-                let (Some(chat_id), Some(turn_id)) =
-                    (chat.get("id").and_then(Value::as_str), chat.get("pendingTurnId").and_then(Value::as_str))
-                else {
-                    continue;
-                };
+            for (chat_id, turn_id, updated_at) in pending {
+                let metadata: Value = serde_json::from_str(&updated_at)?;
                 if turn_id.is_empty() {
                     continue;
                 }
-                let events: Vec<EventRecord> =
-                    read_events(&conn, chat_id, 0)?.into_iter().filter(|e| e.turn_id == turn_id).collect();
-                let Some(last) = events.last() else {
+                let last: Option<i64> = conn.query_row("SELECT at FROM events WHERE chat_id=?1 AND turn_id=?2 ORDER BY seq DESC LIMIT 1", params![chat_id, turn_id], |row| row.get(0)).optional()?;
+                let Some(last_at) = last else {
                     continue;
                 };
-                if events.iter().any(|e| matches!(e.kind(), Some("done" | "error"))) {
+                let finished: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM events WHERE chat_id=?1 AND turn_id=?2 AND json_extract(body, '$.kind') IN ('done','error'))", params![chat_id, turn_id], |row| row.get(0))?;
+                if finished {
                     continue;
                 }
-                let at = if last.at != 0 {
-                    json!(last.at)
-                } else if fold::truthy(chat.get("updatedAt")) {
-                    chat["updatedAt"].clone()
+                let at = if last_at != 0 {
+                    json!(last_at)
+                } else if fold::truthy(metadata.get("updatedAt")) {
+                    metadata["updatedAt"].clone()
                 } else {
                     json!(now_ms())
                 };
                 repairs.push((
-                    RepairedTurn { chat_id: chat_id.to_string(), turn_id: turn_id.to_string() },
+                    RepairedTurn { chat_id, turn_id },
                     json!({ "kind": "done", "aborted": true, "at": at }),
                 ));
             }
@@ -515,16 +593,27 @@ fn item_id(item: &Value) -> Result<String> {
 }
 
 fn read_document(conn: &Connection, kind: &str, id: &str) -> Result<Option<Value>> {
-    let body: Option<String> =
-        conn.query_row("SELECT body FROM documents WHERE kind=?1 AND id=?2", params![kind, id], |row| row.get(0)).optional()?;
-    body.map(|b| serde_json::from_str(&b).map_err(StoreError::from)).transpose()
+    let mut stmt = conn.prepare_cached("SELECT body FROM documents WHERE kind=?1 AND id=?2")?;
+    let mut rows = stmt.query(params![kind, id])?;
+    rows.next()?.map(|row| json_column(row, 0)).transpose()
 }
 
 fn read_documents(conn: &Connection, kind: &str) -> Result<Vec<Value>> {
     // Same query as the TypeScript repository, so the order matches too.
     let mut stmt = conn.prepare_cached("SELECT body FROM documents WHERE kind=?1")?;
-    let bodies = stmt.query_map([kind], |row| row.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
-    bodies.iter().map(|b| serde_json::from_str(b).map_err(StoreError::from)).collect()
+    let mut rows = stmt.query([kind])?;
+    let mut docs = Vec::new();
+    while let Some(row) = rows.next()? { docs.push(json_column(row, 0)?); }
+    Ok(docs)
+}
+
+/// Parse directly from SQLite's borrowed text. No duplicate collection of all
+/// serialized documents/events survives alongside the parsed values.
+fn json_column(row: &rusqlite::Row<'_>, column: usize) -> Result<Value> {
+    match row.get_ref(column)? {
+        rusqlite::types::ValueRef::Text(bytes) => Ok(serde_json::from_slice(bytes)?),
+        _ => Err(StoreError::Invalid("Documento JSON inválido no armazenamento.".into())),
+    }
 }
 
 fn put_document(conn: &Connection, kind: &str, id: &str, body: &Value) -> Result<()> {
@@ -543,21 +632,40 @@ fn read_state(conn: &Connection, key: &str) -> Result<Option<Value>> {
 fn read_events(conn: &Connection, chat_id: &str, after: Seq) -> Result<Vec<EventRecord>> {
     let mut stmt =
         conn.prepare_cached("SELECT seq, turn_id, body, actor, at FROM events WHERE chat_id=?1 AND seq>?2 ORDER BY seq")?;
-    let rows = stmt
-        .query_map(params![chat_id, after], |row| {
-            Ok((row.get::<_, Seq>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?, row.get::<_, i64>(4)?))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    rows.into_iter()
-        .map(|(seq, turn_id, body, actor, at)| {
-            Ok(EventRecord { seq, chat_id: chat_id.to_string(), turn_id, actor, at, event: serde_json::from_str(&body)? })
-        })
-        .collect()
+    let mut rows = stmt.query(params![chat_id, after])?;
+    let mut events = Vec::new();
+    while let Some(row) = rows.next()? {
+        events.push(EventRecord { seq: row.get(0)?, chat_id: chat_id.into(), turn_id: row.get(1)?,
+            actor: row.get(3)?, at: row.get(4)?, event: json_column(row, 2)? });
+    }
+    Ok(events)
 }
 
 fn fold_chat(conn: &Connection, chat: &Value, id: &str) -> Result<Value> {
-    let events = read_events(conn, id, 0)?;
-    Ok(fold_journal(chat, events.iter().map(|e| (e.turn_id.as_str(), &e.event))))
+    fold_rows(conn, id, None, fold::JournalFold::new(chat))
+}
+
+fn fold_chat_owned(conn: &Connection, chat: Value, id: &str) -> Result<Value> {
+    fold_rows(conn, id, None, fold::JournalFold::owned(chat))
+}
+
+fn fold_rows(conn: &Connection, id: &str, through: Option<Seq>, mut fold: fold::JournalFold<'_>) -> Result<Value> {
+    if compacted_through(conn, id)?.is_some() {
+        fold = fold.with_compacted_turns(usage::compacted_turn_routes(conn, id)?);
+    }
+    let mut stmt = conn.prepare_cached("SELECT turn_id, body FROM events WHERE chat_id=?1 AND seq<=?2 ORDER BY seq")?;
+    let mut rows = stmt.query(params![id, through.unwrap_or(Seq::MAX)])?;
+    while let Some(row) = rows.next()? {
+        let turn_id: String = row.get(0)?;
+        let event = json_column(row, 1)?;
+        fold.apply(&turn_id, &event);
+    }
+    Ok(fold.finish())
+}
+
+fn event_kinds(conn: &Connection, id: &str) -> Result<Vec<(Seq, String, String)>> {
+    let mut stmt = conn.prepare_cached("SELECT seq, turn_id, CASE WHEN json_type(body, '$.kind')='text' THEN json_extract(body, '$.kind') ELSE '' END FROM events WHERE chat_id=?1 ORDER BY seq")?;
+    Ok(stmt.query_map([id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<rusqlite::Result<_>>()?)
 }
 
 fn compacted_through(conn: &Connection, chat_id: &str) -> Result<Option<Seq>> {
@@ -578,9 +686,9 @@ fn snapshot(conn: &Connection, chat_id: &str) -> Result<Option<Snapshot>> {
     let Some(doc) = read_document(conn, kinds::CHATS, chat_id)? else {
         return Ok(None);
     };
-    let events = read_events(conn, chat_id, 0)?;
-    let seq = events.last().map(|e| e.seq).or(compacted_through(conn, chat_id)?).unwrap_or(0);
-    let chat = fold_journal(&doc, events.iter().map(|e| (e.turn_id.as_str(), &e.event)));
+    let latest: Option<Seq> = conn.query_row("SELECT MAX(seq) FROM events WHERE chat_id=?1", [chat_id], |row| row.get(0))?;
+    let seq = latest.or(compacted_through(conn, chat_id)?).unwrap_or(0);
+    let chat = fold_chat_owned(conn, doc, chat_id)?;
     Ok(Some(Snapshot { chat, seq }))
 }
 

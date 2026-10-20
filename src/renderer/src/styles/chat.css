@@ -654,4 +654,8 @@
 .ch-subagent-foot { display: flex; justify-content: flex-end; }
 .ch-subagent-model { color: var(--tr-muted-foreground); font-size: 12px; }
 .ch-subagent-readonly { color: var(--tr-muted-foreground); font: 12px/20px var(--tr-font-ui); padding: 8px 24px 12px; }
+.ch-tool-complete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 8px; font: 12px/20px var(--tr-font-ui); color: var(--tr-muted-foreground); }
+.ch-tool-complete button { padding: 3px 7px; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-sm); background: var(--tr-secondary); color: var(--tr-foreground); font: inherit; cursor: pointer; }
+.ch-tool-images { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; }
+.ch-tool-images .ch-markdown-image { max-width: min(100%, 320px); min-height: 44px; }
 @media (max-width: 480px) { .ch-subagent-preview { flex-wrap: wrap; gap: 4px; } .ch-subagent-link { min-height: 44px; } .ch-subagent-status { font-size: 11px; } }

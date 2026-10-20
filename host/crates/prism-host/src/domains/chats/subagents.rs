@@ -198,7 +198,9 @@ impl Engine {
         })
     }
     pub(super) fn restore_subagents(&mut self) {
-        let chats = self.store.chats().unwrap_or_default();
+        // Startup only needs native identity/status. Folding every transcript
+        // here used to materialize the entire history before the UI connected.
+        let chats = self.store.native_chat_metadata().unwrap_or_default();
         for chat in chats {
             let meta = &chat["nativeAgent"];
             if !meta["status"].as_str().is_some_and(active) {
@@ -230,7 +232,7 @@ impl Engine {
         if alias.is_none() && !self.native_children.contains_key(&incoming_key)
             && let Some(target)=id(&agent,"messageTarget")
         {
-            let known=self.store.chats().unwrap_or_default().into_iter().find(|c| c["nativeAgent"]["rootChatId"]==root_id && c["nativeAgent"]["messageTarget"]==target);
+            let known=self.store.find_native_child(root_id,&target).ok().flatten();
             if let Some(meta)=known.as_ref().map(|c|&c["nativeAgent"])
                 && let (Some(canonical),Some(original))=(id(meta,"id"),id(meta,"rootTurnId"))
             {

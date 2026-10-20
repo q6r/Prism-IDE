@@ -6,16 +6,28 @@ import { loadChatImage, resolveChatImageSource } from '../../../../shared/chatIm
 export interface ChatImageRoute { cwd?: string; remoteId?: string; remoteReady?: boolean }
 
 /** Desktop Markdown preview: local bytes use IPC, rather than an unsafe file:// page load. */
-export function ChatImage({ src, alt = 'Imagem da conversa', route }: { src?: string; alt?: string; route: ChatImageRoute }) {
+export function ChatImage({ src, alt = 'Imagem da conversa', route, defer = false }: { src?: string; alt?: string; route: ChatImageRoute; defer?: boolean }) {
   const source = useMemo(() => resolveChatImageSource(src, route.cwd), [src, route.cwd])
   const [result, setResult] = useState<{ key: unknown; url?: string; error?: string }>({ key: null })
   const [attempt, setAttempt] = useState(0)
   const [open, setOpen] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
+  const frame = useRef<HTMLSpanElement>(null)
+  const [visible, setVisible] = useState(!defer)
   const key = useMemo(() => ({}), [source, route.remoteId, route.remoteReady, attempt])
   const url = result.key === key ? result.url : undefined
   const error = result.key === key ? result.error : undefined
   useEffect(() => {
+    if (!defer || typeof IntersectionObserver === 'undefined') { setVisible(true); return }
+    if (visible || !frame.current) return
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect() }
+    }, { rootMargin: '200px' })
+    observer.observe(frame.current)
+    return () => observer.disconnect()
+  }, [defer, visible])
+  useEffect(() => {
+    if (!visible) return
     let alive = true
     setOpen(false)
     const read = async (path: string): Promise<string> => {
@@ -30,12 +42,12 @@ export function ChatImage({ src, alt = 'Imagem da conversa', route }: { src?: st
       if (alive) setResult({ key, error: error instanceof Error ? error.message : 'Não foi possível carregar a imagem.' })
     })
     return () => { alive = false }
-  }, [key])
+  }, [key, visible])
   useEffect(() => {
     if (open) dialog.current?.showModal()
     else dialog.current?.close()
   }, [open])
-  return <span className="ch-markdown-image">
+  return <span className="ch-markdown-image" ref={frame}>
     {url && !error ? <button type="button" className="ch-markdown-image-button" onClick={() => setOpen(true)} aria-label={`Ampliar ${alt}`}>
       <img src={url} alt={alt} loading="lazy" onError={() => setResult({ key, error: 'Não foi possível exibir a imagem. O arquivo pode ter sido removido ou estar danificado.' })} />
     </button> : <span className="ch-markdown-image-status" role="status"><ImageOff size={16} aria-hidden /><span>{error ? `${alt}: ${error}` : `Carregando ${alt}…`}</span>

@@ -10,6 +10,8 @@ export interface OpenTaskOptions {
 }
 interface TasksState {
   ready: boolean; tasks: AgentTask[]; openIds: string[]; activeId: string | null
+  /** Task metadata is usable while the first chat snapshot is still pending. */
+  restoringChats: boolean
   /** Tabs closed in this window, newest last ("Reabrir aba fechada"). Persisted. */
   closedIds: string[]
   init: () => Promise<void>; activate: (id: string) => void
@@ -101,7 +103,8 @@ function save(): void {
 function capture(bind = false): void {
   const s = useAgentTasks.getState()
   if (!s.activeId) return
-  const chatId = useAgentChats.getState().activeId || undefined
+  const chats = useAgentChats.getState()
+  const chatId = chats.ready === false || s.restoringChats ? s.tasks.find(t => t.id === s.activeId)?.activeChatId : chats.activeId || undefined
   useAgentTasks.setState({ tasks: s.tasks.map(t => t.id !== s.activeId ? t : bind || showsTask(t) ? { ...t, activeChatId: chatId, editor: snapshot() } : { ...t, activeChatId: chatId }) })
 }
 function askReconnect(remote: RemoteRef): void {
@@ -131,6 +134,9 @@ function restore(task: AgentTask): void {
   }
   useStore.getState().bumpTree()
   const chats = useAgentChats.getState()
+  // Task metadata and its folder can open before the transcript snapshot.
+  // Do not invent a replacement conversation while its saved chat is loading.
+  if (chats.ready === false || useAgentTasks.getState().restoringChats) return
   const selected = chats.chats.find(c => c.id === task.activeChatId && c.taskId === task.id) || chats.chats.filter(c => c.taskId === task.id).sort((a,b) => b.updatedAt-a.updatedAt)[0]
   if (selected) chats.select(selected.id)
   else chats.create(wanted && !connection ? '' : task.cwd, connection?.id)
@@ -138,11 +144,34 @@ function restore(task: AgentTask): void {
 
 let initialized: Promise<void> | undefined
 export const useAgentTasks = create<TasksState>((set, get) => ({
-  ready: false, tasks: [], openIds: [], activeId: null, closedIds: [],
+  ready: false, restoringChats: true, tasks: [], openIds: [], activeId: null, closedIds: [],
   init: () => initialized ||= (async () => {
-    await useAgentChats.getState().init()
-    const saved = await window.prism.tasks.load()
-    const tasks = [...saved.tasks], chats = useAgentChats.getState().chats
+    // Start both reads independently: a large chat history must not hide
+    // the saved task strip or prevent opening its workspace.
+    const loadingChats = useAgentChats.getState().init().then(() => ({ ok: true as const }), error => ({ ok: false as const, error }))
+    let saved: Awaited<ReturnType<typeof window.prism.tasks.load>>
+    try { saved = await window.prism.tasks.load() }
+    catch {
+      // Opening/maintaining a large host store may exceed the task RPC's
+      // deadline. Wait for actual chat data before one fresh read. Never
+      // synthesize or save an empty task list after a failed load.
+      const loaded = await loadingChats
+      if (!loaded.ok) throw loaded.error
+      saved = await window.prism.tasks.load()
+    }
+    if (saved.tasks.length) {
+      const openIds = saved.openIds.filter(id => saved.tasks.some(t => t.id === id))
+      if (!openIds.length) openIds.push(saved.tasks[0].id)
+      const activeId = openIds.includes(saved.activeId || '') ? saved.activeId! : openIds[0]
+      mru = readList(MRU_KEY).filter(id => saved.tasks.some(t => t.id === id))
+      const closedIds = readList(CLOSED_KEY).filter(id => saved.tasks.some(t => t.id === id) && !openIds.includes(id))
+      set({ tasks: [...saved.tasks], openIds, activeId, closedIds, ready: true })
+      restore(saved.tasks.find(t => t.id === activeId)!)
+    }
+    const loaded = await loadingChats
+    if (!loaded.ok) throw loaded.error
+    let tasks = [...get().tasks]
+    const chats = useAgentChats.getState().chats
     for (const chat of chats) {
       if (chat.taskId && tasks.some(t => t.id === chat.taskId)) continue
       let task = tasks.find(t => t.cwd === chat.cwd)
@@ -154,13 +183,19 @@ export const useAgentTasks = create<TasksState>((set, get) => ({
         if (!reply.ok) useStore.getState().addToast('error', `Falha ao salvar a tarefa do chat: ${reply.error}`)
       } else await window.prism.chats.save(chat)
     }
+    // Task tabs were usable during loading. Preserve edits, dirty editor tabs
+    // and a new active task made while orphan associations were being saved.
+    if (get().ready) capture()
+    const current = get()
+    tasks = [...current.tasks, ...tasks.filter(t => !current.tasks.some(existing => existing.id === t.id))]
     if (!tasks.length) tasks.push({ id: crypto.randomUUID(), title: DEFAULT_TITLE, cwd: '', updatedAt: Date.now() })
-    const openIds = saved.openIds.filter(id => tasks.some(t => t.id === id))
+    const openIds = (current.ready ? current.openIds : saved.openIds).filter(id => tasks.some(t => t.id === id))
     if (!openIds.length) openIds.push(tasks[0].id)
-    const activeId = openIds.includes(saved.activeId || '') ? saved.activeId! : openIds[0]
+    const wantedActive = current.ready ? current.activeId : saved.activeId
+    const activeId = openIds.includes(wantedActive || '') ? wantedActive! : openIds[0]
     mru = readList(MRU_KEY).filter(id => tasks.some(t => t.id === id))
     const closedIds = readList(CLOSED_KEY).filter(id => tasks.some(t => t.id === id) && !openIds.includes(id))
-    set({ tasks, openIds, activeId, closedIds, ready: true }); touch(activeId); restore(tasks.find(t => t.id === activeId)!); save()
+    set({ tasks, openIds, activeId, closedIds, ready: true, restoringChats: false }); touch(activeId); restore(tasks.find(t => t.id === activeId)!); save()
     // A parked connection that drops can no longer serve its task.
     window.prism.ssh?.onStatus?.(({ id, status }) => {
       if (status !== 'closed' && status !== 'error') return
@@ -177,7 +212,10 @@ export const useAgentTasks = create<TasksState>((set, get) => ({
       }
     })
     void unsub
-  })(),
+  })().catch(error => {
+    initialized = undefined
+    throw error
+  }),
   activate: (id) => {
     const task = get().tasks.find(t => t.id === id)
     if (!task || get().activeId === id && get().openIds.includes(id)) return

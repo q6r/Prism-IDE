@@ -103,7 +103,9 @@ export default function TerminalPane(props: Props) {
       if (event.type !== 'keydown') return true
       const mod = event.ctrlKey || event.metaKey
       const key = event.key.toLowerCase()
-      if (mod && key === 'c' && (event.shiftKey || term.hasSelection())) { copy(); return false }
+      // Keep Ctrl+C available to the foreground process, even with selected
+      // output. Copy has its own Ctrl+Shift+C shortcut in the terminal menu.
+      if (mod && key === 'c' && event.shiftKey) { copy(); return false }
       if (mod && event.shiftKey && key === 'v') {
         void navigator.clipboard.readText().then((text) => { if (!disposed && text) term.paste(text) }).catch(() => {})
         return false

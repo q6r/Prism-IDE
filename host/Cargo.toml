@@ -4,7 +4,7 @@ members = ["crates/prism-protocol", "crates/prism-proc", "crates/prism-store", "
 
 [workspace.package]
 # Kept in step with package.json by the release script (one version for app and host).
-version = "0.3.13"
+version = "0.3.14"
 edition = "2024"
 license = "MIT"
 publish = false

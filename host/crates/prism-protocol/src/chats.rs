@@ -26,12 +26,15 @@ use ts_rs::TS;
 
 /// Method names of the `chats` domain, and its notification.
 pub mod methods {
-    /// `{}` → `ChatsSnapshot`; the caller then receives `chats.delta`.
+    /// `{ metadataOnly?: boolean }` → `ChatsSnapshot`; the caller then receives `chats.delta`.
     pub const SUBSCRIBE: &str = "subscribe";
     /// `{}` → `OkResult`.
     pub const UNSUBSCRIBE: &str = "unsubscribe";
-    /// `{}` → `ChatsSnapshot`, without subscribing (the main process).
+    /// `{ metadataOnly?: boolean }` → `ChatsSnapshot`, without subscribing.
     pub const LIST: &str = "list";
+    /// `ChatIdParams` → `OkResult`: publish the requested folded chat in an
+    /// ordered `ChatDelta::Chat` before acknowledging (chats.history@1).
+    pub const LOAD_HISTORY: &str = "loadHistory";
     /// `ChatDocParams` → `OkResult`: a new chat (`invalid` when the id exists).
     pub const CREATE: &str = "create";
     /// `ChatDocParams` → `OkResult`: stores a chat a client runs itself (the

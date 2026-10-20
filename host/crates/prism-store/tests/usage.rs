@@ -119,6 +119,42 @@ fn turn_runs_skips_turns_with_only_streamed_events() {
     assert!(store.turn_runs().unwrap().is_empty());
 }
 
+#[test]
+fn compaction_retains_usage_origin_and_global_order_across_late_updates_and_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(DB_FILE);
+    let store = Store::open(&path).unwrap();
+    let doc = |id: &str| json!({"id":id,"cwd":"C:\\QA","selection":{"provider":"claude","profileId":"original"},"turns":[{"id":"t","role":"assistant","segments":[]}],"pendingTurnId":"t"});
+    store.begin_turn(&doc("first"), "t", None).unwrap();
+    store.begin_turn(&doc("second"), "t", None).unwrap();
+    store.append_batch(vec![
+        raw("second", "t", json!({"kind":"session","sessionId":"session-two"})),
+        raw("first", "t", json!({"kind":"session","sessionId":"session-one"})),
+        raw("first", "t", json!({"kind":"done","at":10})),
+    ]).unwrap();
+    let original = store.turn_runs().unwrap();
+    assert_eq!(original, vec![run("first", "t", Some("claude:original"), Some("session-one")), run("second", "t", Some("claude:original"), Some("session-two"))]);
+    store.compact_chat("first").unwrap();
+    assert_eq!(store.turn_runs().unwrap(), original, "a compacted earlier turn must stay before an uncompacted later turn");
+    let mut changed_selection = store.chat("first").unwrap().unwrap();
+    changed_selection["selection"] = json!({"provider":"codex","profileId":"different"});
+    store.put_chat(&changed_selection).unwrap();
+    assert_eq!(store.turn_runs().unwrap(), original, "a new model/account selection cannot rewrite the old usage origin");
+    store.append_batch(vec![
+        raw("first", "t", json!({"kind":"session","sessionId":"late-session"})),
+        raw("second", "t", json!({"kind":"done","at":20})),
+    ]).unwrap();
+    let updated = store.turn_runs().unwrap();
+    assert_eq!(updated[0], run("first", "t", Some("claude:original"), Some("late-session")));
+    store.compact_all().unwrap();
+    assert_eq!(store.turn_runs().unwrap(), updated);
+    drop(store);
+    let reopened = Store::open(&path).unwrap();
+    assert_eq!(reopened.turn_runs().unwrap(), updated);
+    reopened.remove_chat("first").unwrap();
+    assert_eq!(reopened.turn_runs().unwrap(), vec![updated[1].clone()], "deleting a chat drops its retained usage index too");
+}
+
 // ---------------------------------------------------------------- read_traycer_usage
 
 fn usage_schema(conn: &Connection) {

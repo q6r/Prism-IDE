@@ -6,7 +6,12 @@ export const MAX_REFERENCED_IMAGES = 8
 export const MAX_IMAGE_BASE64_CHARS = 12 * 1024 * 1024
 
 const validNumber = (value: number | undefined): value is number => Number.isSafeInteger(value) && (value ?? 0) > 0
-const sameImage = (a: ChatImage, b: ChatImage): boolean => a.mime === b.mime && a.data === b.data
+const sameImage = (a: ChatImage, b: ChatImage): boolean => {
+  if (a.mime !== b.mime) return false
+  if (a.cacheKey || b.cacheKey) return !!a.cacheKey && a.cacheKey === b.cacheKey
+  if (a.cachedPath || b.cachedPath) return !!a.cachedPath && a.cachedPath === b.cachedPath
+  return a.data === b.data
+}
 
 /** Encounter order is also the fallback order for chats created before numbered images. */
 function allImages(chat: ImageReferenceChat, pending: readonly ChatImage[]): ChatImage[] {

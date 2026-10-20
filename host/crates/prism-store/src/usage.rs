@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
+use serde::{Deserialize, Serialize};
 
 use crate::{Result, Store};
 
@@ -18,7 +19,7 @@ pub const TRAYCER_IMPORT_KEY: &str = "traycer-import";
 /// Where one journaled turn ran: the `route` (`provider:profileId`) of its
 /// last `begin` and the `sessionId` of its last `session` event. Blank
 /// values count as absent.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnRun {
     pub chat_id: String,
     pub turn_id: String,
@@ -28,7 +29,7 @@ pub struct TurnRun {
 
 impl Store {
     /// Every turn with a `begin` or `session` event in the journal, in the
-    /// order its first one was recorded. Compacted turns have none left.
+    /// order its first one was recorded, including compacted origins.
     pub fn turn_runs(&self) -> Result<Vec<TurnRun>> {
         let conn = self.lock();
         turn_runs_of(&conn)
@@ -46,38 +47,96 @@ pub fn read_desktop_turn_runs(path: &Path) -> Result<Option<Vec<TurnRun>>> {
     read_quietly(path, |conn| if has_table(conn, "events")? { turn_runs_of(conn) } else { Ok(Vec::new()) }).map(Some)
 }
 
-/// `Store::turn_runs` on any connection to a journal (`events` with `seq`,
-/// `chat_id`, `turn_id`, `body`: the host's and the desktop's alike).
+const COMPACT_RUN_PREFIX: &str = "journal-runs:";
+
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct RunAt {
+    first_seq: i64,
+    begun: bool,
+    #[serde(flatten)]
+    run: TurnRun,
+}
+
+fn compact_run_key(chat_id: &str) -> String { format!("{COMPACT_RUN_PREFIX}{chat_id}") }
+
+fn saved_runs(conn: &Connection, chat_id: Option<&str>) -> Result<Vec<RunAt>> {
+    if !has_table(conn, "state")? { return Ok(Vec::new()); }
+    let mut stmt = conn.prepare("SELECT body FROM state WHERE (?1 IS NULL AND substr(key, 1, ?2)=?3) OR key=?4")?;
+    let key = chat_id.map(compact_run_key);
+    let mut rows = stmt.query(params![chat_id, COMPACT_RUN_PREFIX.len() as i64, COMPACT_RUN_PREFIX, key])?;
+    let mut runs = Vec::new();
+    while let Some(row) = rows.next()? {
+        let body: String = row.get(0)?;
+        runs.extend(serde_json::from_str::<Vec<RunAt>>(&body)?);
+    }
+    Ok(runs)
+}
+
+/// A small durable index retains origin and native session when bulky journal
+/// snapshots are compacted. It is written in the SAME transaction as DELETE.
+pub(crate) fn preserve_compacted_runs(conn: &Connection, chat_id: &str, through: i64) -> Result<()> {
+    let runs = collect_runs(conn, Some(chat_id), through)?;
+    conn.execute("INSERT INTO state(key, body) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET body=excluded.body",
+        params![compact_run_key(chat_id), serde_json::to_string(&runs)?])?;
+    Ok(())
+}
+
+pub(crate) fn compacted_turn_routes(conn: &Connection, chat_id: &str) -> Result<Vec<(String, Option<String>)>> {
+    Ok(saved_runs(conn, Some(chat_id))?.into_iter().filter(|run| run.begun).map(|run| (run.run.turn_id, run.run.route)).collect())
+}
+
+pub(crate) fn delete_compacted_runs(conn: &Connection, chat_id: &str) -> Result<()> {
+    conn.execute("DELETE FROM state WHERE key=?1", [compact_run_key(chat_id)])?;
+    Ok(())
+}
+
+pub(crate) fn remove_orphan_compacted_runs(conn: &Connection) -> Result<()> {
+    conn.execute("DELETE FROM state WHERE substr(key, 1, ?1)=?2 AND substr(key, ?3) NOT IN (SELECT id FROM documents WHERE kind='chats')",
+        params![COMPACT_RUN_PREFIX.len() as i64, COMPACT_RUN_PREFIX, (COMPACT_RUN_PREFIX.len() + 1) as i64])?;
+    Ok(())
+}
+
+/// `Store::turn_runs` on either schema. Retained origins and current events are
+/// merged in sequence order, so late sessions update the original turn while
+/// profiles from a later chat selection cannot rewrite its attribution.
 fn turn_runs_of(conn: &Connection) -> Result<Vec<TurnRun>> {
-    // LIKE skips the streamed bulk cheaply; json_extract decides. A quote
-    // inside a JSON string is escaped, so text that quotes an event never
-    // matches, whatever order the writer put the keys in.
-    let mut stmt = conn.prepare(
-        "SELECT chat_id, turn_id, json_extract(j, '$.kind'), json_extract(j, '$.sessionId'), json_extract(j, '$.route')
+    Ok(collect_runs(conn, None, i64::MAX)?.into_iter().map(|run| run.run).collect())
+}
+
+fn collect_runs(conn: &Connection, chat_id: Option<&str>, through: i64) -> Result<Vec<RunAt>> {
+    let mut runs = saved_runs(conn, chat_id)?;
+    let mut index: HashMap<(String, String), usize> = runs.iter().enumerate()
+        .map(|(slot, record)| ((record.run.chat_id.clone(), record.run.turn_id.clone()), slot)).collect();
+    // LIKE skips streamed bulk before json_extract; escaped quotes in tool
+    // output cannot masquerade as top-level journal event kinds.
+    // An explicit per-chat predicate lets SQLite use events_chat_seq during
+    // compaction; an optional `OR chat_id` would scan every other huge journal.
+    let scope = if chat_id.is_some() { "chat_id=?1" } else { "?1 IS NULL" };
+    let query = format!(
+        "SELECT seq, chat_id, turn_id, json_extract(j, '$.kind'), json_extract(j, '$.sessionId'), json_extract(j, '$.route')
          FROM (SELECT seq, chat_id, turn_id, CASE WHEN json_valid(body) THEN body END AS j FROM events
-               WHERE body LIKE '%\"kind\":\"session\"%' OR body LIKE '%\"kind\":\"begin\"%')
-         ORDER BY seq",
-    )?;
-    let mut rows = stmt.query([])?;
-    let mut runs: Vec<TurnRun> = Vec::new();
-    let mut index: HashMap<(String, String), usize> = HashMap::new();
+               WHERE seq<=?2 AND {scope}
+                 AND (body LIKE '%\"kind\":\"session\"%' OR body LIKE '%\"kind\":\"begin\"%'))
+         ORDER BY seq");
+    let mut stmt = conn.prepare(&query)?;
+    let mut rows = stmt.query(params![chat_id, through])?;
     while let Some(row) = rows.next()? {
         let text = |i: usize| -> Option<String> { row.get_ref(i).ok()?.as_str().ok().filter(|s| !s.trim().is_empty()).map(str::to_string) };
-        let kind = text(2);
-        if !matches!(kind.as_deref(), Some("begin" | "session")) {
-            continue;
-        }
-        let (chat_id, turn_id): (String, String) = (row.get(0)?, row.get(1)?);
+        let kind = text(3);
+        if !matches!(kind.as_deref(), Some("begin" | "session")) { continue; }
+        let (seq, chat_id, turn_id): (i64, String, String) = (row.get(0)?, row.get(1)?, row.get(2)?);
         let slot = *index.entry((chat_id.clone(), turn_id.clone())).or_insert_with(|| {
-            runs.push(TurnRun { chat_id, turn_id, ..TurnRun::default() });
+            runs.push(RunAt { first_seq: seq, begun: false, run: TurnRun { chat_id, turn_id, ..TurnRun::default() } });
             runs.len() - 1
         });
-        let run = &mut runs[slot];
+        let record = &mut runs[slot];
+        record.first_seq = record.first_seq.min(seq);
         match kind.as_deref() {
-            Some("session") => run.session_id = text(3).or(run.session_id.take()),
-            _ => run.route = text(4).or(run.route.take()),
+            Some("session") => record.run.session_id = text(4).or(record.run.session_id.take()),
+            _ => { record.begun = true; record.run.route = text(5).or(record.run.route.take()); }
         }
     }
+    runs.sort_by_key(|record| record.first_seq);
     Ok(runs)
 }
 

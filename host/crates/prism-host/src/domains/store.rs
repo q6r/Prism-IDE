@@ -153,6 +153,11 @@ impl SharedStore {
             Ok(settled) => tracing::info!(settled, "turnos sem processo marcados como interrompidos"),
             Err(err) => tracing::warn!(%err, "falha ao revisar turnos pendentes"),
         }
+        match store.compact_large_journals() {
+            Ok(0) => {}
+            Ok(compacted) => tracing::info!(compacted, "diários grandes de chats compactados sem alterar o histórico"),
+            Err(err) => tracing::warn!(%err, "falha ao compactar diários grandes de chats"),
+        }
         let store = Arc::new(store);
         *slot = Some(Arc::clone(&store));
         Ok(store)
@@ -180,14 +185,15 @@ impl SharedStore {
 /// not resumed.
 fn settle_pending_turns(store: &Store) -> prism_store::Result<usize> {
     let mut settled = 0;
-    for chat in store.chats()? {
-        let Some(pending) = chat.get("pendingTurnId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { continue };
-        let Some(id) = chat.get("id").and_then(Value::as_str) else { continue };
-        let Some(Value::Object(mut doc)) = store.document(kinds::CHATS, id)? else { continue };
+    for id in store.pending_chat_ids()? {
+        let Some(chat) = store.chat(&id)? else { continue };
+        let Some(pending) = chat.get("pendingTurnId").and_then(Value::as_str).filter(|id| !id.is_empty()).map(str::to_owned) else { continue };
+        drop(chat);
+        let Some(Value::Object(mut doc)) = store.document(kinds::CHATS, &id)? else { continue };
         doc.remove("pendingTurnId");
         doc.remove("resume");
         if let Some(turns) = doc.get_mut("turns").and_then(Value::as_array_mut) {
-            for turn in turns.iter_mut().filter(|t| t.get("id").and_then(Value::as_str) == Some(pending)) {
+            for turn in turns.iter_mut().filter(|t| t.get("id").and_then(Value::as_str) == Some(pending.as_str())) {
                 let Some(turn) = turn.as_object_mut() else { continue };
                 turn.insert("interrupted".into(), Value::Bool(true));
                 for segment in turn.get_mut("segments").and_then(Value::as_array_mut).into_iter().flatten() {
@@ -197,7 +203,7 @@ fn settle_pending_turns(store: &Store) -> prism_store::Result<usize> {
                 }
             }
         }
-        store.put_document(kinds::CHATS, id, &Value::Object(doc))?;
+        store.put_document(kinds::CHATS, &id, &Value::Object(doc))?;
         settled += 1;
     }
     Ok(settled)

@@ -282,6 +282,78 @@ fn code(result: Result<Value, HostError>) -> ErrorCode {
 }
 
 #[tokio::test]
+async fn metadata_boot_loads_history_through_ordered_deltas_and_keeps_default_full_compatibility() {
+    let (mut h, _original, turn) = Harness::running("codex").await;
+    h.emit(0, TurnEvent::Text("antes de abrir".into())).await;
+    let mut ui = h.client();
+    let snapshot = h.call(&ui, "subscribe", json!({"metadataOnly":true})).unwrap();
+    assert_eq!(snapshot["chats"][0]["turns"], json!([]));
+    assert_eq!(snapshot["chats"][0]["historyPending"], true);
+    assert_eq!(snapshot["chats"][0]["historyTurnCount"], 2);
+    assert_eq!(snapshot["runtime"]["c1"]["busy"], true);
+    ui.mirror = Mirror { rev:snapshot["rev"].as_u64().unwrap(), chats:snapshot["chats"].as_array().unwrap().clone(), runtime:BTreeMap::new() };
+    let metadata_list = h.call(&ui, "list", json!({"metadataOnly":true})).unwrap();
+    assert_eq!(metadata_list["chats"], snapshot["chats"]);
+    let default_list = h.call(&ui, "list", json!({})).unwrap();
+    assert_eq!(default_list["chats"][0]["turns"][1]["segments"][0]["text"], "antes de abrir");
+    assert!(default_list["chats"][0].get("historyPending").is_none());
+    let ack = h.call(&ui, "loadHistory", json!({"chatId":"c1"})).unwrap();
+    assert_eq!(ack, json!({"ok":true}));
+    let note:Value = serde_json::from_str(&ui.notes.try_recv().expect("history delta is queued before the loadHistory ack")).unwrap();
+    assert_eq!(note["params"]["deltas"][0]["op"], "chat");
+    assert_eq!(note["params"]["deltas"][0]["chat"]["turns"][1]["id"], turn);
+    ui.mirror.apply(&note["params"]);
+    assert!(ui.chat("c1").get("historyPending").is_none());
+    h.emit(0, TurnEvent::Text(" e depois".into())).await;
+    ui.sync();
+    assert_eq!(ui.chat("c1")["turns"][1]["segments"][0]["text"], "antes de abrir e depois");
+    assert_eq!(ui.chat("c1"), h.stored("c1"));
+    assert_eq!(code(h.call(&ui,"loadHistory",json!({"chatId":"missing"}))), ErrorCode::NotFound);
+    let mut legacy = h.client();
+    h.subscribe(&mut legacy);
+    assert_eq!(legacy.chat("c1"), ui.chat("c1"), "clients without the opt-in retain the full snapshot contract");
+}
+
+#[tokio::test]
+async fn loading_history_flushes_pending_stream_before_its_authoritative_chat_delta() {
+    let (mut h, _original, turn) = Harness::running("claude").await;
+    let mut ui = h.client();
+    let snapshot = h.call(&ui,"subscribe",json!({"metadataOnly":true})).unwrap();
+    h.engine.handle(Msg::Turn{chat_id:"c1".into(),turn_id:turn,event:TurnEvent::Text("queued before load".into())});
+    let ack = h.call(&ui,"loadHistory",json!({"chatId":"c1"})).unwrap();
+    assert_eq!(ack["ok"], true);
+    let prior:Value = serde_json::from_str(&ui.notes.try_recv().unwrap()).unwrap();
+    let loaded:Value = serde_json::from_str(&ui.notes.try_recv().unwrap()).unwrap();
+    assert_eq!(prior["params"]["deltas"][0]["op"], "append");
+    assert_eq!(prior["params"]["rev"].as_u64().unwrap(), snapshot["rev"].as_u64().unwrap()+1);
+    assert_eq!(loaded["params"]["deltas"][0]["op"], "chat");
+    assert_eq!(loaded["params"]["rev"].as_u64().unwrap(), prior["params"]["rev"].as_u64().unwrap()+1);
+    assert_eq!(loaded["params"]["deltas"][0]["chat"]["turns"][1]["segments"][0]["text"], "queued before load");
+    assert!(ui.notes.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn metadata_stubs_are_rejected_before_any_chat_document_is_written() {
+    let mut h = Harness::new();
+    let ui = h.client();
+    let mut original = new_chat("existing","claude");
+    original["turns"] = json!([{"id":"u","role":"user","text":"keep my history"}]);
+    h.call(&ui,"create",json!({"chat":original})).unwrap();
+    let stored = h.stored("existing");
+    let mut stub = stored.clone();
+    stub["turns"] = json!([]); stub["historyPending"] = json!(true);
+    assert_eq!(code(h.call(&ui,"put",json!({"chat":stub}))), ErrorCode::Invalid);
+    let mut created_stub = stub.clone(); created_stub["id"] = json!("new-stub");
+    assert_eq!(code(h.call(&ui,"create",json!({"chat":created_stub}))), ErrorCode::Invalid);
+    for method in ["flush","importDocs"] {
+        let mut renamed = stored.clone(); renamed["title"] = json!("must not be saved first");
+        assert_eq!(code(h.call(&ui,method,json!({"chats":[renamed,stub]}))), ErrorCode::Invalid);
+        assert_eq!(h.stored("existing"), stored);
+    }
+    assert!(h.store.chat("new-stub").unwrap().is_none());
+}
+
+#[tokio::test]
 async fn a_turn_streams_to_subscribers_and_ends_as_the_store_folds_it() {
     let mut h = Harness::new();
     let mut ui = h.client();
@@ -1104,8 +1176,14 @@ async fn later_image_references_reach_resumed_runs_and_do_not_duplicate_history(
     let stored = h.stored("c1");
     assert_eq!(stored["turns"][2]["text"], text);
     assert!(stored["turns"][2].get("images").is_none());
+    assert_eq!(stored["turns"][0]["images"][0]["data"], "one");
+    assert_eq!(stored["turns"][0]["images"][1]["data"], "two");
+    assert!(stored["turns"][0]["images"][0].get("cacheKey").is_none());
     assert_eq!(super::image_references::collect_chat_images(&stored, &[]).len(), 2);
-    assert_same(&h, &mut ui, "c1");
+    ui.sync();
+    let mut presented = stored;
+    super::presentation::Presentation::new(h.store.path()).chat(&mut presented);
+    assert_eq!(ui.chat("c1"), presented, "the mirror includes derived image identity; stored attachments remain exact");
 }
 
 #[tokio::test]
@@ -2199,11 +2277,14 @@ async fn steering_is_persisted_in_the_existing_turn_and_mirrored_without_a_resta
     assert!(h.fake.aborts.lock().unwrap().is_empty());
     assert_eq!(h.fake.steers.lock().unwrap()[0].2, "send now\n\n[Referências de imagens anexadas]\nAnexo 1 = #image 1\n\nfile context");
     let stored = h.stored("c");
-    assert_eq!(client.chat("c"), stored);
+    let mut presented = stored.clone();
+    super::presentation::Presentation::new(h.store.path()).chat(&mut presented);
+    assert_eq!(client.chat("c"), presented);
     let segments = stored["turns"][1]["segments"].as_array().unwrap();
     let marker = segments.iter().find(|segment| segment["kind"] == "user").unwrap();
     assert_eq!(marker["text"], "send now\n\nfile context");
     assert_eq!(marker["images"][0]["data"], "aGVsbG8=");
+    assert!(marker["images"][0].get("cacheKey").is_none(), "derived identity does not replace the stored attachment");
     h.call(&client, "stop", json!({"chatId":"c"})).unwrap();
     h.emit(0, TurnEvent::Done { aborted: false }).await;
     assert_eq!(h.stored("c")["turns"][1]["interrupted"], true);

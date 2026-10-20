@@ -49,6 +49,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
   const runs = useAgentChats(useShallow((s) => runStates(s.runtime)))
   const taskId = useAgentTasks((s) => s.activeId)
   const tasksReady = useAgentTasks((s) => s.ready)
+  const restoringChats = useAgentTasks((s) => s.restoringChats)
   const folderName = useStore((s) => s.folderName)
   const folderPath = useStore((s) => s.folderPath)
   const unread = useUnreadOutcomes((s) => s.outcomes)
@@ -190,8 +191,8 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
   </div>
 
   let body: ReactNode
-  // Nothing until both stores are loaded: an empty state there would only flash.
-  if (!ready || !tasksReady) body = null
+  // Loading is not an empty workspace, even when restoration takes longer.
+  if (!ready || !tasksReady || restoringChats) body = <div className="al-empty" role="status">Carregando agentes…</div>
   else if (empty === 'none') body = <EmptyState icon={MessagesSquare} title="Nenhum agente ainda." description="Crie um agente para começar uma conversa nesta tarefa." />
   else if (empty === 'archived') body = <EmptyState icon={Archive} title="Todos os agentes aqui estão arquivados." description={'Escolha "Somente arquivados" ou "Todos os chats" em Mostrar.'} />
   else if (empty === 'no-archived') body = <EmptyState icon={Archive} title="Nenhum agente arquivado corresponde a esta visualização." description={'Escolha "Somente não arquivados" ou "Todos os chats" em Mostrar.'} />

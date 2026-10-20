@@ -240,6 +240,9 @@ pub(super) fn changes_of(deltas: &[ChatDelta]) -> Vec<ChatChange> {
 
 /// The `chats:save` checks: an id, the turns, the folder and a selection.
 fn check_chat(chat: &Value) -> Result<String, HostError> {
+    if chat.get("historyPending") == Some(&Value::Bool(true)) {
+        return Err(invalid("O histórico desta conversa ainda não foi carregado. Aguarde antes de salvar."));
+    }
     let id = chat.get("id").and_then(Value::as_str).filter(|id| !id.is_empty());
     let shaped = chat.get("turns").is_some_and(Value::is_array) && chat.get("cwd").is_some_and(Value::is_string);
     match id {
@@ -335,7 +338,7 @@ impl Engine {
         match method {
             methods::SUBSCRIBE => {
                 self.flush();
-                let snapshot = self.snapshot()?;
+                let snapshot = self.snapshot(value["metadataOnly"] == true)?;
                 self.subscribers.insert(client, notifier);
                 answer(snapshot)
             }
@@ -345,8 +348,9 @@ impl Engine {
             }
             methods::LIST => {
                 self.flush();
-                answer(self.snapshot()?)
+                answer(self.snapshot(value["metadataOnly"] == true)?)
             }
+            methods::LOAD_HISTORY => self.load_history(params(value)?),
             methods::CREATE => self.create(params(value)?),
             methods::PUT => self.put(params(value)?),
             methods::FLUSH | methods::IMPORT_DOCS => self.put_many(params(value)?),
@@ -375,8 +379,21 @@ impl Engine {
         }
     }
 
-    fn snapshot(&self) -> Result<ChatsSnapshot, HostError> {
-        Ok(ChatsSnapshot { rev: self.rev, chats: self.store.chats().map_err(store_error)?, runtime: self.runtime.clone() })
+    fn snapshot(&self, metadata_only: bool) -> Result<ChatsSnapshot, HostError> {
+        let mut chats = if metadata_only { self.store.chat_summaries() } else { self.store.chats() }.map_err(store_error)?;
+        let presentation = super::presentation::Presentation::new(self.store.path());
+        for chat in &mut chats { presentation.chat(chat); }
+        Ok(ChatsSnapshot { rev: self.rev, chats, runtime: self.runtime.clone() })
+    }
+
+    fn load_history(&mut self, p: ChatIdParams) -> Result<Value, HostError> {
+        // Publish queued updates first, then an authoritative folded chat.
+        // The actor cannot process another native event between this read and
+        // the outer flush, so the Chat delta precedes its ack and later deltas.
+        self.flush();
+        let chat = self.store.chat(&p.chat_id).map_err(store_error)?.ok_or_else(not_found)?;
+        self.delta(ChatDelta::Chat(ChatUpsert { chat }));
+        ok()
     }
 
     fn running(&self, chat_id: &str) -> bool {
@@ -385,21 +402,23 @@ impl Engine {
 
     // ---- documents ----
 
-    fn create(&mut self, p: ChatDocParams) -> Result<Value, HostError> {
+    fn create(&mut self, mut p: ChatDocParams) -> Result<Value, HostError> {
         let id = check_chat(&p.chat)?;
         if self.store.document(kinds::CHATS, &id).map_err(store_error)?.is_some() {
             return Err(invalid("Este chat já existe."));
         }
+        self.restore_presentation(&mut p.chat)?;
         let stored = self.store.put_chat(&p.chat).map_err(store_error)?;
         self.delta(ChatDelta::Chat(ChatUpsert { chat: stored }));
         ok()
     }
 
-    fn put(&mut self, p: ChatDocParams) -> Result<Value, HostError> {
+    fn put(&mut self, mut p: ChatDocParams) -> Result<Value, HostError> {
         let id = check_chat(&p.chat)?;
         if self.running(&id) {
             return Err(busy(RUNNING_REPLACE));
         }
+        self.restore_presentation(&mut p.chat)?;
         let stored = self.store.put_chat(&p.chat).map_err(store_error)?;
         self.delta(ChatDelta::Chat(ChatUpsert { chat: stored }));
         ok()
@@ -409,16 +428,24 @@ impl Engine {
         let ids = p.chats.iter().map(check_chat).collect::<Result<Vec<_>, _>>()?;
         let mut written = 0;
         let mut skipped = Vec::new();
-        for (chat, id) in p.chats.iter().zip(ids) {
+        for (mut chat, id) in p.chats.into_iter().zip(ids) {
             if self.running(&id) {
                 skipped.push(id);
                 continue;
             }
-            let stored = self.store.put_chat(chat).map_err(store_error)?;
+            self.restore_presentation(&mut chat)?;
+            let stored = self.store.put_chat(&chat).map_err(store_error)?;
             self.delta(ChatDelta::Chat(ChatUpsert { chat: stored }));
             written += 1;
         }
         answer(ChatsWritten { written, skipped })
+    }
+
+    fn restore_presentation(&self, chat: &mut Value) -> Result<(), HostError> {
+        if !super::presentation::needs_restore(chat) { return Ok(()); }
+        let id = check_chat(chat)?;
+        let original = self.store.chat(&id).map_err(store_error)?;
+        super::presentation::restore(chat, original).map_err(invalid)
     }
 
     /// Changes top-level fields of a chat's document (never its turns) and
@@ -1355,7 +1382,10 @@ impl Engine {
 
     /// Queues a delta, merging streamed text into the previous append of the
     /// same turn and a newer tool snapshot into the queued one.
-    fn delta(&mut self, delta: ChatDelta) {
+    fn delta(&mut self, mut delta: ChatDelta) {
+        // Only the view is projected. `record` already queued the exact
+        // provider payload, and PUT restores these fields from that source.
+        super::presentation::Presentation::new(self.store.path()).delta(&mut delta);
         if let ChatDelta::Append(next) = &delta
             && let Some(ChatDelta::Append(last)) = self.deltas.last_mut()
             && last.chat_id == next.chat_id

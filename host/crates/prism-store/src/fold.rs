@@ -8,6 +8,7 @@
 //! a malformed record (a `segment` event without a segment, a chat without a
 //! selection), the Rust fold skips the record instead.
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Number, Value};
@@ -17,39 +18,88 @@ pub fn fold_journal<'a, I>(chat: &Value, records: I) -> Value
 where
     I: IntoIterator<Item = (&'a str, &'a Value)>,
 {
-    let Some(input) = chat.as_object() else {
-        return chat.clone();
-    };
-    let mut resume = input.get("resume").cloned();
-    let mut pending = input.get("pendingTurnId").cloned();
-    let last_run = input.get("lastRunId");
-    let route_key = route_key(input.get("selection"));
-    let mut turns: HashMap<&str, Map<String, Value>> = HashMap::new();
-    let mut routes: HashMap<&str, Option<&Value>> = HashMap::new();
-
+    let mut fold = JournalFold::new(chat);
     for (turn_id, ev) in records {
+        fold.apply(turn_id, ev);
+    }
+    fold.finish()
+}
+
+/// Incremental fold: database readers release each serialized event before
+/// reading the next. Tool snapshots can be many times larger than the final
+/// conversation, so retaining the whole journal defeats streaming.
+pub(crate) struct JournalFold<'a> {
+    chat: Cow<'a, Value>,
+    resume: Option<Value>,
+    pending: Option<Value>,
+    route_key: String,
+    turns: HashMap<String, Map<String, Value>>,
+    routes: HashMap<String, Option<Value>>,
+    compacted_routes: HashMap<String, Option<Value>>,
+}
+
+impl<'a> JournalFold<'a> {
+    pub(crate) fn new(chat: &'a Value) -> Self {
+        Self::from_chat(Cow::Borrowed(chat))
+    }
+
+    pub(crate) fn owned(chat: Value) -> Self {
+        Self::from_chat(Cow::Owned(chat))
+    }
+
+    fn from_chat(chat: Cow<'a, Value>) -> Self {
+        Self {
+            resume: chat.get("resume").cloned(), pending: chat.get("pendingTurnId").cloned(),
+            route_key: route_key(chat.get("selection")), turns: HashMap::new(), routes: HashMap::new(), compacted_routes: HashMap::new(),
+            chat,
+        }
+    }
+
+    /// Only turns with a persisted compacted `begin` may accept late native
+    /// updates without another begin. Ordinary/malformed journals keep their
+    /// original semantics of ignoring events for unbegun turns.
+    pub(crate) fn with_compacted_turns(mut self, turns: Vec<(String, Option<String>)>) -> Self {
+        self.compacted_routes = turns.into_iter().map(|(id, route)| (id, route.map(Value::String))).collect();
+        self
+    }
+
+    pub(crate) fn apply(&mut self, turn_id: &str, ev: &Value) {
+        let Some(input) = self.chat.as_object() else { return };
         let kind = ev.get("kind").and_then(Value::as_str);
         if kind == Some("begin") {
             let mut turn = ev.get("turn").and_then(Value::as_object).cloned().unwrap_or_default();
             turn.insert("segments".into(), Value::Array(Vec::new()));
-            turns.insert(turn_id, turn);
-            routes.insert(turn_id, ev.get("route"));
-            continue;
+            self.turns.insert(turn_id.into(), turn);
+            self.routes.insert(turn_id.into(), ev.get("route").cloned());
+            return;
         }
-        let Some(turn) = turns.get_mut(turn_id) else {
-            continue;
+        if !self.turns.contains_key(turn_id)
+            && let Some(route) = self.compacted_routes.get(turn_id)
+            && let Some(turn) = input.get("turns").and_then(Value::as_array)
+                .and_then(|turns| turns.iter().find(|turn| turn["id"] == turn_id && turn["role"] == "assistant"))
+                .and_then(Value::as_object)
+        {
+            self.turns.insert(turn_id.into(), turn.clone());
+            self.routes.insert(turn_id.into(), route.clone());
+        }
+        let Some(turn) = self.turns.get_mut(turn_id) else {
+            return;
         };
-        let route = routes.get(turn_id).copied().flatten();
-        let current = last_run.and_then(Value::as_str) == Some(turn_id) && route.and_then(Value::as_str) == Some(route_key.as_str());
+        let route = self.routes.get(turn_id).and_then(Option::as_ref);
+        let current = input.get("lastRunId").and_then(Value::as_str) == Some(turn_id) && route.and_then(Value::as_str) == Some(self.route_key.as_str());
         match kind {
             Some(kind @ ("text" | "thinking")) => {
                 let text = ev.get("text");
                 let segments = segments_mut(turn);
                 match segments.last_mut().and_then(Value::as_object_mut) {
                     Some(last) if last.get("kind").and_then(Value::as_str) == Some(kind) => {
-                        let mut joined = if truthy(last.get("text")) { to_js_string(last.get("text")) } else { String::new() };
-                        joined.push_str(&to_js_string(text));
-                        last.insert("text".into(), Value::String(joined));
+                        if !last.get("text").is_some_and(Value::is_string) {
+                            let joined = if truthy(last.get("text")) { to_js_string(last.get("text")) } else { String::new() };
+                            last.insert("text".into(), Value::String(joined));
+                        }
+                        if let Some(Value::String(joined)) = last.get_mut("text") {
+                            match text { Some(Value::String(more)) => joined.push_str(more), _ => joined.push_str(&to_js_string(text)) }
+                        }
                     }
                     _ => {
                         let mut segment = Map::new();
@@ -72,7 +122,7 @@ where
             }
             Some("segment") => {
                 let Some(segment) = ev.get("segment").and_then(Value::as_object) else {
-                    continue;
+                    return;
                 };
                 let tool_id = segment.get("toolId");
                 let segments = segments_mut(turn);
@@ -94,7 +144,7 @@ where
                 if let Some(session) = ev.get("sessionId") {
                     next.insert("sessionId".into(), session.clone());
                 }
-                resume = Some(Value::Object(next));
+                self.resume = Some(Value::Object(next));
             }
             Some(kind @ ("done" | "error")) => {
                 let error = kind == "error";
@@ -132,27 +182,39 @@ where
                     }
                 }
                 if input.get("pendingTurnId").and_then(Value::as_str) == Some(turn_id) {
-                    pending = None;
+                    self.pending = None;
                 }
                 if current && (error || interrupted) {
-                    resume = None;
+                    self.resume = None;
                 }
             }
             _ => {}
         }
     }
 
-    let mut out = input.clone();
-    set_or_remove(&mut out, "resume", resume);
-    set_or_remove(&mut out, "pendingTurnId", pending);
-    if let Some(Value::Array(list)) = out.get_mut("turns") {
-        for turn in list.iter_mut() {
-            if let Some(folded) = turn.get("id").and_then(Value::as_str).and_then(|id| turns.get(id)) {
-                *turn = Value::Object(folded.clone());
+    pub(crate) fn finish(mut self) -> Value {
+        let mut out = match self.chat.into_owned() { Value::Object(out) => out, value => return value };
+        set_or_remove(&mut out, "resume", self.resume);
+        set_or_remove(&mut out, "pendingTurnId", self.pending);
+        if let Some(Value::Array(list)) = out.get_mut("turns") {
+            // Malformed legacy documents may repeat a turn id. Preserve the fold's
+            // historical behavior for those while moving normal turns without a copy.
+            let mut remaining = HashMap::<String, usize>::new();
+            for turn in list.iter() {
+                if let Some(id) = turn.get("id").and_then(Value::as_str) { *remaining.entry(id.into()).or_default() += 1; }
+            }
+            for turn in list.iter_mut() {
+                let Some(id) = turn.get("id").and_then(Value::as_str) else { continue };
+                let count = remaining.get_mut(id).expect("the turn id was counted");
+                *count -= 1;
+                let folded = if *count == 0 { self.turns.remove(id) } else { self.turns.get(id).cloned() };
+                if let Some(folded) = folded {
+                    *turn = Value::Object(folded);
+                }
             }
         }
+        Value::Object(out)
     }
-    Value::Object(out)
 }
 
 /// The longest prefix of a chat's journal (by index into `records`, in `seq`
@@ -164,8 +226,14 @@ pub fn compaction_cut<'a, I>(records: I) -> Option<usize>
 where
     I: IntoIterator<Item = (&'a str, &'a Value)>,
 {
-    let records: Vec<(&str, &str)> =
-        records.into_iter().map(|(turn, ev)| (turn, ev.get("kind").and_then(Value::as_str).unwrap_or(""))).collect();
+    compaction_cut_kinds(records.into_iter().map(|(turn, ev)| (turn, ev.get("kind").and_then(Value::as_str).unwrap_or(""))))
+}
+
+pub(crate) fn compaction_cut_kinds<'a, I>(records: I) -> Option<usize>
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    let records: Vec<(&str, &str)> = records.into_iter().collect();
     let mut last: HashMap<&str, usize> = HashMap::new();
     let mut last_begin: HashMap<&str, usize> = HashMap::new();
     let mut last_end: HashMap<&str, usize> = HashMap::new();

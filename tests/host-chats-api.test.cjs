@@ -5,13 +5,14 @@ const loadTypescript = require('./helpers/load-typescript.cjs')
 const call = loadTypescript('src/shared/host/api/call.ts')
 const { createHostChats } = loadTypescript('src/shared/host/api/chats.ts', { './call': call })
 
-function setup() {
+function setup({ history = false } = {}) {
   const calls = []
   const pending = []
   const listeners = new Map()
   const statusListeners = new Set()
   const order = []
   const client = {
+    serves: (domain, major) => history && domain === 'chats.history' && major === 1,
     call(method, params, timeout) {
       calls.push({ method, params, timeout })
       order.push(`call:${method}`)
@@ -58,6 +59,20 @@ test('nothing subscribes until the status is connected', () => {
   assert.equal(t.calls.length, 0)
   t.status('connecting')
   assert.equal(t.calls.length, 0)
+})
+
+test('history-capable hosts receive metadata-only subscribe/list; hydration is an ordered command without a second chat response', async () => {
+  const t = setup({ history: true })
+  const stop = t.api.follow(() => {}, () => {})
+  t.status('connected')
+  t.api.list()
+  t.api.subscribe()
+  assert.ok(t.calls.filter(call => ['chats.subscribe', 'chats.list'].includes(call.method)).every(call => call.params.metadataOnly === true))
+  const loaded = t.api.loadHistory('selected-chat')
+  assert.deepEqual(t.calls.at(-1), { method: 'chats.loadHistory', params: { chatId: 'selected-chat' }, timeout: 120000 })
+  t.pending.at(-1).resolve({ ok: true })
+  assert.deepEqual(await loaded, { ok: true })
+  stop()
 })
 
 test('batches before the reply are held; only revs after the snapshot are delivered', async () => {
@@ -195,6 +210,25 @@ test('a disconnected failure does not retry on a timer', async (ctx) => {
   await t.tick()
   ctx.mock.timers.tick(10_000)
   assert.equal(t.subs().length, 1)
+})
+
+test('follow reports loading, snapshot errors and recovery without pretending the host history is empty', async ctx => {
+  ctx.mock.timers.enable({ apis: ['setTimeout'] })
+  const t = setup(), progress = [], snapshots = []
+  const stop = t.api.follow(s => snapshots.push(s), () => {}, state => progress.push(state))
+  t.status('connected')
+  assert.deepEqual(progress, [{ state: 'loading' }])
+  t.subs()[0].reject(Object.assign(new Error('Histórico ainda indisponível'), { code: 'timeout' }))
+  await t.tick()
+  assert.deepEqual(progress.at(-1), { state: 'error', error: 'Histórico ainda indisponível' })
+  assert.equal(snapshots.length, 0)
+  ctx.mock.timers.tick(2000)
+  assert.deepEqual(progress.at(-1), { state: 'loading' })
+  t.subs()[1].resolve(snap(7, ['saved-chat']))
+  await t.tick()
+  assert.deepEqual(progress.at(-1), { state: 'ready' })
+  assert.equal(snapshots[0].chats[0].id, 'saved-chat')
+  stop()
 })
 
 test('the retry is not made when the connection went down meanwhile or after stop', async (ctx) => {

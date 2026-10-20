@@ -7,6 +7,18 @@ const image = (data, number, extra = {}) => ({ mime: 'image/png', data, ...(numb
 const turn = (id, images, extra = {}) => ({ id, role: 'user', text: '', images, ...extra })
 const chat = (turns = [], queued = []) => ({ turns, queued })
 
+test('cached tool images keep distinct references and deduplicate the same stored asset without base64 in the snapshot', () => {
+  const a = image('', undefined, { cacheKey: 'first-asset', cachedPath: 'C:/cache/first.png' })
+  const b = image('', undefined, { cacheKey: 'second-asset', cachedPath: 'C:/cache/second.png' })
+  const state = chat([turn('generated', undefined, { role: 'assistant', segments: [{ kind: 'tool', images: [a, b, { ...a }] }] })])
+  const catalog = collectChatImages(state)
+  assert.deepEqual(catalog.map(row => row.number), [1, 2])
+  assert.equal(imageReferenceNumber(catalog, b), 2)
+  const resolved = resolveImageReferences(state, 'Compare #image 2 com #image 1')
+  assert.equal(resolved.ok, true)
+  assert.deepEqual(resolved.images.map(row => row.cacheKey), ['second-asset', 'first-asset'])
+})
+
 test('stable numbers include user, assistant segment, queue and pending images in order', () => {
   const legacy = image('legacy')
   const assistant = image('generated', 4)

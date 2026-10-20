@@ -26,6 +26,9 @@ const busy = (turnId = 't1', over = {}) => ({ turnId, route: ROUTE, busy: true, 
 const snapshot = (chats, runtime = {}, rev = 1) => ({ rev, chats, runtime })
 const fastModel = (id = 'opus') => ({ id, efforts: [], fast: { id: 'fast' } })
 const CAPS = ['chats@1', 'claude@1', 'codex@1']
+const HISTORY_CAPS = [...CAPS, 'chats.history@1']
+const stub = (id, over = {}) => mkChat(id, { historyPending: true, historyTurnCount: 20, ...over })
+const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 const SILENT = 'O host do Prism não respondeu. Tentando de novo…'
 const { latestStructuredQuestions, buildStructuredQuestionsReply } = load('src/renderer/src/lib/asyncQuestions.ts')
 const asyncQuestionChat = (over = {}) => mkChat('c', { selection: codexSel(), draft: 'Rascunho preservado', contextDraft: 'file.ts',
@@ -41,7 +44,7 @@ const CLAUDE_EVENTS = ['onAgentSystem', 'onAgentText', 'onAgentThinking', 'onAge
 function env(options = {}) {
   const o = { owned: true, connected: true, caps: CAPS, reply: {}, localChats: [], notifyOnDone: true, notifyOnAsk: true, focus: false,
     profiles: [{ id: 'ambient-claude', provider: 'claude', name: 'Claude' }, { id: 'ambient-codex', provider: 'codex', name: 'Codex' }], ...options }
-  const calls = { host: [], toasts: [], notify: [], taskNotify: [], bump: 0, reload: 0, claude: [], codex: [], abort: [], flush: [], list: 0, save: [], follow: 0 }
+  const calls = { host: [], toasts: [], notify: [], taskNotify: [], bump: 0, reload: 0, claude: [], codex: [], abort: [], flush: [], list: 0, save: [], follow: 0, profileReads: 0 }
   const storage = new Map()
   if (o.storage) storage.set('prism.chatDrafts', JSON.stringify(o.storage))
   global.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) }
@@ -57,9 +60,9 @@ function env(options = {}) {
     const fn = o.reply[name]
     return Promise.resolve(fn ? fn(...args) : name === 'send' ? { ok: true, turnId: 'T-host' } : { ok: true })
   }
-  const hostApi = Object.fromEntries(['create', 'put', 'configure', 'confirmAccount', 'bindWorkspace', 'rename', 'archive', 'setTask', 'remove', 'send', 'stop', 'steer', 'queue', 'respondPermission', 'respondQuestion']
+  const hostApi = Object.fromEntries(['create', 'put', 'configure', 'confirmAccount', 'bindWorkspace', 'rename', 'archive', 'setTask', 'remove', 'send', 'stop', 'steer', 'queue', 'respondPermission', 'respondQuestion', 'loadHistory']
     .map((n) => [n, cmd(n)]))
-  hostApi.follow = (onSnapshot, onDeltas) => { calls.follow++; follow.snap = onSnapshot; follow.deltas = onDeltas; return () => {} }
+  hostApi.follow = (onSnapshot, onDeltas, onState) => { calls.follow++; follow.snap = onSnapshot; follow.deltas = onDeltas; follow.progress = onState; return () => {} }
   hostApi.list = async () => snapshot([], {})
   const chatsApi = { save: async (c) => { calls.save.push(c); return true }, delete: async () => true,
     list: async () => { calls.list++; return o.localChats }, flush: (c) => { calls.flush.push(c); return state.flushReply }, host: hostApi }
@@ -67,7 +70,11 @@ function env(options = {}) {
   global.window = {
     prism: {
       chats: chatsApi,
-      providers: { list: async () => o.profiles },
+      providers: { list: async () => {
+        calls.profileReads++
+        if (o.profilesError && (o.profilesFailures === undefined || calls.profileReads <= o.profilesFailures)) throw new Error(o.profilesError)
+        return o.profiles
+      } },
       host: { onStatus: (l) => { statusListeners.add(l); if (state.current) l(state.current); return () => statusListeners.delete(l) }, capabilities: () => o.caps },
       claude: { agentSend: (p) => calls.claude.push(p), agentAbort: (id) => calls.abort.push(['claude', id]),
         agentRespondPermission() {}, agentRespondQuestion() {},
@@ -187,7 +194,7 @@ hostTest('mode: owned and connected without chats@1 → ipc', { caps: ['claude@1
   assert.equal(e.calls.follow, 0)
 })
 
-hostTest('mode: a host that never connects says so after 15 s and does not fall back to ipc; connecting clears it', { connected: false }, async (e, ctx) => {
+hostTest('mode: connecting alone does not clear a history loading warning; the first snapshot does', { connected: false }, async (e, ctx) => {
   const p = e.S().init()
   await tick()
   ctx.mock.timers.tick(14_999)
@@ -199,12 +206,55 @@ hostTest('mode: a host that never connects says so after 15 s and does not fall 
   assert.equal(e.S().mode, null)
   e.emitStatus({ state: 'connected', hello: { capabilities: CAPS } })
   await tick(); await tick()
-  assert.equal(e.S().hostError, null)
+  assert.equal(e.S().hostError, SILENT)
   assert.equal(e.S().mode, 'host')
   e.follow.snap(snapshot([mkChat('a')]))
   await p
   assert.equal(e.S().ready, true)
   assert.equal(e.calls.list, 0)
+  assert.equal(e.S().hostError, null)
+})
+
+hostTest('startup: accounts are published before a slow first history; loading stays visible until it arrives', {}, async (e, ctx) => {
+  const loading = e.S().init()
+  await tick(); await tick()
+  assert.equal(e.S().ready, false)
+  assert.deepEqual(e.S().profiles.map(p => p.id), ['ambient-claude', 'ambient-codex'])
+  ctx.mock.timers.tick(15000)
+  assert.equal(e.S().hostError, SILENT)
+  e.follow.progress({ state: 'error', error: 'O host não respondeu a chats.subscribe.' })
+  assert.match(e.S().hostError, /Não foi possível carregar as conversas:.*chats\.subscribe/)
+  e.follow.progress({ state: 'loading' })
+  assert.match(e.S().hostError, /chats\.subscribe/)
+  e.follow.snap(snapshot([mkChat('saved')]))
+  e.follow.progress({ state: 'ready' })
+  await loading
+  assert.equal(e.S().ready, true)
+  assert.equal(e.S().hostError, null)
+  assert.equal(e.S().chats[0].id, 'saved')
+})
+
+hostTest('startup: a profile read failure does not discard or block the restored history', { profilesError: 'Conta indisponível' }, async e => {
+  await e.boot(snapshot([mkChat('saved')]))
+  await tick()
+  assert.equal(e.S().ready, true)
+  assert.equal(e.S().chats[0].id, 'saved')
+  assert.equal(e.calls.profileReads, 2, 'the second attempt is bounded by actual snapshot readiness')
+  assert.ok(e.calls.toasts.some(message => message.includes('Falha ao carregar contas: Conta indisponível')))
+})
+
+hostTest('startup: an initial account timeout retries once after the first snapshot and restores profiles', { profilesError: 'RPC timeout while store initializes', profilesFailures: 1 }, async e => {
+  const loading = e.S().init()
+  await tick(); await tick()
+  assert.equal(e.calls.profileReads, 1, 'no repeated RPCs while host initialization still holds the store')
+  assert.deepEqual(e.S().profiles, [])
+  assert.equal(e.S().ready, false)
+  e.follow.snap(snapshot([mkChat('saved')]))
+  await loading; await tick()
+  assert.equal(e.calls.profileReads, 2)
+  assert.deepEqual(e.S().profiles.map(profile => profile.id), ['ambient-claude', 'ambient-codex'])
+  assert.equal(e.S().chats[0].id, 'saved')
+  assert.equal(e.calls.toasts.length, 0)
 })
 
 hostTest('mode: a host that drops later shows the error after 15 s and clears it on reconnect', {}, async (e, ctx) => {
@@ -223,6 +273,127 @@ hostTest('mode: a host that drops later shows the error after 15 s and clears it
 })
 
 // ---------- snapshot ----------
+
+hostTest('history: the active stub hydrates once; its ordered delta preserves drafts, attachments and runtime', { caps: HISTORY_CAPS }, async e => {
+  const ack = deferred()
+  window.prism.chats.host.loadHistory = id => { e.calls.host.push(['loadHistory', id]); return ack.promise }
+  const run = busy('native-turn')
+  await e.boot(snapshot([stub('a'), stub('b', { updatedAt: 0 })], { a: run }))
+  await tick()
+  assert.equal(e.hostCalls('loadHistory').length, 1)
+  const first = e.S().loadHistory('a'), second = e.S().loadHistory('a')
+  assert.equal(first, second, 'selection and manual hydration share the same in-flight command')
+  e.S().draft('a', 'Kept draft')
+  assert.equal(e.S().send('a', 'No partial continuation'), false)
+  e.S().attachImages('a', [{ mime: 'image/png', data: 'aGVsbG8=' }])
+  assert.equal(e.S().attachments.a, undefined, 'image numbers cannot be minted from an unloaded transcript')
+  const attachment = { mime: 'image/png', data: 'aGVsbG8=', number: 27 }
+  e.chats.setState({ attachments: { a: [attachment] } })
+  e.follow.deltas([{ op: 'chat', chat: mkChat('a', { turns: [{ id: 'native-turn', role: 'assistant', text: 'Preserved original history' }] }) }])
+  ack.resolve({ ok: true })
+  assert.equal(await first, true)
+  assert.equal(e.S().chats.find(chat => chat.id === 'a').historyPending, undefined)
+  assert.equal(e.S().chats.find(chat => chat.id === 'a').draft, 'Kept draft')
+  assert.equal(e.S().chats.find(chat => chat.id === 'a').turns[0].text, 'Preserved original history')
+  assert.deepEqual(e.S().runtime.a, run)
+  assert.deepEqual(e.S().attachments.a, [attachment])
+  assert.equal(e.S().historyErrors.a, undefined)
+  assert.equal(e.S().historyLoading.a, false)
+  assert.equal(e.hostCalls('send').length, 0)
+  assert.equal(e.hostCalls('put').length, 0)
+})
+
+hostTest('history: a late chat A response cannot select it over B, and closed/inactive failures stay out of the UI', { caps: HISTORY_CAPS }, async e => {
+  const a = deferred(), b = deferred()
+  window.prism.chats.host.loadHistory = id => { e.calls.host.push(['loadHistory', id]); return id === 'a' ? a.promise : b.promise }
+  await e.boot(snapshot([stub('a'), stub('b', { updatedAt: 0 })]))
+  e.S().select('b'); await tick()
+  assert.equal(e.hostCalls('loadHistory').length, 2)
+  e.follow.deltas([{ op: 'chat', chat: mkChat('a', { turns: [{ id: 'old', role: 'assistant', text: 'A history' }] }) }])
+  a.resolve({ ok: true }); await tick()
+  assert.equal(e.S().activeId, 'b')
+  e.follow.deltas([{ op: 'remove', chatId: 'b' }])
+  b.reject(new Error('closed-chat failure')); await tick()
+  assert.equal(e.S().historyErrors.b, undefined)
+  assert.ok(!e.calls.toasts.some(message => message.includes('closed-chat failure')))
+})
+
+hostTest('history: active load errors retry on selection and a reconnect discards stale request errors', { caps: HISTORY_CAPS }, async e => {
+  const requests = [deferred(), deferred(), deferred()]
+  window.prism.chats.host.loadHistory = id => { const index = e.hostCalls('loadHistory').length; e.calls.host.push(['loadHistory', id]); return requests[index].promise }
+  await e.boot(snapshot([stub('a')]))
+  requests[0].resolve({ ok: false, code: 'timeout', error: 'First history timeout' }); await tick()
+  assert.equal(e.S().historyErrors.a, 'First history timeout')
+  e.S().select('a'); await tick()
+  assert.equal(e.hostCalls('loadHistory').length, 2)
+  assert.equal(e.S().historyErrors.a, undefined)
+  e.follow.snap(snapshot([stub('a')], {}, 8)); await tick()
+  assert.equal(e.hostCalls('loadHistory').length, 3, 'new metadata snapshot requests the current authoritative history')
+  e.follow.deltas([{ op: 'chat', chat: mkChat('a', { turns: [{ id: 'fresh', role: 'assistant', text: 'Fresh after reconnect' }] }) }])
+  requests[2].resolve({ ok: true }); await tick()
+  requests[1].reject(new Error('stale generation')); await tick()
+  assert.equal(e.S().historyErrors.a, undefined)
+  assert.equal(e.S().historyLoading.a, false)
+  assert.equal(e.S().chats[0].turns[0].text, 'Fresh after reconnect')
+})
+
+hostTest('history: a metadata stub cannot start an IPC fallback, number/queue images or flush over a full stored transcript', { caps: ['chats@1', 'chats.history@1'] }, async (e, ctx) => {
+  const ack = deferred()
+  window.prism.chats.host.loadHistory = () => ack.promise
+  await e.boot(snapshot([stub('a', { remoteId: 'ssh-route', remoteTarget: { host: 's', port: 22, username: 'u' } })]))
+  e.S().draft('a', 'Metadata draft only')
+  e.S().enqueue('a', { text: 'Cannot queue without original references', images: [{ mime: 'image/png', data: 'aGVsbG8=' }] })
+  e.S().attachImages('a', [{ mime: 'image/png', data: 'aGVsbG8=' }])
+  assert.equal(e.S().send('a', 'Do not start a fresh session'), false)
+  e.chats.setState({ runtime: { a: busy('bogus', { local: true }) } })
+  e.windowEvents.beforeunload({ preventDefault() { throw new Error('no partial transcript should be flushed') } })
+  ctx.mock.timers.tick(2000)
+  assert.deepEqual(e.calls.claude, [])
+  assert.deepEqual(e.calls.codex, [])
+  assert.deepEqual(e.calls.flush, [])
+  assert.deepEqual(e.hostCalls('put'), [])
+  assert.deepEqual(e.hostCalls('queue'), [])
+  assert.equal(e.S().attachments.a, undefined)
+  ack.resolve({ ok: false, code: 'gone', error: 'fixture cleanup' }); await tick()
+})
+
+hostTest('history cache: visiting four chats retains three histories and selecting an evicted one reloads without losing its draft', { caps: HISTORY_CAPS }, async e => {
+  window.prism.chats.host.loadHistory = async id => {
+    e.calls.host.push(['loadHistory', id])
+    e.follow.deltas([{ op: 'chat', chat: mkChat(id, { turns: [{ id: `turn-${id}`, role: 'assistant', text: `History ${id}` }] }) }])
+    return { ok: true }
+  }
+  await e.boot(snapshot(['a', 'b', 'c', 'd'].map((id, index) => stub(id, { updatedAt: 10 - index }))))
+  await tick()
+  e.S().draft('a', 'Preserved after eviction')
+  for (const id of ['b', 'c', 'd']) { e.S().select(id); await tick() }
+  assert.equal(e.S().chats.filter(chat => !chat.historyPending && chat.turns.length).length, 3)
+  const evicted = e.S().chats.find(chat => chat.id === 'a')
+  assert.equal(evicted.historyPending, true)
+  assert.equal(evicted.historyTurnCount, 1)
+  assert.deepEqual(evicted.turns, [])
+  assert.equal(evicted.draft, 'Preserved after eviction')
+  e.S().select('a'); await tick()
+  assert.equal(e.hostCalls('loadHistory').filter(([, id]) => id === 'a').length, 2)
+  assert.equal(e.S().chats.find(chat => chat.id === 'a').turns[0].text, 'History a')
+  assert.equal(e.S().chats.find(chat => chat.id === 'a').draft, 'Preserved after eviction')
+  assert.equal(e.S().chats.filter(chat => !chat.historyPending && chat.turns.length).length, 3)
+  assert.deepEqual(e.hostCalls('put'), [])
+})
+
+hostTest('history cache: background busy and local fallback histories stay intact while only inactive host histories are evicted', { caps: HISTORY_CAPS }, async e => {
+  const full = id => mkChat(id, { updatedAt: id === 'active' ? 20 : 1, turns: [{ id: `turn-${id}`, role: 'assistant', text: `Protected ${id}` }] })
+  await e.boot(snapshot(['busy', 'local', 'old-a', 'old-b', 'active'].map(full), { busy: busy('turn-busy'), local: idle('turn-local', { local: true }) }))
+  for (const id of ['busy', 'local', 'active']) {
+    const chat = e.S().chats.find(chat => chat.id === id)
+    assert.equal(chat.historyPending, undefined)
+    assert.equal(chat.turns[0].text, `Protected ${id}`)
+  }
+  for (const id of ['old-a', 'old-b']) assert.equal(e.S().chats.find(chat => chat.id === id).historyPending, true)
+  assert.equal(e.S().runtime.busy.busy, true)
+  assert.equal(e.S().runtime.local.local, true)
+  assert.deepEqual(e.hostCalls('put'), [])
+})
 
 hostTest('snapshot: chats and runtime come as they are, nothing normalized; activeId is the most recent', {}, async (e) => {
   const running = mkChat('run', { updatedAt: 9, pendingTurnId: 't1',

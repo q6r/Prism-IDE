@@ -22,6 +22,134 @@ fn done(chat: &str, turn: &str) -> NewEvent {
 }
 
 #[test]
+fn large_replaced_tool_snapshots_compact_without_changing_the_chat() {
+    let store = Store::open_in_memory().unwrap();
+    store.begin_turn(&chat("large"), "t1", None).unwrap();
+    let payload = "s".repeat(1024 * 1024);
+    for revision in 0..18 {
+        store.append(NewEvent::raw("large", "t1", json!({"kind":"segment", "segment":{"kind":"tool", "toolId":"one-tool", "name":"Read", "status":"running", "output":payload, "revision":revision}}))).unwrap();
+    }
+    let before = store.snapshot("large").unwrap().unwrap();
+    assert_eq!(before.chat["turns"][1]["segments"].as_array().unwrap().len(), 1);
+    assert_eq!(before.chat["turns"][1]["segments"][0]["revision"], 17);
+    assert_eq!(store.stats().unwrap().events, 19, "running journals retain their replay history");
+    let ended = store.append(done("large", "t1").at(123)).unwrap();
+    let after = store.snapshot("large").unwrap().unwrap();
+    assert_eq!(after.chat["turns"][1]["segments"][0]["output"], payload);
+    assert_eq!(after.chat["turns"][1]["segments"][0]["status"], "done");
+    assert_eq!(after.chat["turns"][1]["segments"][0]["revision"], 17);
+    assert_eq!(after.chat["turns"][1]["completedAt"], 123);
+    assert_eq!(after.seq, ended.seq);
+    assert_eq!(store.stats().unwrap().events, 0, "superseded megabyte snapshots no longer accumulate after completion");
+    let Since::Snapshot(Some(replayed)) = store.events_since("large", Some(before.seq)).unwrap() else { panic!("an older cursor must restart from the compacted snapshot") };
+    assert_eq!(replayed, after);
+    assert!(matches!(store.events_since("large", Some(ended.seq)).unwrap(), Since::Events(events) if events.is_empty()));
+    assert_eq!(store.compact_chat("large").unwrap(), None);
+    assert_eq!(store.chat("large").unwrap().unwrap(), after.chat);
+}
+
+#[test]
+fn row_count_compaction_preserves_text_and_future_turns() {
+    let store = Store::open_in_memory().unwrap();
+    store.begin_turn(&chat("many"), "t1", None).unwrap();
+    store.append_batch((0..520).map(|_| text("many", "t1", "ação🙂")).collect()).unwrap();
+    let expected = "ação🙂".repeat(520);
+    store.append(done("many", "t1")).unwrap();
+    let folded = store.chat("many").unwrap().unwrap();
+    assert_eq!(folded["turns"][1]["segments"][0]["text"], expected);
+    assert_eq!(store.stats().unwrap().events, 0);
+    let mut next = folded;
+    next["turns"].as_array_mut().unwrap().push(json!({"id":"t2","role":"assistant","segments":[]}));
+    next["pendingTurnId"] = json!("t2");
+    store.begin_turn(&next, "t2", None).unwrap();
+    store.append(text("many", "t2", "novo")).unwrap();
+    let later = store.snapshot("many").unwrap().unwrap();
+    assert_eq!(later.chat["turns"][1]["segments"][0]["text"], expected);
+    assert_eq!(later.chat["turns"][2]["segments"][0]["text"], "novo");
+    assert_eq!(later.chat["pendingTurnId"], "t2");
+}
+
+#[test]
+fn native_metadata_lookups_exclude_transcripts_and_keep_exact_destinations() {
+    let store = Store::open_in_memory().unwrap();
+    for (id, root, target) in [("child-a", "root-a", "agent-a"), ("child-b", "root-b", "agent-a")] {
+        let mut doc = chat(id);
+        doc["nativeAgent"] = json!({"id":id,"rootChatId":root,"messageTarget":target,"status":"running"});
+        doc["turns"][0]["text"] = json!("private transcript".repeat(1000));
+        store.put_chat(&doc).unwrap();
+    }
+    store.put_chat(&chat("ordinary")).unwrap();
+    let metadata = store.native_chat_metadata().unwrap();
+    assert_eq!(metadata.len(), 2);
+    assert!(metadata.iter().all(|doc| doc.get("turns").is_none() && doc.as_object().unwrap().len() == 2));
+    let child = store.find_native_child("root-b", "agent-a").unwrap().unwrap();
+    assert_eq!(child["id"], "child-b");
+    assert_eq!(child["nativeAgent"]["rootChatId"], "root-b");
+    assert!(store.find_native_child("missing", "agent-a").unwrap().is_none());
+    assert_eq!(store.pending_chat_ids().unwrap().len(), 3);
+    let mut completed = chat("completed");
+    completed.as_object_mut().unwrap().remove("pendingTurnId");
+    store.put_chat(&completed).unwrap();
+    assert_eq!(store.pending_chat_ids().unwrap().len(), 3, "finished documents are not startup recovery candidates");
+}
+
+#[test]
+fn chat_summaries_keep_navigation_drafts_and_queues_without_transcript_payloads() {
+    let store = Store::open_in_memory().unwrap();
+    let mut doc = chat("summary");
+    doc["turns"][1]["segments"] = json!([{"kind":"tool","toolId":"large","result":"x".repeat(3 * 1024 * 1024)}]);
+    doc["draft"] = json!("continue daqui");
+    doc["queued"] = json!([{"id":"queued","text":"próxima tarefa"}]);
+    doc["customExtension"] = json!({"kept":true});
+    store.put_document("chats", "summary", &doc).unwrap();
+    let summaries = store.chat_summaries().unwrap();
+    assert_eq!(summaries.len(), 1);
+    let mut expected = doc.clone();
+    expected["turns"] = json!([]);
+    expected["historyPending"] = json!(true);
+    expected["historyTurnCount"] = json!(2);
+    assert_eq!(summaries[0], expected);
+    assert!(serde_json::to_vec(&summaries).unwrap().len() < 2048, "boot metadata does not include the megabyte tool transcript");
+    assert_eq!(store.document("chats", "summary").unwrap().unwrap(), doc, "summary reads never truncate the stored history");
+    assert_eq!(store.chat("summary").unwrap().unwrap(), doc);
+}
+
+#[test]
+fn compacted_turn_accepts_late_child_cards_metrics_and_sessions_after_reopening() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(DB_FILE);
+    let store = Store::open(&path).unwrap();
+    store.begin_turn(&chat("late"), "t1", None).unwrap();
+    store.append(text("late", "t1", "original")).unwrap();
+    store.append(done("late", "t1").at(10)).unwrap();
+    store.compact_chat("late").unwrap();
+    let card = json!({"kind":"tool","toolId":"child-card","subagent":{"id":"child","status":"completed"},"status":"done"});
+    store.append_batch(vec![
+        NewEvent::raw("late", "t1", json!({"kind":"segment","segment":card})),
+        NewEvent::raw("late", "t1", json!({"kind":"metrics","metrics":{"inputTokens":42}})),
+        NewEvent::raw("late", "t1", json!({"kind":"session","sessionId":"late-session"})),
+        done("late", "t1").at(20),
+    ]).unwrap();
+    let updated = store.snapshot("late").unwrap().unwrap();
+    assert_eq!(updated.chat["turns"][1]["segments"][0]["text"], "original");
+    assert_eq!(updated.chat["turns"][1]["segments"][1], card);
+    assert_eq!(updated.chat["turns"][1]["metrics"]["inputTokens"], 42);
+    assert_eq!(updated.chat["turns"][1]["completedAt"], 20);
+    assert_eq!(updated.chat["resume"]["sessionId"], "late-session");
+    let runs = store.turn_runs().unwrap();
+    assert_eq!(runs[0].session_id.as_deref(), Some("late-session"));
+    store.compact_chat("late").unwrap();
+    assert_eq!(store.snapshot("late").unwrap().unwrap(), updated);
+    assert_eq!(store.turn_runs().unwrap(), runs);
+    drop(store);
+    let reopened = Store::open(&path).unwrap();
+    assert_eq!(reopened.snapshot("late").unwrap().unwrap(), updated);
+    assert_eq!(reopened.turn_runs().unwrap(), runs);
+    reopened.append(NewEvent::raw("late", "never-begun", json!({"kind":"text","text":"must be ignored"}))).unwrap();
+    assert_eq!(reopened.chat("late").unwrap().unwrap(), updated.chat);
+}
+
+#[test]
 fn opens_with_wal_full_sync_and_current_schema() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path().join("sub").join(DB_FILE)).unwrap();

@@ -14,6 +14,7 @@ import {
 import { useOpen, toolStartedAt } from './state'
 import { LiveElapsed, LivePulse, PanelPre, SegmentCard, SegmentPanel, SegmentRow, StateBadge } from './primitives'
 import { Markdown } from './Markdown'
+import { ChatImage } from './ChatImage'
 
 export interface ToolViewProps {
   segment: SharedSegment
@@ -263,7 +264,18 @@ function FileChangeTool({ segment, openKey, variant, interrupted, cwd, onPromote
 /** One tool call, as a bare activity row (`row`) or a standalone bordered card (`card`). */
 export const ToolSegmentView = memo(function ToolSegmentView(props: ToolViewProps) {
   const kind = rowKind(props.segment)
-  if (kind === 'command') return <CommandTool {...props} />
-  if (kind === 'file') return <FileChangeTool {...props} />
-  return <GenericTool {...props} />
+  const { segment } = props
+  const content = kind === 'command' ? <CommandTool {...props} />
+    : kind === 'file' && !segment.inputPath ? <FileChangeTool {...props} /> : <GenericTool {...props} />
+  return <>{content}
+    {segment.outputPath || segment.inputPath ? <div className="ch-tool-complete">
+      {segment.outputPath ? <button type="button" onClick={() => { void useStore.getState().openFile(segment.outputPath!) }}>Abrir saída completa</button> : null}
+      {segment.inputPath ? <button type="button" onClick={() => { void useStore.getState().openFile(segment.inputPath!) }}>Abrir entrada completa</button> : null}
+      <span>Prévia carregada; conteúdo completo preservado.</span>
+    </div> : null}
+    {segment.presentation?.resultPending ? <div className="ch-truncated">Prévia da saída em andamento. O conteúdo completo ficará disponível ao concluir.</div> : null}
+    {segment.images?.length ? <div className="ch-tool-images">{segment.images.map((image, index) => image.cacheError
+      ? <span role="status" key={image.cacheKey ?? index}>{image.cacheError}</span>
+      : <ChatImage key={image.cacheKey ?? image.cachedPath ?? index} src={image.cachedPath || `data:${image.mime};base64,${image.data}`} alt={image.name || `Imagem da ferramenta ${index + 1}`} route={{}} defer />)}</div> : null}
+  </>
 })

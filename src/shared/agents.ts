@@ -89,6 +89,10 @@ export interface ChatImage {
   mime: string
   /** Base64 of the image bytes (no `data:` prefix). */
   data: string
+  /** Host display cache; original bytes remain in the chat store. */
+  cachedPath?: string
+  cacheKey?: string
+  cacheError?: string
   /** Original file name, when known. */
   name?: string
 }
@@ -173,6 +177,10 @@ export interface SharedSegment {
   name?: string
   input?: unknown
   result?: string
+  /** Complete large tool fields are opened from the host's derived cache. */
+  outputPath?: string
+  inputPath?: string
+  presentation?: { version: number; result?: boolean; input?: boolean; images?: boolean; resultBytes?: number; inputBytes?: number; resultPending?: boolean }
   resultIsError?: boolean
   status?: 'running' | 'done' | 'error' | 'denied' | 'awaiting'
 }
@@ -225,6 +233,9 @@ export interface UnifiedChat {
   remoteTarget?: { host: string; port: number; username: string }
   selection: AgentSelection
   turns: SharedTurn[]
+  /** Host metadata stub: hydrate through chats.loadHistory before reading/saving turns. */
+  historyPending?: boolean
+  historyTurnCount?: number
   // Resume only the immediately preceding route. Switching route starts a
   // native session with the common transcript, so no provider sees stale state.
   resume?: { route: string; sessionId: string }

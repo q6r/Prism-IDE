@@ -9,7 +9,7 @@ const C2 = { ...C1, id: 'c2' }
 const RECENT = { id: 'r1', name: 'srv', host: 'h.example', port: 22, username: 'u' }
 
 // Fresh module instance (mru/parked/initialized are module state) + fakes per scenario.
-async function scenario(body) {
+async function scenario(body, { initialize = true } = {}) {
   const savedWindow = global.window
   const log = { toasts: [], reconnects: [], cwds: [], creates: [], saves: [] }
   let statusCb
@@ -32,7 +32,7 @@ async function scenario(body) {
   }))
   let useAgentTasks
   const useAgentChats = create((set, get) => ({
-    chats: [], activeId: null, init: async () => {},
+    ready: true, chats: [], activeId: null, init: async () => {},
     select: (id) => set({ activeId: id }),
     create: (cwd, remoteId) => {
       log.creates.push([cwd, remoteId])
@@ -42,7 +42,7 @@ async function scenario(body) {
   }))
   try {
     useAgentTasks = load('src/renderer/src/lib/agentTasks.ts', { zustand: { create }, '../store': { useStore }, './agentChats': { useAgentChats } }).useAgentTasks
-    await useAgentTasks.getState().init()
+    if (initialize) await useAgentTasks.getState().init()
     await body({ useStore, useAgentChats, tasks: useAgentTasks, log, status: (e) => statusCb(e) })
   } finally {
     await sleep(450)
@@ -52,6 +52,92 @@ async function scenario(body) {
 const T = (env) => env.tasks.getState()
 const task = (env, id) => T(env).tasks.find((t) => t.id === id)
 const tab = (path, content = 'x') => ({ path, content, savedContent: content })
+
+test('saved tasks and folders load before chat history without creating replacements or losing a task switch', async () => {
+  await scenario(async env => {
+    let complete
+    const history = new Promise(resolve => { complete = resolve })
+    window.prism.tasks.load = async () => ({ tasks: [
+      { id: 'a', title: 'A', cwd: '/a', activeChatId: 'chat-a', updatedAt: 1 },
+      { id: 'b', title: 'B', cwd: '/b', activeChatId: 'chat-b', updatedAt: 2 }
+    ], openIds: ['a', 'b'], activeId: 'a' })
+    env.useAgentChats.setState({ ready: false, init: async () => {
+      await history
+      env.useAgentChats.setState({ ready: true, chats: [
+        { id: 'chat-a', cwd: '/a', taskId: 'a', updatedAt: 1 },
+        { id: 'chat-b', cwd: '/b', taskId: 'b', updatedAt: 2 }
+      ] })
+    } })
+    const loading = T(env).init()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(T(env).ready, true)
+    assert.equal(T(env).restoringChats, true)
+    assert.equal(env.useStore.getState().folderPath, '/a')
+    assert.deepEqual(env.log.creates, [])
+    T(env).activate('b')
+    assert.equal(env.useStore.getState().folderPath, '/b')
+    assert.equal(task(env, 'a').activeChatId, 'chat-a')
+    assert.deepEqual(env.log.creates, [])
+    env.useStore.setState({ tabs: [tab('/b/dirty.ts', 'UNSAVED WHILE LOADING')], activePath: '/b/dirty.ts' })
+    complete()
+    await loading
+    assert.equal(T(env).activeId, 'b')
+    assert.equal(T(env).restoringChats, false)
+    assert.equal(env.useAgentChats.getState().activeId, 'chat-b')
+    assert.deepEqual(env.log.creates, [])
+    assert.equal(env.useStore.getState().tabs[0].content, 'UNSAVED WHILE LOADING')
+  }, { initialize: false })
+})
+
+test('a task load timeout waits for the host snapshot and retries without saving an empty replacement', async () => {
+  await scenario(async env => {
+    let complete, reads = 0
+    const history = new Promise(resolve => { complete = resolve })
+    window.prism.tasks.load = async () => {
+      reads++
+      if (reads === 1) throw new Error('RPC timeout while store initializes')
+      return { tasks: [{ id: 'saved-task', title: 'Preserved task', cwd: '/saved', activeChatId: 'saved-chat', updatedAt: 1 }], openIds: ['saved-task'], activeId: 'saved-task' }
+    }
+    env.useAgentChats.setState({ ready: false, init: async () => {
+      await history
+      env.useAgentChats.setState({ ready: true, chats: [{ id: 'saved-chat', taskId: 'saved-task', cwd: '/saved', updatedAt: 1 }] })
+    } })
+    const loading = T(env).init()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(reads, 1)
+    assert.equal(T(env).ready, false)
+    assert.deepEqual(env.log.creates, [])
+    assert.deepEqual(env.log.saves, [])
+    complete()
+    await loading
+    assert.equal(reads, 2)
+    assert.equal(T(env).ready, true)
+    assert.equal(T(env).activeId, 'saved-task')
+    assert.equal(env.useAgentChats.getState().activeId, 'saved-chat')
+    assert.deepEqual(env.log.creates, [])
+    await sleep(425)
+    assert.equal(env.log.saves.length, 1)
+    assert.deepEqual(env.log.saves[0][0].map(task => task.id), ['saved-task'])
+  }, { initialize: false })
+})
+
+test('a repeated task load failure does not cache a rejected initialization or write empty tasks', async () => {
+  await scenario(async env => {
+    let reads = 0
+    window.prism.tasks.load = async () => { reads++; throw new Error('Temporarily unavailable') }
+    await assert.rejects(T(env).init(), /Temporarily unavailable/)
+    assert.equal(reads, 2)
+    assert.equal(T(env).ready, false)
+    assert.deepEqual(env.log.creates, [])
+    assert.deepEqual(env.log.saves, [])
+    window.prism.tasks.load = async () => ({ tasks: [{ id: 'recovered', title: 'Recovered task', cwd: '/recovered', activeChatId: 'recovered-chat', updatedAt: 1 }], openIds: ['recovered'], activeId: 'recovered' })
+    env.useAgentChats.setState({ chats: [{ id: 'recovered-chat', taskId: 'recovered', cwd: '/recovered', updatedAt: 1 }] })
+    await T(env).init()
+    assert.equal(T(env).activeId, 'recovered')
+    assert.equal(env.useAgentChats.getState().activeId, 'recovered-chat')
+    assert.deepEqual(env.log.creates, [])
+  }, { initialize: false })
+})
 
 test('open(cwd) on an empty active task adopts the folder and keeps dirty tabs', async () => {
   await scenario(async (env) => {

@@ -20,6 +20,7 @@ Prism é uma aplicação desktop independente feita com Electron, React, TypeScr
 - **Host local em Rust:** mantém as execuções e o histórico em SQLite, separado da janela Electron. Cada subagente pode ser acompanhado pela árvore e por seus cartões de tarefa, atividade e resultado.
 - **Mensagens para subagentes:** no Codex, o envio usa a conversa nativa do filho. No Claude, a instrução é encaminhada pelo principal com `SendMessage`, quando o filho possui um endereço nativo disponível. O recebimento no filho aparece quando a CLI o confirma.
 - **Imagens do agente:** prévias locais usam a pasta da conversa; imagens podem ser ampliadas, e arquivos ausentes exibem um erro legível.
+- **Históricos grandes:** a lista carrega primeiro e cada histórico abre ao selecionar a conversa. Saídas extensas de ferramentas usam prévias com acesso ao conteúdo completo, e imagens de ferramentas carregam conforme aparecem na tela. O host compacta eventos redundantes preservando o histórico e a origem dos dados de uso.
 - **Editor e ferramentas:** Monaco, abas, busca global, Quick Open, terminal PTY, Git com diffs e conexão SSH.
 - **Controle remoto no celular:** QR por conversa ou seleção de chats, imagens, configurações do agente, aprovações, fila e acompanhamento das alterações. Um link compartilhado concede acesso às conversas selecionadas.
 - **Uso e interface:** limites informados pelos provedores, métricas nativas quando disponíveis, temas, atalhos e extensão opcional de Discord Rich Presence.
@@ -44,6 +45,8 @@ npm run dev
 Para usar os agentes, instale as CLIs oficiais conforme as instruções de [Claude Code](https://code.claude.com/docs/en/setup) e [Codex](https://github.com/openai/codex). Em **Conversas → Contas de agentes**, adicione seus perfis e faça login. **Conta do terminal** usa a autenticação já disponível na CLI; perfis adicionados têm diretórios próprios.
 
 Os seletores de modelo e permissões permanecem disponíveis durante uma execução. No Claude, modelo e permissões podem mudar no turno ativo; esforço e Fast valem para o próximo. No Codex, a configuração vale para o próximo turno, incluindo mensagens da fila. O esforço e os modelos disponíveis dependem do que a CLI da conta anuncia.
+
+No terminal, **Ctrl+C** interrompe o processo mesmo quando há texto selecionado. Use **Ctrl+Shift+C** para copiar a seleção.
 
 ## Compilar e verificar
 

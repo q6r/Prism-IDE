@@ -12,6 +12,7 @@
 mod engine;
 pub(crate) mod image_references;
 mod port;
+mod presentation;
 mod runners;
 #[cfg(test)]
 mod tests;
@@ -243,6 +244,7 @@ const METHODS: &[&str] = &[
     methods::SUBSCRIBE,
     methods::UNSUBSCRIBE,
     methods::LIST,
+    methods::LOAD_HISTORY,
     methods::CREATE,
     methods::PUT,
     methods::FLUSH,
@@ -365,7 +367,7 @@ fn stopped() -> HostError {
 }
 
 impl Domain for ChatsDomain {
-    fn features(&self) -> &'static [&'static str] { &["chats.queue@1", "chats.subagents.message@1"] }
+    fn features(&self) -> &'static [&'static str] { &["chats.queue@1", "chats.subagents.message@1", "chats.history@1"] }
     fn name(&self) -> &'static str {
         "chats"
     }

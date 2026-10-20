@@ -40,12 +40,16 @@ const TranscriptRow = memo(function TranscriptRow({ turn, sentAt, runtime, cwd, 
  * tile body (chat-messages.tsx + chat-tile lower surfaces).
  */
 export default function AgentTranscript({ onStarter }: { onStarter: (text: string) => void }) {
+  const ready = useAgentChats(s => s.ready)
+  const hostError = useAgentChats(s => s.hostError)
   const chat = useAgentChats(useShallow((s) => {
     const c = s.chats.find((x) => x.id === s.activeId)
     return c ? { id: c.id, turns: c.turns, cwd: c.cwd, selection: c.selection,
       readOnly: c.readOnly, sourceHarness: c.sourceHarness, workspaceNeedsBinding: c.workspaceNeedsBinding,
-      accountNeedsSelection: c.accountNeedsSelection, nativeAgent: c.nativeAgent } : undefined
+      accountNeedsSelection: c.accountNeedsSelection, nativeAgent: c.nativeAgent, historyPending: c.historyPending } : undefined
   }))
+  const historyError = useAgentChats(s => chat ? s.historyErrors[chat.id] : undefined)
+  const historyLoading = useAgentChats(s => chat ? s.historyLoading[chat.id] : false)
   const runtime = useAgentChats((s) => chat ? s.runtime[chat.id] : undefined)
   // Image identities stay unchanged while text streams; numbering uses the full history.
   const imageSources = useAgentChats(useShallow(s => {
@@ -112,7 +116,14 @@ export default function AgentTranscript({ onStarter }: { onStarter: (text: strin
     </div> : null}
 
     <div className="ch-scroll-frame">
-      {!turns.length
+      {chat?.historyPending ? <div className="ch-scroll"><div className="ch-empty" role="status">
+        {historyError ? null : <Spinner label="Carregando histórico" />}
+        <p className="ch-empty-title">{historyError ? 'Não foi possível carregar o histórico.' : 'Carregando histórico…'}</p>
+        <p className="ch-empty-sub">{historyError || 'As mensagens desta conversa estão sendo restauradas.'}</p>
+        {historyError ? <Button variant="outline" size="sm" disabled={historyLoading} onClick={() => void useAgentChats.getState().loadHistory(chat.id)}>Tentar novamente</Button> : null}
+      </div></div>
+        : !ready && !chat ? <div className="ch-scroll"><div className="ch-empty" role="status"><Spinner label="Carregando conversas" /><p className="ch-empty-title">Carregando suas conversas…</p><p className="ch-empty-sub">{hostError || 'O histórico está sendo restaurado. Suas conversas ainda não foram carregadas.'}</p></div></div>
+        : !turns.length
         ? <div className="ch-scroll" data-selection-root=""><EmptyState onStarter={onStarter} needsFolder={!folderPath} onOpenFolder={() => void useStore.getState().openFolderDialog()} /></div>
         : <Virtuoso key={chat?.id} ref={list} className="ch-scroll ch-virtual" data-selection-root=""
           components={LIST_COMPONENTS} data={turns} computeItemKey={(_i, turn) => turn.id}

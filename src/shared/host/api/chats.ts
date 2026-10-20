@@ -25,6 +25,9 @@ import { isDisconnected } from './call'
 
 type Unsub = () => void
 
+/** Local subscription progress; it does not change the host protocol. */
+export type ChatsFollowState = { state: 'loading' | 'ready' } | { state: 'error'; error: string }
+
 /** The slice of `HostClient` this needs. */
 export interface ChatsHostClient {
   call<T = unknown>(method: string, params?: unknown, timeoutMs?: number): Promise<T>
@@ -42,6 +45,8 @@ export interface HostChatsApi {
   unsubscribe(): Promise<OkResult>
   /** A snapshot without subscribing. */
   list(): Promise<ChatsSnapshot>
+  /** The full chat is delivered as an ordered Chat delta before this acknowledgement. */
+  loadHistory(chatId: string): Promise<ChatsReply>
   create(chat: UnifiedChat): Promise<ChatsReply>
   /** Stores a chat this window runs itself (the old SSH mode, Claude without `claude@1`). */
   put(chat: UnifiedChat): Promise<ChatsReply>
@@ -65,7 +70,7 @@ export interface HostChatsApi {
    * after a reconnection or a gap), then `onDeltas` with each delta after
    * it, once and in order. Returns the stop.
    */
-  follow(onSnapshot: (snapshot: ChatsSnapshot) => void, onDeltas: (deltas: ChatDelta[], rev: number) => void): Unsub
+  follow(onSnapshot: (snapshot: ChatsSnapshot) => void, onDeltas: (deltas: ChatDelta[], rev: number) => void, onState?: (state: ChatsFollowState) => void): Unsub
 }
 
 /** A snapshot holds every chat with every turn; a new host first imports the 0.2 data. */
@@ -77,6 +82,7 @@ const RETRY_MS = 2_000
 
 export function createHostChats(client: ChatsHostClient): HostChatsApi {
   const call = <T>(method: string, params?: unknown, timeoutMs?: number): Promise<T> => client.call<T>(`chats.${method}`, params, timeoutMs)
+  const snapshotParams = (): Record<string, unknown> => client.serves?.('chats.history', 1) ? { metadataOnly: true } : {}
   const command = async <T extends object = OkResult>(method: string, params: unknown, timeoutMs?: number): Promise<ChatsReply<T>> => {
     try {
       return { ...(await call<T>(method, params, timeoutMs)), ok: true as const }
@@ -86,7 +92,7 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
     }
   }
 
-  const follow: HostChatsApi['follow'] = (onSnapshot, onDeltas) => {
+  const follow: HostChatsApi['follow'] = (onSnapshot, onDeltas, onState) => {
     let stopped = false
     /** The last rev applied; null while (re)subscribing, when batches wait in `held`. */
     let rev: number | null = null
@@ -113,11 +119,13 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
       const mine = ++generation
       rev = null
       held = []
-      call<ChatsSnapshot>('subscribe', {}, SNAPSHOT_MS).then((snapshot) => {
+      onState?.({ state: 'loading' })
+      call<ChatsSnapshot>('subscribe', snapshotParams(), SNAPSHOT_MS).then((snapshot) => {
         if (stopped || mine !== generation) return
         subscribed = true
         rev = snapshot.rev
         onSnapshot(snapshot)
+        onState?.({ state: 'ready' })
         const waiting = held
         held = []
         for (const batch of waiting) {
@@ -127,6 +135,7 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
         }
       }, (err: unknown) => {
         if (stopped || mine !== generation) return
+        onState?.({ state: 'error', error: (err as Error)?.message || 'O host não conseguiu carregar as conversas.' })
         // A dropped connection subscribes again when it comes back.
         if (!isDisconnected(err)) retry = setTimeout(() => { if (!stopped && !down) subscribe() }, RETRY_MS)
       })
@@ -168,9 +177,10 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
   }
 
   return {
-    subscribe: () => call<ChatsSnapshot>('subscribe', {}, SNAPSHOT_MS),
+    subscribe: () => call<ChatsSnapshot>('subscribe', snapshotParams(), SNAPSHOT_MS),
     unsubscribe: () => call<OkResult>('unsubscribe', {}),
-    list: () => call<ChatsSnapshot>('list', {}, SNAPSHOT_MS),
+    list: () => call<ChatsSnapshot>('list', snapshotParams(), SNAPSHOT_MS),
+    loadHistory: (chatId) => command('loadHistory', { chatId }, SNAPSHOT_MS),
     create: (chat) => command('create', { chat }),
     put: (chat) => command('put', { chat }),
     queue: (chatId, operation, payload = {}) => command('queue', { chatId, operation, ...payload }),

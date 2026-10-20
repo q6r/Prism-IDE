@@ -56,7 +56,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
   const chat = useAgentChats(useShallow((s) => {
     const c = s.chats.find((x) => x.id === s.activeId)
     return c ? { id: c.id, draft: c.draft || '', context: c.contextDraft || '', readOnly: !!c.readOnly, cwd: c.cwd,
-      selection: c.selection, remoteId: c.remoteId, remoteTarget: c.remoteTarget, nativeAgent: c.nativeAgent } : null
+      selection: c.selection, remoteId: c.remoteId, remoteTarget: c.remoteTarget, nativeAgent: c.nativeAgent, historyPending: c.historyPending } : null
   }))
   const busy = useAgentChats((s) => !!s.activeId && s.runtime[s.activeId]?.busy === true)
   const fastReport = useAgentChats((s) => s.activeId ? s.runtime[s.activeId]?.fast : undefined)
@@ -79,6 +79,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
   const draft = chat?.draft ?? ''
   const context = chat?.context ?? ''
   const readOnly = !!chat?.readOnly
+  const historyPending = !!chat?.historyPending
   const catalog = useModelCatalog((s) => chat ? s.entries[catalogKey(chat.remoteId ? 'claude' : chat.selection.provider, chat.remoteId ? 'ambient-claude' : chat.selection.profileId)] : undefined)
   // Commands, workspace files and numbered images over the editor.
   const menus = useComposerMenus({ inputRef, chat, draft, busy, images: imageCatalog })
@@ -134,7 +135,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
   }, [chat?.id, queued, edit])
 
   const send = (now = false): void => {
-    if (!chat || readOnly || stopping || steering) return
+    if (!chat || historyPending || readOnly || stopping || steering) return
     if ([...imageLoads.current].some(load => load.chatId === chat.id)) {
       useStore.getState().addToast('info', 'Aguarde a imagem terminar de carregar antes de enviar.'); return
     }
@@ -179,7 +180,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
     if (state.send(chat.id, text, context, imgs.length ? imgs : undefined)) clear()
   }
   const addImages = (files: Iterable<File>): void => {
-    if (!chat || readOnly) return
+    if (!chat || historyPending || readOnly) return
     const id = chat.id
     const state = useAgentChats.getState()
     const text = state.chats.find(c => c.id === id)?.draft || ''
@@ -196,7 +197,7 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
       const imgs = await reading
       if (!imgs.length) return
       const current = useAgentChats.getState().chats.find(c => c.id === id)
-      if (!current || current.readOnly) return
+      if (!current || current.historyPending || current.readOnly) return
       const room = MAX_IMAGES - (useAgentChats.getState().attachments[id]?.length ?? 0)
       if (room <= 0) { useStore.getState().addToast('info', `Máximo de ${MAX_IMAGES} imagens por mensagem.`); return }
       const existing = useAgentChats.getState().attachments[id] || []
@@ -273,10 +274,10 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
     else store.addToast('info', 'Abra um arquivo no editor para anexá-lo.')
   }
   const focusEditor = (): void => { requestAnimationFrame(() => inputRef.current?.focus()) }
-  const canSend = !!chat && !readOnly && !stopping && !steering && !loadingImages && (!!draft.trim() || attachments.length > 0)
+  const canSend = !!chat && !historyPending && !readOnly && !stopping && !steering && !loadingImages && (!!draft.trim() || attachments.length > 0)
   const contextName = context.split('\n')[0]?.split(/[\\/]/).at(-1) || 'Contexto'
   const editQueued = (item: QueuedMessage): void => {
-    if (!chat || steering || stopping) return
+    if (!chat || historyPending || steering || stopping) return
     const state = useAgentChats.getState()
     const current = state.chats.find(c => c.id === chat.id)
     if (!current) return
@@ -327,8 +328,8 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
         </div> : null}
         {/* Typing stays open during a turn, as in Traycer; only sending waits. */}
         <textarea ref={inputRef} className="tcm-editor" aria-label="Mensagem para o agente" rows={1}
-          placeholder={readOnly ? 'Histórico em leitura — continue no Traycer.' : busy ? 'Enviar outra mensagem… · Ctrl+Enter para enviar neste turno' : 'Peça para o agente fazer algo…'}
-          value={draft} disabled={!chat || readOnly} onPaste={onPasteImages} {...menus.inputProps}
+          placeholder={historyPending ? 'Aguarde o histórico carregar…' : readOnly ? 'Histórico em leitura — continue no Traycer.' : busy ? 'Enviar outra mensagem… · Ctrl+Enter para enviar neste turno' : 'Peça para o agente fazer algo…'}
+          value={draft} disabled={!chat || readOnly || historyPending} onPaste={onPasteImages} {...menus.inputProps}
           onChange={(e) => { if (chat) useAgentChats.getState().draft(chat.id, e.target.value); menus.onInput(e.target) }}
           onKeyDown={(e) => {
             // An open menu owns arrows, Enter, Tab and Esc first.
@@ -340,11 +341,11 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
       <div className="tcm-toolbar">
         <div className="tcm-toolbar-left">
           <Tooltip label="Anexar arquivo aberto">
-            <ToolbarChip square aria-label="Anexar arquivo aberto" disabled={!chat || readOnly}
+            <ToolbarChip square aria-label="Anexar arquivo aberto" disabled={!chat || readOnly || historyPending}
               onMouseDown={(e) => e.preventDefault()} onClick={attachOpenFile}><Paperclip size={16} /></ToolbarChip>
           </Tooltip>
           <Tooltip label="Anexar imagem">
-            <ToolbarChip square aria-label="Anexar imagem" disabled={!chat || readOnly}
+            <ToolbarChip square aria-label="Anexar imagem" disabled={!chat || readOnly || historyPending}
               onMouseDown={(e) => e.preventDefault()} onClick={() => fileInput.current?.click()}><ImagePlus size={16} /></ToolbarChip>
           </Tooltip>
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden onChange={onPickFiles} />
