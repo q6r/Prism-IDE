@@ -109,7 +109,7 @@ if (wanted.includes('history-previews')) {
     ] }
   ]
 }
-if (wanted.includes('image-references')) chat.turns[0].images = referenceImages
+if (wanted.some(name => name === 'image-references' || name === 'image-reference-chips')) chat.turns[0].images = referenceImages
 if (wanted.includes('async-questions')) chat.turns[1].segments.push({ kind: 'text', toolId: 'async-question-item', text: 'Escolha como devo continuar.', questions: [
   { title: 'Sobre a numeração: quer referências automáticas como `#image 1` e `#image 2`?', options: ['Automaticamente', 'Só pelo menu'] },
   { title: 'Qual uso do Codex está sem cálculo?', options: ['Tokens/contexto', 'Limites da conta', 'Os dois'] }
@@ -749,6 +749,47 @@ const scenes = {
     await click('.tcm-send.stop')
     await until('!document.querySelector(".tcm-send.stop")', 'comparison stopped')
     console.log('image-references: history labels, # picker, keyboard completion, real native image order, queued steering and invalid draft preservation passed')
+  },
+
+  async 'image-reference-chips'() {
+    await until('document.querySelectorAll(".ch-image-number").length === 2', 'historical image catalog')
+    await type('Compare #image 2 com #image 1.')
+    await until('document.querySelectorAll(".tcm-image-reference").length === 2', 'inline image markers')
+    const editing = await js(`(() => {
+      const editor=document.querySelector('.tcm-editor'); editor.focus();
+      const end=editor.value.indexOf('#image 2')+'#image 2'.length;
+      editor.setSelectionRange(end,end);
+      return document.execCommand('insertText',false,'0');
+    })()`)
+    if (!editing) throw new Error('Native text insertion failed')
+    await until('document.querySelector(".tcm-editor").value.includes("#image 20") && document.querySelectorAll(".tcm-image-reference").length === 1', 'editing an image number updates its marker')
+    await js(`document.execCommand('undo')`)
+    await until('document.querySelector(".tcm-editor").value === "Compare #image 2 com #image 1." && document.querySelectorAll(".tcm-image-reference").length === 2', 'native undo restores text and markers')
+    await type('Texto #image 1, código `#image 2`, link https://example.test/#image1 e ausente #image 99.')
+    if (await js('document.querySelectorAll(".tcm-image-reference").length') !== 1) throw new Error('Code, URLs or unknown images styled as attachments')
+    const long = Array.from({length:24},(_,i)=>`Linha ${i+1}: compare #image ${i%2+1} com esta descrição mais longa para verificar a quebra de linha.`).join('\n')
+    await type(long)
+    await win.setContentSize(900, 600)
+    await pause(150)
+    await js(`(() => { const editor=document.querySelector('.tcm-editor');editor.scrollTop=editor.scrollHeight;editor.dispatchEvent(new Event('scroll')); })()`)
+    await shot('image-reference-chips-scrolled')
+    const geometry = await js(`(() => {
+      const editor=document.querySelector('.tcm-editor'), mirror=document.querySelector('.tcm-image-reference-text');
+      const viewport=document.querySelector('.tcm-image-reference-viewport'), marker=mirror.lastElementChild;
+      const field=editor.getBoundingClientRect(), token=marker.getBoundingClientRect();
+      const point=document.elementFromPoint(Math.max(field.left+2,token.left+2),Math.min(field.bottom-2,token.top+2));
+      return {width:parseFloat(mirror.style.width),clientWidth:editor.clientWidth,scrollTop:editor.scrollTop,
+        offset:new DOMMatrixReadOnly(getComputedStyle(mirror).transform).m42,
+        hidden:viewport.getAttribute('aria-hidden'),pointer:getComputedStyle(viewport).pointerEvents,
+        nativeTarget:point===editor,lastVisible:token.bottom>field.top&&token.top<field.bottom};
+    })()`)
+    if (geometry.width !== geometry.clientWidth || geometry.scrollTop <= 0 || Math.abs(geometry.offset + geometry.scrollTop) > 1 || geometry.hidden !== 'true' || geometry.pointer !== 'none' || !geometry.nativeTarget || !geometry.lastVisible) throw new Error('Image marker geometry or native interaction failed: '+JSON.stringify(geometry))
+    await type('Compare #image 2 com #image 1.\nUse as imagens como referência para esta alteração.')
+    await escape()
+    await crop('image-reference-chips', '.tcm-shell', 12)
+    await win.setContentSize(1380, 880)
+    await type('')
+    console.log('image-reference-chips: native editing/undo, valid references only, wrapping/scrolling at 900px and pointer/accessibility behavior passed')
   },
 
   async 'queue-flow'() {

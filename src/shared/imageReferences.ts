@@ -169,7 +169,9 @@ function hideCode(text: string): string {
   return chars.join('').replace(/(?:https?:\/\/|mailto:|www\.)[^\s<>"']+/gi, match => ' '.repeat(match.length))
 }
 
-interface ParsedReference { raw: string; number: number; valid: boolean }
+export interface ImageReferenceRange { start: number; end: number; number: number }
+
+interface ParsedReference extends ImageReferenceRange { raw: string; valid: boolean }
 function referenceTokens(text: string): ParsedReference[] {
   const prose = hideCode(text)
   const tokens: ParsedReference[] = []
@@ -181,7 +183,9 @@ function referenceTokens(text: string): ParsedReference[] {
     if (/^(?:\.[\p{L}\p{N}_]|,[\p{N}]|[/\\])/u.test(after)) continue
     const raw = match[2]
     const number = Number(raw)
-    tokens.push({ raw, number, valid: /^\d+$/.test(raw) && validNumber(number) })
+    const start = (match.index ?? 0) + match[1].length
+    const end = (match.index ?? 0) + match[0].length
+    tokens.push({ raw, number, start, end, valid: /^\d+$/.test(raw) && validNumber(number) })
   }
   return tokens
 }
@@ -189,6 +193,11 @@ function referenceTokens(text: string): ParsedReference[] {
 /** References in prose, in encounter order; examples in inline/fenced code are ignored. */
 export function parseImageReferences(text: string): number[] {
   return [...new Set(referenceTokens(text).filter(token => token.valid).map(token => token.number))]
+}
+
+/** Each valid prose reference, with UTF-16 offsets into the unchanged source text. */
+export function imageReferenceRanges(text: string): ImageReferenceRange[] {
+  return referenceTokens(text).filter(token => token.valid).map(({ start, end, number }) => ({ start, end, number }))
 }
 
 export type ImageReferenceResult = { ok: true; images: ChatImage[]; prompt: string } | { ok: false; error: string }

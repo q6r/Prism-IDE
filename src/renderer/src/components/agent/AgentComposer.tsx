@@ -11,6 +11,7 @@ import { Button, cn, ToolbarChip, Tooltip } from '../ui'
 import MessageQueue from '../composer/MessageQueue'
 import ModelPicker from '../composer/ModelPicker'
 import PermissionPicker from '../composer/PermissionPicker'
+import ComposerImageReferences from '../composer/ComposerImageReferences'
 import { SubagentComposer } from './SubagentComposer'
 import { useComposerMenus } from '../composer/useComposerMenus'
 import { catalogKey, normalizeForModel, recordSelection, selectedModelFor, useModelCatalog } from '../../lib/modelCatalog'
@@ -327,15 +328,18 @@ export default function AgentComposer({ inputRef, changes, details }: { inputRef
           })}
         </div> : null}
         {/* Typing stays open during a turn, as in Traycer; only sending waits. */}
-        <textarea ref={inputRef} className="tcm-editor" aria-label="Mensagem para o agente" rows={1}
-          placeholder={historyPending ? 'Aguarde o histórico carregar…' : readOnly ? 'Histórico em leitura — continue no Traycer.' : busy ? 'Enviar outra mensagem… · Ctrl+Enter para enviar neste turno' : 'Peça para o agente fazer algo…'}
-          value={draft} disabled={!chat || readOnly || historyPending} onPaste={onPasteImages} {...menus.inputProps}
-          onChange={(e) => { if (chat) useAgentChats.getState().draft(chat.id, e.target.value); menus.onInput(e.target) }}
-          onKeyDown={(e) => {
-            // An open menu owns arrows, Enter, Tab and Esc first.
-            if (menus.onKeyDown(e)) return
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(e.ctrlKey || e.metaKey) }
-          }} />
+        <div className="tcm-editor-container">
+          <ComposerImageReferences inputRef={inputRef} text={draft} images={imageCatalog} />
+          <textarea ref={inputRef} className="tcm-editor" aria-label="Mensagem para o agente" rows={1}
+            placeholder={historyPending ? 'Aguarde o histórico carregar…' : readOnly ? 'Histórico em leitura — continue no Traycer.' : busy ? 'Enviar outra mensagem… · Ctrl+Enter para enviar neste turno' : 'Peça para o agente fazer algo…'}
+            value={draft} disabled={!chat || readOnly || historyPending} onPaste={onPasteImages} {...menus.inputProps}
+            onChange={(e) => { if (chat) useAgentChats.getState().draft(chat.id, e.target.value); menus.onInput(e.target) }}
+            onKeyDown={(e) => {
+              // An open menu owns arrows, Enter, Tab and Esc first.
+              if (menus.onKeyDown(e)) return
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(e.ctrlKey || e.metaKey) }
+            }} />
+        </div>
         {menus.menu}
       </div>
       <div className="tcm-toolbar">

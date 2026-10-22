@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 const loadTypescript = require('./helpers/load-typescript.cjs')
-const { collectChatImages, numberChatImages, numberNewImages, imageReferenceNumber, imageAttachmentsForHistory, parseImageReferences, resolveImageReferences, MAX_REFERENCED_IMAGES, MAX_IMAGE_BASE64_CHARS } = loadTypescript('src/shared/imageReferences.ts')
+const { collectChatImages, numberChatImages, numberNewImages, imageReferenceNumber, imageAttachmentsForHistory, parseImageReferences, imageReferenceRanges, resolveImageReferences, MAX_REFERENCED_IMAGES, MAX_IMAGE_BASE64_CHARS } = loadTypescript('src/shared/imageReferences.ts')
 
 const image = (data, number, extra = {}) => ({ mime: 'image/png', data, ...(number === undefined ? {} : { number }), ...extra })
 const turn = (id, images, extra = {}) => ({ id, role: 'user', text: '', images, ...extra })
@@ -82,6 +82,40 @@ test('inline and fenced examples do not attach images, including tilde fences an
   const text = 'Referência #image 1. `#image 2` e ``diga `#image 3` aqui``\n```ts\n#image 4\n```\n~~~\n#image 5\n~~~~\n#image 6\n```\n#image 7'
   assert.deepEqual(parseImageReferences(text), [1, 6])
   assert.deepEqual(parseImageReferences('Um backtick sem par ` e #image 2.'), [2])
+})
+
+test('reference ranges preserve aliases, original spacing and repeated occurrences without boundary punctuation', () => {
+  const text = '#image 8, (#IMAGE\t008) e [#image8] depois #image   12!'
+  const literals = ['#image 8', '#IMAGE\t008', '#image8', '#image   12']
+  const ranges = imageReferenceRanges(text)
+  assert.deepEqual(ranges, literals.map((literal, index) => ({ start: text.indexOf(literal), end: text.indexOf(literal) + literal.length, number: index === 3 ? 12 : 8 })))
+  assert.deepEqual(ranges.map(range => text.slice(range.start, range.end)), literals)
+  assert.deepEqual(parseImageReferences(text), [8, 12], 'the existing parser still deduplicates')
+})
+
+test('reference ranges use source UTF-16 offsets after Unicode, hidden code and CRLF', () => {
+  const text = '🖼️ referência `😀 #image 7`\r\n```js\r\n😀 #image 9\r\n```\r\nCompare #IMAGE\t2 com #image 2.'
+  const first = text.indexOf('#IMAGE\t2')
+  const second = text.lastIndexOf('#image 2')
+  assert.deepEqual(imageReferenceRanges(text), [
+    { start: first, end: first + '#IMAGE\t2'.length, number: 2 },
+    { start: second, end: second + '#image 2'.length, number: 2 }
+  ])
+  assert.equal(text.slice(first, first + '#IMAGE\t2'.length), '#IMAGE\t2')
+})
+
+test('reference ranges share literal exclusions for code, URLs, paths and filename identifiers', () => {
+  const text = 'https://example.invalid/#image4 www.example.invalid/#image5 mailto:person#image6@test.invalid foo#image1 /dir/#image3 #image 6.png #image7/path #image8\\file `#image 9`\n~~~\n#image 10\n~~~\nVeja #image 11.'
+  const start = text.indexOf('#image 11')
+  assert.deepEqual(imageReferenceRanges(text), [{ start, end: start + '#image 11'.length, number: 11 }])
+  assert.deepEqual(imageReferenceRanges('```\n#image 1'), [])
+  assert.deepEqual(imageReferenceRanges(''), [])
+})
+
+test('reference ranges omit invalid numeric identifiers and incomplete references', () => {
+  const text = '#image 0 #image -1 #image +1 #image 1.5 #image 1,5 #image 1e2 #image 9007199254740992 #image1.2foo #image2,3bar #image1e3foo #image1_foo #image #imag'
+  assert.deepEqual(imageReferenceRanges(text), [])
+  assert.deepEqual(imageReferenceRanges('#image 9007199254740991'), [{ start: 0, end: 23, number: 9007199254740991 }])
 })
 
 test('attached images come first, then prose references; mapping makes reversed references unambiguous', () => {

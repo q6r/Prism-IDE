@@ -5,6 +5,17 @@ const MIRRORED = [
   'text-transform', 'text-indent', 'tab-size', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left'
 ] as const
 
+/** Shared geometry for the caret probe and the composer's decorative layer. */
+export function syncTextareaMirror(el: HTMLTextAreaElement, mirror: HTMLElement): CSSStyleDeclaration {
+  const style = getComputedStyle(el)
+  for (const prop of MIRRORED) mirror.style.setProperty(prop, style.getPropertyValue(prop))
+  Object.assign(mirror.style, {
+    boxSizing: 'border-box', width: `${el.clientWidth}px`, whiteSpace: 'pre-wrap',
+    overflowWrap: 'break-word', wordBreak: style.wordBreak
+  })
+  return style
+}
+
 /**
  * Viewport rect of the caret at `position` inside a textarea — the anchor the
  * `/` and `@` menus open from (Traycer anchors them to the editor caret). A
@@ -12,12 +23,11 @@ const MIRRORED = [
  * position; the marker that follows lands where the caret is.
  */
 export function caretClientRect(el: HTMLTextAreaElement, position: number): DOMRect {
-  const style = getComputedStyle(el)
   const mirror = document.createElement('div')
-  for (const prop of MIRRORED) mirror.style.setProperty(prop, style.getPropertyValue(prop))
+  const style = syncTextareaMirror(el, mirror)
   Object.assign(mirror.style, {
     position: 'fixed', top: '0', left: '-10000px', visibility: 'hidden', overflow: 'hidden', border: '0',
-    boxSizing: 'border-box', width: `${el.clientWidth}px`, height: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: style.wordBreak
+    height: 'auto'
   })
   mirror.textContent = el.value.slice(0, position)
   const marker = document.createElement('span')
