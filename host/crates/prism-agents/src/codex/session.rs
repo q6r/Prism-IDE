@@ -7,7 +7,7 @@
 //! started a chat owns it: only it can abort, answer or reuse it.
 
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
@@ -134,6 +134,10 @@ struct State {
     turn_base: Base,
     /// The last thread total this process reported.
     last_total: Option<Value>,
+    lifecycle: Option<super::lifecycle::Lifecycle>,
+    continuation_params: Value,
+    subscribed_children: HashSet<String>,
+    wake_scheduled: bool,
 }
 
 struct Session {
@@ -191,6 +195,134 @@ impl Session {
         st.question_keys.retain(|key, _| child_keys.contains(key));
         st.grants.retain(|key, _| child_keys.contains(key));
         st.turn_base = Base::Unset;
+        st.lifecycle = None;
+        st.wake_scheduled = false;
+    }
+
+    /// Keep one Prism task open across native yields; the wake-up is tied to
+    /// real descendant completion, never inferred from assistant prose.
+    fn settle(self: &Arc<Self>, server: &Arc<AppServer>, st: &mut State) {
+        if st.active.is_none() || st.abort_requested || st.failure.is_some() { return; }
+        let Some(task) = &st.lifecycle else { return };
+        if task.can_finish() {
+            let error = task.error.clone();
+            let interrupted = task.interrupted;
+            let fatal = error.is_some();
+            self.finish(st, error, Some(interrupted));
+            if fatal { server.close(); }
+            return;
+        }
+        for child in task.children() {
+            if st.subscribed_children.insert(child.clone()) {
+                let server = Arc::clone(server);
+                tokio::spawn(async move { let _ = server.request("thread/resume", json!({"threadId":child,"excludeTurns":true})).await; });
+            }
+        }
+        if st.wake_scheduled || (!task.needs_continuation() && task.pending_agents().is_empty()) { return; }
+        let delay = if task.needs_continuation() { 75 } else { 1000 };
+        st.wake_scheduled = true;
+        let active_id = st.active.as_ref().unwrap().id.clone();
+        let session = Arc::clone(self);
+        let server = Arc::clone(server);
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+            if let Err(error) = session.check_continuation(&server, &active_id).await {
+                let mut st = session.st.lock().unwrap();
+                if current_task(&st, &active_id) {
+                    st.failure = Some(error);
+                    server.close();
+                }
+            }
+            let mut st = session.st.lock().unwrap();
+            if st.active.as_ref().is_some_and(|active| active.id == active_id) {
+                st.wake_scheduled = false;
+                session.settle(&server, &mut st);
+            }
+        });
+    }
+
+    async fn check_continuation(&self, server: &Arc<AppServer>, active_id: &str) -> Result<(), String> {
+        let (thread, pending) = {
+            let st = self.st.lock().unwrap();
+            if !current_task(&st, active_id) { return Ok(()); }
+            (st.thread_id.clone().unwrap_or_default(), st.lifecycle.as_ref().unwrap().pending_agents())
+        };
+        // Older CLI subscriptions may miss child notifications. Metadata reads
+        // recover those transitions without starting a model turn.
+        for child in pending {
+            let before = {
+                let st = self.st.lock().unwrap();
+                if !current_task(&st, active_id) { return Ok(()); }
+                st.lifecycle.as_ref().unwrap().child_state(&child)
+            };
+            let response = server.request("thread/read", json!({"threadId":child,"includeTurns":false})).await;
+            let mut st = self.st.lock().unwrap();
+            if !current_task(&st, active_id) { return Ok(()); }
+            if st.lifecycle.as_ref().unwrap().child_state(&child) != before { continue; }
+            if let Ok(response) = response && let Some(status) = response.pointer("/thread/status") {
+                st.lifecycle.as_mut().unwrap().observe("thread/status/changed", &json!({"threadId":child,"status":status}));
+                if !st.lifecycle.as_ref().unwrap().pending_agents().contains(&child)
+                    && matches!(status["type"].as_str(), Some("idle" | "systemError"))
+                {
+                    let active = st.active.as_ref().unwrap();
+                    let origin = super::subagents::Origin { id: active.id.clone(), sink: Arc::clone(&active.sink) };
+                    let turn = st.subagents.active_turn(&child).map(str::to_string);
+                    let status = if status["type"] == "idle" { "completed" } else { "failed" };
+                    st.subagents.handle(&thread, Some(&origin), &json!({"method":"turn/completed","params":{"threadId":child,"turn":{"id":turn,"status":status}}}));
+                    let keys: Vec<String> = st.child_requests.iter().filter(|(_, id)| **id == child).map(|(key, _)| key.clone()).collect();
+                    for key in keys { st.child_requests.remove(&key); st.requests.remove(&key); st.grants.remove(&key); st.question_keys.remove(&key); }
+                }
+            }
+        }
+        {
+            let st = self.st.lock().unwrap();
+            if !current_task(&st, active_id) || !st.lifecycle.as_ref().unwrap().needs_continuation() { return Ok(()); }
+        }
+        let response = server.request("thread/read", json!({"threadId":thread,"includeTurns":false})).await?;
+        let params = {
+            let mut st = self.st.lock().unwrap();
+            if !current_task(&st, active_id) { return Ok(()); }
+            let task = st.lifecycle.as_mut().unwrap();
+            if let Some(status) = response.pointer("/thread/status") {
+                task.observe("thread/status/changed", &json!({"threadId":thread,"status":status}));
+            }
+            // Native continuation wins. A confirmed idle root plus a new
+            // completion epoch is the only condition for a fallback turn.
+            if !task.needs_continuation() || response.pointer("/thread/status/type").and_then(Value::as_str) != Some("idle") {
+                if task.root_active { st.native_turn_id = task.root_turn.clone().map(Value::String); }
+                return Ok(());
+            }
+            task.acknowledge_continuation();
+            st.native_turn_id = None;
+            let mut params = st.continuation_params.clone();
+            params["threadId"] = json!(thread);
+            params["input"] = json!([{"type":"text","text":"Os subagentes concluíram suas tarefas. Consulte os resultados e continue o pedido original a partir deles; preserve as ações já concluídas.","text_elements":[]}]);
+            params
+        };
+        match server.request("turn/start", params).await {
+            Ok(response) => {
+                let mut st = self.st.lock().unwrap();
+                if !current_task(&st, active_id) { return Ok(()); }
+                let task = st.lifecycle.as_mut().unwrap();
+                // Completion/start notifications can precede the RPC reply.
+                if task.root_active && task.root_turn.is_none() {
+                    task.observe("turn/started", &json!({"threadId":thread,"turn":response["turn"]}));
+                    st.native_turn_id = task.root_turn.clone().map(Value::String);
+                    if let Some(id) = st.native_turn_id.as_ref().and_then(Value::as_str).map(str::to_string) {
+                        let active = st.active.as_ref().unwrap();
+                        let origin = super::subagents::Origin { id: active.id.clone(), sink: Arc::clone(&active.sink) };
+                        st.subagents.remember_root_turn(&id, origin);
+                    }
+                }
+            }
+            Err(error) => {
+                // Native wake-up may win between the idle read and turn/start.
+                let response = server.request("thread/read", json!({"threadId":thread,"includeTurns":false})).await;
+                let st = self.st.lock().unwrap();
+                if current_task(&st, active_id) && !response.is_ok_and(|response| response.pointer("/thread/status/type").and_then(Value::as_str) == Some("active")) { return Err(error); }
+            }
+        }
+        Ok(())
     }
 
     fn interrupt(server: &Arc<AppServer>, thread_id: Option<String>, turn_id: Value) {
@@ -203,18 +335,29 @@ impl Session {
     }
 
     /// One notification or server request.
-    fn handle(&self, server: &Arc<AppServer>, msg: Value) {
+    fn handle(self: &Arc<Self>, server: &Arc<AppServer>, msg: Value) {
         let p = msg.get("params").filter(|p| p.is_object()).cloned().unwrap_or_else(|| json!({}));
         let method = msg.get("method").and_then(Value::as_str).unwrap_or_default();
         let request_id = msg.get("id").cloned();
         let mut st = self.st.lock().unwrap();
         let root = st.thread_id.clone().unwrap_or_default();
+        let mut lifecycle_params = p.clone();
+        if method == "turn/completed" && p.pointer("/turn/id").is_none() {
+            lifecycle_params["turn"]["id"] = st.native_turn_id.clone().unwrap_or(Value::Null);
+        }
+        if request_id.is_none() && let Some(task) = &mut st.lifecycle {
+            task.observe(method, &lifecycle_params);
+            if p["threadId"] == root && matches!(method,"turn/started" | "thread/status/changed") && task.root_active {
+                st.native_turn_id = task.root_turn.clone().map(Value::String);
+            }
+        }
         let origin = st.active.as_ref().map(|active| super::subagents::Origin { id: active.id.clone(), sink: Arc::clone(&active.sink) });
         if st.subagents.handle(&root, origin.as_ref(), &msg) {
             if matches!(method,"turn/completed" | "thread/closed") && p["threadId"].as_str().is_some_and(|id| st.subagents.active_turn(id).is_none()) {
                 let keys: Vec<String> = st.child_requests.iter().filter(|(_, child)| Some(child.as_str()) == p["threadId"].as_str()).map(|(key, _)| key.clone()).collect();
                 for key in keys { st.child_requests.remove(&key); st.requests.remove(&key); st.grants.remove(&key); st.question_keys.remove(&key); }
             }
+            self.settle(server, &mut st);
             return;
         }
         let child_thread = p["threadId"].as_str().filter(|id| request_id.is_some() && st.subagents.contains(id)).map(str::to_string);
@@ -309,7 +452,7 @@ impl Session {
         }
         match method {
             "turn/started" => {
-                st.native_turn_id = p.pointer("/turn/id").cloned();
+                st.native_turn_id = st.lifecycle.as_ref().and_then(|task| task.root_turn.clone()).map(Value::String);
                 if st.abort_requested
                     && let Some(turn) = st.native_turn_id.clone()
                 {
@@ -329,11 +472,7 @@ impl Session {
                 }
             }
             "turn/completed" => {
-                let status = p.pointer("/turn/status").and_then(Value::as_str);
-                let error = (status == Some("failed")).then(|| {
-                    p.pointer("/turn/error/message").and_then(Value::as_str).filter(|m| !m.is_empty()).unwrap_or("Falha no Codex.").to_string()
-                });
-                self.finish(&mut st, error, Some(status == Some("interrupted")));
+                if st.abort_requested && (p.pointer("/turn/id").is_none() || p.pointer("/turn/id") == st.native_turn_id.as_ref()) { self.finish(&mut st, None, Some(true)); }
             }
             m => {
                 if let Some(kind) = delta_kind(m) {
@@ -346,7 +485,12 @@ impl Session {
                 }
             }
         }
+        self.settle(server, &mut st);
     }
+}
+
+fn current_task(st: &State, active_id: &str) -> bool {
+    st.active.as_ref().is_some_and(|active| active.id == active_id) && st.lifecycle.is_some() && !st.abort_requested && st.failure.is_none()
 }
 
 fn segment_key(id: Option<&Value>) -> String {
@@ -491,6 +635,8 @@ impl CodexSessions {
         st.segments.clear();
         st.abort_requested = false;
         st.turn_base = Base::Unset;
+        st.subscribed_children.clear();
+        st.wake_scheduled = false;
         drop(st);
         Ok(Begun { session, created, payload })
     }
@@ -565,6 +711,11 @@ impl CodexSessions {
             return;
         }
         st.abort_requested = true;
+        if st.lifecycle.as_ref().is_some_and(|task| !task.root_active) {
+            drop(st);
+            s.close();
+            return;
+        }
         let active_id = st.active.as_ref().unwrap().id.clone();
         if let (Some(turn), Some(server)) = (st.native_turn_id.clone(), s.server.get()) {
             Session::interrupt(server, st.thread_id.clone(), turn);
@@ -757,7 +908,7 @@ async fn run_turn(session: Arc<Session>, server: Arc<AppServer>, payload: CodexS
     }
 }
 
-async fn turn_steps(session: &Session, server: &AppServer, payload: &CodexSend) -> Result<(), String> {
+async fn turn_steps(session: &Arc<Session>, server: &Arc<AppServer>, payload: &CodexSend) -> Result<(), String> {
     server.ready().await?;
     let selection = &payload.selection;
     let full = selection.permission_mode == "bypassPermissions";
@@ -835,17 +986,33 @@ async fn turn_steps(session: &Session, server: &AppServer, payload: &CodexSend) 
         params.insert("effort".into(), effort.clone());
     }
     params.insert("serviceTier".into(), service_tier);
+    {
+        let mut st = session.st.lock().unwrap();
+        let mut lifecycle = super::lifecycle::Lifecycle::new(thread_id.clone());
+        lifecycle.remember_children(st.subagents.thread_ids());
+        lifecycle.acknowledge_continuation();
+        st.lifecycle = Some(lifecycle);
+        st.continuation_params = Value::Object(params.clone());
+        st.continuation_params.as_object_mut().unwrap().remove("input");
+    }
     let response = server.request("turn/start", Value::Object(params)).await?;
     let interrupt = {
         let mut st = session.st.lock().unwrap();
         if st.active.as_ref().is_some_and(|a| a.id == payload.id) {
-            st.native_turn_id = response.pointer("/turn/id").cloned();
+            if let Some(task) = &mut st.lifecycle {
+                if task.root_active && task.root_turn.is_none() {
+                    task.observe("turn/started", &json!({"threadId":thread_id,"turn":response["turn"]}));
+                }
+                st.native_turn_id = task.root_turn.clone().map(Value::String);
+            }
             if let Some(id) = st.native_turn_id.as_ref().and_then(Value::as_str).map(str::to_string)
                 && let Some(active) = &st.active {
                 let origin = super::subagents::Origin { id: active.id.clone(), sink: Arc::clone(&active.sink) };
                 st.subagents.remember_root_turn(&id, origin);
             }
-            if st.abort_requested { st.native_turn_id.clone() } else { None }
+            let interrupt = if st.abort_requested { st.native_turn_id.clone() } else { None };
+            session.settle(server, &mut st);
+            interrupt
         } else {
             None
         }

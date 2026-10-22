@@ -14,6 +14,7 @@ export class CodexSubagents {
   belongsTo(id: string, turn: string): boolean { return this.children.get(id)?.origin.id === turn }
   origin(id: string): Origin | undefined { return this.children.get(id)?.origin }
   activeTurn(id: string): string | undefined { return this.children.get(id)?.turn }
+  threadIds(): string[] { return [...this.children.keys()] }
   beginMessage(id: string, rootTurnId: string): MessageTarget {
     const child = this.children.get(id)
     if (!child || child.origin.id !== rootTurnId) throw new Error('Subagente Codex indisponível nesta conversa.')
@@ -67,9 +68,10 @@ export class CodexSubagents {
     if (p.threadId === root && typeof p.turnId === 'string') origin = this.rootTurns.get(p.turnId) || origin
     if (method === 'thread/started') {
       const thread = p.thread, source = thread?.source?.subAgent?.thread_spawn
-      if (typeof source?.parent_thread_id === 'string' && typeof thread?.id === 'string') {
-        const child = this.discover(root, source.parent_thread_id, thread.id, origin)
-        if (child) { this.update(child, { ...(thread.agentNickname || source.agent_nickname || source.agent_path ? { name: thread.agentNickname || source.agent_nickname || source.agent_path } : {}), ...(thread.agentRole || source.agent_role ? { description: thread.agentRole || source.agent_role } : {}) }); return true }
+      const parent = thread?.parentThreadId || source?.parent_thread_id
+      if (typeof parent === 'string' && typeof thread?.id === 'string') {
+        const child = this.discover(root, parent, thread.id, origin)
+        if (child) { this.update(child, { ...(thread.agentNickname || source?.agent_nickname || source?.agent_path ? { name: thread.agentNickname || source?.agent_nickname || source?.agent_path } : {}), ...(thread.agentRole || source?.agent_role ? { description: thread.agentRole || source?.agent_role } : {}) }); return true }
       }
     }
     const thread = p.threadId || '', member = thread === root || this.children.has(thread)

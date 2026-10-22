@@ -194,7 +194,7 @@ impl Engine {
 
     pub(super) fn native_descendants_busy(&self, root: &str) -> bool {
         self.native_children.values().any(|child| {
-            child.root_chat == root && child.link["status"].as_str().is_some_and(active)
+            child.root_chat == root && (self.child_sending.contains(&child.chat_id) || child.link["status"].as_str().is_some_and(active))
         })
     }
     pub(super) fn restore_subagents(&mut self) {

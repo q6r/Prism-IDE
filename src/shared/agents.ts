@@ -229,6 +229,8 @@ export interface UnifiedChat {
   queued?: QueuedMessage[]
   queuePaused?: boolean
   cwd: string
+  /** Explicit folder choice: an unstarted chat no longer follows the explorer. */
+  cwdPinned?: boolean
   remoteId?: string
   remoteTarget?: { host: string; port: number; username: string }
   selection: AgentSelection
@@ -326,9 +328,10 @@ export function boundedTranscript(turns: SharedTurn[], budget = HISTORY_BUDGET):
 export function continuationPrompt(chat: UnifiedChat, prompt: string): { prompt: string; resume?: string } {
   if (chat.resume?.route === routeKey(chat.selection)) return { prompt, resume: chat.resume.sessionId }
   const history = boundedTranscript(chat.turns)
+  const workspace = chat.cwdPinned ? `Pasta de trabalho atual desta conversa: ${chat.cwd}. Use esta pasta nas próximas ações; caminhos antigos no histórico são apenas contexto.\n\n` : ''
   return { prompt: history
-    ? `Continue esta conversa usando o histórico abaixo como contexto. As ferramentas anteriores já foram executadas; não repita ações só porque aparecem no histórico.\n\n<historico>\n${history}\n</historico>\n\nNova mensagem do usuário:\n${prompt}`
-    : prompt }
+    ? `Continue esta conversa usando o histórico abaixo como contexto. As ferramentas anteriores já foram executadas; não repita ações só porque aparecem no histórico.\n\n<historico>\n${history}\n</historico>\n\n${workspace}Nova mensagem do usuário:\n${prompt}`
+    : workspace + prompt }
 }
 
 /** A follow-up addressed to the exact running turn; never silently starts another turn. */

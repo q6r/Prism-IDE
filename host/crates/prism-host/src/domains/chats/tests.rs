@@ -979,6 +979,95 @@ async fn bind_workspace_local_remote_and_when_nothing_is_needed() {
 }
 
 #[tokio::test]
+async fn change_working_directory_preserves_history_route_target_and_same_path_resume() {
+    let dir = tempfile::tempdir().unwrap();
+    for provider in ["claude", "codex"] {
+        let mut h = Harness::new(); let mut ui = h.client(); h.subscribe(&mut ui);
+        let before = with(new_chat("c", provider), json!({"turns":[user_turn()], "lastRunId":"last", "resume":{"route":format!("{provider}:ambient-{provider}"),"sessionId":"native"}}));
+        h.call(&ui, "create", json!({"chat":before})).unwrap();
+        h.call(&ui, "create", json!({"chat":new_chat("other", provider)})).unwrap();
+        let other = h.stored("other"); let cwd = dir.path().to_str().unwrap();
+        h.call(&ui, "changeWorkingDirectory", json!({"chatId":"c","cwd":cwd})).unwrap();
+        let changed = h.stored("c");
+        assert_eq!(changed["cwd"], cwd); assert_eq!(changed["cwdPinned"], true);
+        assert_eq!(changed["turns"], before["turns"]); assert_eq!(changed["selection"], before["selection"]);
+        assert!(changed.get("resume").is_none()); assert!(changed.get("lastRunId").is_none());
+        assert_eq!(h.stored("other"), other); assert_same(&h, &mut ui, "c");
+        h.call(&ui, "bindWorkspace", json!({"chatId":"c","cwd":"another-folder"})).unwrap();
+        assert_eq!(h.stored("c")["cwd"], cwd);
+        let mut same = changed.clone(); same["resume"] = json!({"route":format!("{provider}:ambient-{provider}"),"sessionId":"same"});
+        h.call(&ui, "put", json!({"chat":same})).unwrap();
+        h.call(&ui, "changeWorkingDirectory", json!({"chatId":"c","cwd":cwd})).unwrap();
+        assert_eq!(h.stored("c")["resume"]["sessionId"], "same");
+        h.send(&ui, "c", "continue"); h.settle().await;
+        assert_eq!(h.fake.starts.lock().unwrap()[0].0.cwd, cwd);
+        h.emit(0, TurnEvent::Session("journal-session".into())).await;
+        h.emit(0, TurnEvent::Done { aborted:false }).await;
+        assert_eq!(h.stored("c")["resume"]["sessionId"], "journal-session");
+        let next = dir.path().join(provider); std::fs::create_dir(&next).unwrap();
+        h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c","cwd":next})).unwrap();
+        assert!(h.stored("c").get("resume").is_none(), "the old journal cannot restore a resume after changing folders");
+        assert!(h.stored("c").get("lastRunId").is_none());
+        assert_same(&h, &mut ui, "c");
+    }
+    let mut h = Harness::new(); let ui = h.client();
+    let remote = with(new_chat("r", "claude"), json!({"remoteId":"r1","remoteTarget":{"host":"srv","port":22,"username":"u"}}));
+    h.call(&ui,"create",json!({"chat":remote})).unwrap();
+    h.call(&ui,"changeWorkingDirectory",json!({"chatId":"r","cwd":"/srv/new"})).unwrap();
+    assert_eq!(h.stored("r")["remoteTarget"], remote["remoteTarget"]);
+    assert_eq!(h.stored("r")["remoteId"], "r1");
+}
+
+#[tokio::test]
+async fn change_working_directory_rejects_invalid_folders_running_roots_and_active_descendants() {
+    let (mut h, ui, _) = Harness::running("codex").await;
+    let cwd = std::env::temp_dir();
+    assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c1","cwd":cwd}))),ErrorCode::Busy);
+    h.emit(0,TurnEvent::Subagent(json!({"id":"worker","status":"running"}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c1","cwd":cwd}))),ErrorCode::Busy);
+    h.emit(0,TurnEvent::Subagent(json!({"id":"worker","status":"completed"}))).await;
+    let before = h.stored("c1");
+    for path in ["relative", "", "bad\0path"] {
+        assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c1","cwd":path}))),ErrorCode::Invalid);
+        assert_eq!(h.stored("c1"),before);
+    }
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c1","cwd":dir.path().join("missing")}))),ErrorCode::Invalid);
+    assert_eq!(h.stored("c1"),before);
+    assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"missing","cwd":cwd}))),ErrorCode::NotFound);
+}
+
+#[tokio::test]
+async fn change_working_directory_failed_persistence_publishes_nothing_and_keeps_resume() {
+    let dir = tempfile::tempdir().unwrap(); let file = dir.path().join("chats.db");
+    let store = Arc::new(Store::open(&file).unwrap()); let fake = Arc::new(Fake::default());
+    let (tx,rx) = channel();
+    let engine = Engine::new(Arc::clone(&store), Runners::default(), Handle::current(), tx);
+    let mut h = Harness { engine,rx,fake,store,activity:Activity::new() }; let mut ui=h.client(); h.subscribe(&mut ui);
+    let before=with(new_chat("c","claude"),json!({"resume":{"route":"claude:ambient-claude","sessionId":"keep"}}));
+    h.call(&ui,"create",json!({"chat":before})).unwrap(); ui.sync(); let rev=ui.mirror.rev;
+    let connection=rusqlite::Connection::open(&file).unwrap();
+    connection.execute_batch("CREATE TRIGGER fail_directory BEFORE UPDATE ON documents BEGIN SELECT RAISE(FAIL,'disk full'); END;").unwrap();
+    assert!(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c","cwd":dir.path()})).is_err());
+    ui.sync(); assert_eq!(ui.mirror.rev,rev); assert_eq!(h.stored("c"),before); assert_eq!(ui.chat("c"),before);
+}
+
+#[tokio::test]
+async fn change_working_directory_refuses_a_completed_child_with_an_admitted_message() {
+    let (mut h, ui, _) = Harness::running("codex").await;
+    h.emit(0,TurnEvent::Subagent(json!({"id":"worker","status":"completed"}))).await;
+    h.emit(0,TurnEvent::Done{aborted:false}).await;
+    let (reply,mut answer) = oneshot::channel();
+    h.engine.handle(Msg::Call {
+        method:"messageSubagent".into(), params:json!({"chatId":"subagent:c1:worker","text":"resume"}),
+        user:owner(), client:ui.id, notifier:ui.notifier.clone(), activity:Arc::clone(&h.activity),reply,
+    });
+    assert_eq!(code(h.call(&ui,"changeWorkingDirectory",json!({"chatId":"c1","cwd":std::env::temp_dir()}))),ErrorCode::Busy);
+    h.settle().await; assert!(answer.try_recv().unwrap().is_ok());
+}
+
+#[tokio::test]
 async fn rename_trims_cuts_at_100_characters_and_ignores_empty_titles() {
     let mut h = Harness::new();
     let mut ui = h.client();

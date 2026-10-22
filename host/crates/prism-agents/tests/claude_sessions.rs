@@ -147,13 +147,18 @@ async fn subagents_are_linked_to_the_spawning_turn_and_never_contaminate_parent_
     p.emit(json!({"type": "assistant", "parent_tool_use_id": "spawn", "message": {"content": [{"type": "tool_use", "id": "read", "name": "Read", "input": {"file_path": "test.ts"}}]}}));
     p.emit(result(json!({})));
     f.settle().await;
-    assert!(f.send("second-turn", Some("native"), "ambient-claude").await);
+    assert!(f.of("agent:done").is_empty(), "the yielded result must not end a task waiting for a child");
     p.emit(json!({"type": "system", "subtype": "task_notification", "task_id": "native-child", "status": "completed", "summary": "Pronto"}));
+    p.emit(json!({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Retomei com o relat?rio."}}}));
+    p.emit(result(json!({})));
+    f.settle().await;
+    assert_eq!(f.of("agent:done").len(), 1);
+    assert!(f.send("second-turn", Some("native"), "ambient-claude").await);
     f.settle().await;
     let events = f.of("agent:subagent");
     assert!(events.iter().any(|event| event["id"] == "parent-turn" && event["agent"]["id"] == "spawn" && event["agent"]["text"] == "Resposta do filho"));
     assert!(events.iter().any(|event| event["id"] == "parent-turn" && event["agent"]["status"] == "completed"));
-    assert!(f.of("agent:text").is_empty());
+    assert!(f.of("agent:text").iter().all(|event| event["text"] != "Resposta do filho"));
     assert!(!f.of("agent:tool").iter().any(|tool| tool["toolId"] == "read"));
     p.exit(0);
 }
@@ -182,6 +187,7 @@ async fn child_messages_use_verified_recipients_and_only_acknowledge_parent_forw
     let data: Value = serde_json::from_str(text.rsplit_once("\n\n").unwrap().1).unwrap();
     assert_eq!(data, json!({"to": "real-native-target", "message": message}));
     assert!(!f.of("agent:subagent").iter().any(|event| event["agent"]["segment"]["kind"] == "user"), "the parent receipt does not fabricate a child transcript entry");
+    p.emit(json!({"type": "system", "subtype": "task_notification", "task_id": "real-native-target", "status": "completed"}));
     p.emit(result(json!({}))); f.settle().await;
     assert!(f.agents.message_subagent(OWNER, "chat", "origin", "spawn", message).is_err(), "an idle parent must start a separate visible turn in the engine");
     assert!(f.send("current-parent", Some("native"), "ambient-claude").await);
@@ -757,4 +763,82 @@ async fn clean_process_exit_without_a_second_turn_result_is_a_failure_not_cancel
     f.proc(1).emit(result(json!({})));
     f.settle().await;
     f.proc(1).exit(0);
+}
+
+
+#[tokio::test]
+async fn background_subagents_continue_the_same_turn_until_authoritative_idle() {
+    let f = Fixture::new();
+    assert!(f.send("root", None, "ambient-claude").await);
+    let p = f.proc(0); f.started(&p).await;
+    p.emit(init("native"));
+    p.emit(json!({"type": "system", "subtype": "session_state_changed", "state": "running", "sdk_host_only": true}));
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "child", "task_type": "local_agent"}));
+    p.emit(result(json!({"result": "Vou esperar o subagente."})));
+    f.settle().await;
+    assert!(f.of("agent:done").is_empty());
+    assert!(f.of("agent:result").is_empty());
+    assert!(!f.send("duplicate", Some("native"), "ambient-claude").await, "keep the native slot while waiting");
+    p.emit(json!({"type": "system", "subtype": "task_notification", "task_id": "child", "status": "completed"}));
+    f.settle().await;
+    assert!(f.of("agent:done").is_empty(), "child completion alone is not the parent reply");
+    // The CLI's automatic continuation must remain on the original sink.
+    p.emit(init("native"));
+    p.emit(json!({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Revisei o resultado do filho."}}}));
+    p.emit(result(json!({"result": "Trabalho final conclu?do."})));
+    f.settle().await;
+    assert!(f.of("agent:done").is_empty());
+    p.emit(json!({"type": "system", "subtype": "session_state_changed", "state": "idle", "sdk_host_only": true}));
+    f.settle().await;
+    assert_eq!(f.of("agent:result").len(), 1);
+    assert_eq!(f.of("agent:result")[0]["resultText"], "Trabalho final conclu?do.");
+    assert_eq!(f.of("agent:done"), vec![json!({"id": "root", "aborted": false})]);
+    assert!(f.of("agent:text").iter().all(|event| event["id"] == "root"));
+    assert!(p.quiet().await, "no synthetic user prompt or EOF is needed for the native continuation");
+    assert!(f.send("next", Some("native"), "ambient-claude").await);
+    assert_eq!(f.procs(), 1);
+    assert_eq!(p.line().await["message"]["content"], "hello");
+    p.exit(0);
+}
+
+#[tokio::test]
+async fn background_snapshot_replaces_edges_and_legacy_waits_for_final_root_result() {
+    let f = Fixture::new();
+    assert!(f.send("root", None, "ambient-claude").await);
+    let p = f.proc(0); f.started(&p).await;
+    p.emit(init("native"));
+    p.emit(json!({"type": "system", "subtype": "background_tasks_changed", "tasks": [{"task_id": "a", "task_type": "local_agent"}, {"task_id": "b", "task_type": "local_workflow"}]}));
+    p.emit(result(json!({"result": "Esperando dois filhos."})));
+    p.emit(json!({"type": "system", "subtype": "background_tasks_changed", "tasks": []}));
+    // A late edge must not resurrect a task removed by the level snapshot.
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "a", "task_type": "local_agent"}));
+    f.settle().await;
+    assert!(f.of("agent:done").is_empty());
+    p.emit(json!({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Ambos conclu?ram."}}}));
+    p.emit(result(json!({"result": "Revisei os dois."})));
+    f.settle().await;
+    assert_eq!(f.of("agent:done").len(), 1);
+    assert_eq!(f.of("agent:result")[0]["resultText"], "Revisei os dois.");
+    p.exit(0);
+}
+
+#[tokio::test]
+async fn stop_during_subagent_wait_finishes_even_when_cli_reports_success() {
+    let f = Fixture::new();
+    assert!(f.send("root", None, "ambient-claude").await);
+    let p = f.proc(0); f.started(&p).await;
+    p.emit(init("native"));
+    p.emit(json!({"type": "system", "subtype": "session_state_changed", "state": "running"}));
+    p.emit(json!({"type": "system", "subtype": "task_started", "task_id": "child", "task_type": "local_agent"}));
+    p.emit(result(json!({"result": "Esperando."})));
+    f.settle().await;
+    f.agents.abort(OWNER, "root");
+    assert_eq!(p.line().await["request"]["subtype"], "interrupt");
+    p.emit(result(json!({})));
+    f.settle().await;
+    assert_eq!(f.of("agent:done"), vec![json!({"id": "root", "aborted": true})]);
+    p.emit(json!({"type": "system", "subtype": "session_state_changed", "state": "idle"}));
+    f.settle().await;
+    assert_eq!(f.of("agent:done").len(), 1);
+    p.exit(0);
 }

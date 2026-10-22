@@ -115,6 +115,12 @@ if (wanted.includes('async-questions')) chat.turns[1].segments.push({ kind: 'tex
   { title: 'Qual uso do Codex está sem cálculo?', options: ['Tokens/contexto', 'Limites da conta', 'Os dois'] }
 ] })
 const qaChats = [chat]
+if (wanted.includes('working-directory')) {
+  chat.resume = { route: 'claude:ambient-claude', sessionId: 'qa-original-session' }
+  qaChats.push({ ...structuredClone(chat), id: 'qa-directory-codex', title: 'Projeto Codex',
+    selection: { provider: 'codex', profileId: 'ambient-codex', model: 'gpt-6-luna', effort: 'medium', permissionMode: 'default' },
+    resume: { route: 'codex:ambient-codex', sessionId: 'qa-codex-session' } })
+}
 if (wanted.includes('subagents')) {
   const native = (id, name, status, activity, spawnToolCallId) => ({ id, chatId: `subagent:qa-chat:${id}`, name, status, activity, description: `Tarefa de ${name.toLowerCase()}.`, startedAt: now - 32000, updatedAt: now - 1000, spawnToolCallId })
   const active = native('audit', 'Auditar API', 'running', 'Lendo src/api e validando respostas.', 'spawn-native-audit')
@@ -234,7 +240,10 @@ handle('usage:records', () => usageFixture)
 handle('usage:import-traycer', () => usageFixture.importState)
 handle('usage:font-css', () => '')
 for (const [channel, value] of Object.entries(fixtures)) if (value !== null) handle(channel, () => value)
-handle('fs:readDir', (p) => (tree[String(p).replace(/[\\/]+$/, '')] || []).map((n) => ({ name: n.replace(/\/$/, ''), path: `${String(p).replace(/[\\/]+$/, '')}\\${n.replace(/\/$/, '')}`, isDir: n.endsWith('/') })))
+handle('fs:readDir', (p) => {
+  if (wanted.includes('working-directory') && p === 'C:\\QA\\missing-project') throw new Error('ENOENT: no such directory')
+  return (tree[String(p).replace(/[\\/]+$/, '')] || []).map((n) => ({ name: n.replace(/\/$/, ''), path: `${String(p).replace(/[\\/]+$/, '')}\\${n.replace(/\/$/, '')}`, isDir: n.endsWith('/') }))
+})
 handle('fs:listFiles', () => Object.entries(tree).flatMap(([dir, names]) => names.filter((n) => !n.endsWith('/')).map((n) => ({ path: `${dir}\\${n}`, rel: `${dir.slice(ROOT.length + 1)}\\${n}`.replace(/^\\/, '') }))))
 handle('fs:readFile', target => {
   if (wanted.includes('history-previews')) {
@@ -267,7 +276,12 @@ handle('providers:details', (_provider, id) => ({ updatedAt: Date.now() - (id ==
 handle('providers:status', (_provider, id) => id === 'claude-2' || id === 'codex-2' ? { installed: true, loggedIn: false, detail: 'Faça login nesta conta.' } : { installed: true, loggedIn: true, detail: 'Conectada', email: 'qa@example.invalid' })
 handle('providers:update', (id, patch) => { Object.assign(profiles.find((p) => p.id === id), patch); return profiles })
 handle('chats:list', () => qaChats)
-handle('chats:save', () => true)
+const qaSavedChats = []
+handle('chats:save', (saved) => {
+  if (wanted.includes('working-directory') && saved.cwd === 'C:\\QA\\unsaved-project') throw new Error('Não foi possível salvar a pasta de teste.')
+  if (wanted.includes('working-directory')) qaSavedChats.push(structuredClone(saved))
+  return true
+})
 ipcMain.on('chats:flush', (e) => { e.returnValue = { ok: true } })
 handle('chats:delete', () => true)
 const qaSubagentMessages = []
@@ -434,6 +448,76 @@ const clickText = (selector, text) => js(`(() => { const el = [...document.query
 const chord = (key, mods = {}) => js(`window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, ...mods, bubbles: true })}))`).then(() => pause(600))
 
 const scenes = {
+  async 'working-directory'() {
+    const assert = require('node:assert/strict')
+    assert.equal(qaHost, null, 'folder scene uses isolated IPC and never invokes a provider')
+    const dialog = '.ch-directory-dialog'
+    const input = '[aria-label="Caminho absoluto da pasta"]'
+    const latest = id => qaSavedChats.filter(saved => saved.id === id).at(-1)
+    const open = async () => {
+      await click('[aria-label="Mais ações do chat"]')
+      await clickText('[role="menuitem"]', 'Trocar pasta de trabalho')
+      await until(`!!document.querySelector(${JSON.stringify(dialog)})`, 'folder dialog')
+    }
+    const fill = value => js(`(() => {
+      const el = document.querySelector(${JSON.stringify(input)})
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)})
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })()`).then(() => pause(100))
+    const submit = () => clickText(`${dialog} button`, 'Trocar pasta')
+    const close = () => clickText(`${dialog} button`, 'Cancelar')
+    await open()
+    assert.equal(await js(`document.querySelector(${JSON.stringify(input)}).value`), ROOT)
+    await shot('working-directory-open')
+    const focusState = await js(`({ active: document.activeElement?.outerHTML, inert: !!document.querySelector(${JSON.stringify(input)}).closest('[inert]'), focused: document.hasFocus() })`)
+    if (!(await js(`document.activeElement === document.querySelector(${JSON.stringify(input)})`))) console.log('folder focus', focusState)
+    assert.equal(await js(`document.activeElement === document.querySelector(${JSON.stringify(input)})`), true, 'path gets keyboard focus')
+    await escape()
+    assert.equal(await js(`!!document.querySelector(${JSON.stringify(dialog)})`), false, 'Escape cancels')
+    assert.equal(qaSavedChats.length, 0, 'opening and cancelling do not save')
+    await open()
+    await fill('C:\\QA\\missing-project')
+    await submit()
+    assert.equal(await js(`document.querySelector(${JSON.stringify(dialog)}).textContent.includes('não existe')`), true)
+    assert.equal(qaSavedChats.some(saved => saved.cwd === 'C:\\QA\\missing-project'), false, 'invalid folder is never persisted')
+    await fill('C:\\QA\\unsaved-project')
+    await submit()
+    assert.equal(await js(`document.querySelector(${JSON.stringify(dialog)}).textContent.includes('salvar')`), true, 'save failure stays in the dialog')
+    await close()
+    await open()
+    assert.equal(await js(`document.querySelector(${JSON.stringify(input)}).value`), ROOT, 'save failure leaves original cwd')
+    await clickText(`${dialog} button`, 'Escolher pasta')
+    assert.equal(await js(`document.querySelector(${JSON.stringify(input)}).value`), ROOT, 'native picker fills the absolute path')
+    const destination = 'C:\\QA\\projeto com espaços\\backend'
+    await fill(destination)
+    await win.setContentSize(900, 600)
+    await shot('working-directory-900')
+    const fits = await js(`(() => { const r = document.querySelector(${JSON.stringify(dialog)}).getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight })()`)
+    assert.equal(fits, true, 'dialog fits the smallest supported window')
+    await submit()
+    await until(`!document.querySelector(${JSON.stringify(dialog)})`, 'new folder saved')
+    assert.equal(latest(chat.id).cwd, destination)
+    assert.equal(latest(chat.id).cwdPinned, true)
+    assert.equal(latest(chat.id).resume, undefined, 'native session resets after cwd changes')
+    assert.deepEqual(JSON.parse(JSON.stringify(latest(chat.id).turns)), chat.turns, 'conversation history is unchanged')
+    assert.equal(await js('document.querySelector(".ch-header-name").textContent'), chat.title, 'same conversation remains selected')
+    await win.setContentSize(1380, 880)
+    await click('.al-row[data-node-id="qa-directory-codex"]')
+    await open()
+    assert.equal(await js(`document.querySelector(${JSON.stringify(input)}).value`), ROOT, 'other chat keeps its original cwd')
+    await fill('C:\\QA\\outro-projeto-codex')
+    await shot('working-directory-codex')
+    await submit()
+    await until(`!document.querySelector(${JSON.stringify(dialog)})`, 'Codex folder saved')
+    const codex = latest('qa-directory-codex')
+    assert.equal(codex.cwd, 'C:\\QA\\outro-projeto-codex')
+    assert.equal(codex.selection.provider, 'codex')
+    assert.equal(codex.resume, undefined)
+    assert.deepEqual(JSON.parse(JSON.stringify(codex.turns)), chat.turns)
+    assert.equal(latest(chat.id).cwd, destination, 'changing Codex folder does not overwrite Claude chat')
+    assert.deepEqual(errors, [])
+    console.log('working-directory: Claude/Codex folders, preserved histories, cancellation, native picker, validation/save failures and 900x600 layout passed.')
+  },
   async 'history-previews'() {
     const assert = require('node:assert/strict')
     assert.equal(qaHost, null, 'history preview scene only runs against isolated mock IPC')

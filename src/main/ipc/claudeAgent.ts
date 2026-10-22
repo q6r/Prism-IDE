@@ -11,6 +11,7 @@ import { agentStore, profileEnvironment, providerCommand } from '../providers'
 import type { Client, ClientChannel } from 'ssh2'
 import { getSshClient, matchesSshTarget } from './ssh'
 import { ClaudeSubagents, formatSubagentMessage } from './claudeSubagents'
+import { createClaudeTurnLifecycle } from './claudeTurnLifecycle'
 
 // Resolve the locally-installed Claude Code CLI. The Agent SDK ships an optional
 // per-platform native binary that package managers (pnpm) may omit; when that
@@ -174,9 +175,8 @@ function loadSdk(): Promise<typeof import('@anthropic-ai/claude-agent-sdk')> {
 // message, a chat keeps ONE long-lived `query()` driven by an async-iterable of
 // user messages. New messages are pushed in while a turn runs — the SDK either
 // picks them up at the next tool boundary (steer) or after the current turn ends
-// (queue), exactly like Claude Code. `system/init` marks each turn's start and
-// `result` its end (verified against the binary), so the renderer's assistant
-// bubbles are created on turn-start.
+// (queue), exactly like Claude Code. `system/init` marks a turn's start; a
+// yielded result can continue automatically after background agents finish.
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -232,6 +232,7 @@ function userMsg(text: string, priority?: 'now' | 'next' | 'later', images?: Cha
 }
 
 interface StreamSession {
+  lifecycle: ReturnType<typeof createClaudeTurnLifecycle>
   subagents: ClaudeSubagents
   canMessageSubagents: boolean
   contextUsage?: unknown
@@ -313,6 +314,7 @@ async function sendToStreamingSession(payload: SendPayload, send: SendFn, owner?
       catch (error) { existing.restarting = false; send('agent:error', { id: payload.id, message: (error as Error).message }); return }
       existing=undefined
     } else {
+      existing.lifecycle.reset()
       existing.activeTurnId=payload.id;existing.send=send
       send('agent:system',{id:payload.id,sessionId:existing.sessionId,model:existing.model})
       existing.push(text, undefined, payload.images);return
@@ -343,6 +345,7 @@ async function sendToStreamingSession(payload: SendPayload, send: SendFn, owner?
   let release!:()=>void
   const closed=new Promise<void>(resolve=>{release=resolve})
   const session: StreamSession = {
+    lifecycle: createClaudeTurnLifecycle(),
     subagents: new ClaudeSubagents(), canMessageSubagents: false,
     chatId, owner, unified:!!payload.chat, signature, send, closed, release,
     abort,
@@ -511,13 +514,54 @@ async function sendToStreamingSession(payload: SendPayload, send: SendFn, owner?
   void consumeStream(session, q, emit)
 }
 
+function completeStreamingTurn(session: StreamSession, msg: Record<string, any>, send: SendFn): void {
+  const { chatId } = session
+  const id = session.activeTurnId
+  const terminalSend = session.send || send
+  const aborted = session.stoppingTurnId === id || (!!msg.subtype && msg.subtype !== 'success')
+  // Measured even without an open turn, so the base stays in step.
+  const measured = measureTurn(msg, session.usageBase)
+  session.usageBase = measured.base
+  // Publish terminal events only after this slot is free. A queue can
+  // start the next turn immediately; keep both events on this turn's sink.
+  session.activeTurnId = null
+  session.stoppingTurnId = undefined
+  if (id) {
+    terminalSend('agent:result', {
+      id,
+      chatId,
+      sessionId: msg.session_id,
+      isError: !!msg.is_error,
+      subtype: msg.subtype,
+      costUsd: msg.total_cost_usd,
+      durationMs: msg.duration_ms,
+      numTurns: msg.num_turns,
+      resultText: msg.result,
+      usage: msg.usage,
+      turn: measured.turn,
+      model: session.resolvedModel,
+      ...claudeContext(session.contextUsage, msg.modelUsage, session.resolvedModel),
+      fastMode: fastModeOf(msg)
+    })
+    // A non-"success" subtype means the turn was interrupted/stopped, not
+    // a real failure — surface it as a (graceful) "done", not an error.
+    terminalSend('agent:done', { id, aborted })
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function consumeStream(session: StreamSession, q: any, send: SendFn): Promise<void> {
   const { chatId } = session
   const subagents = session.subagents
   try {
     for await (const msg of q as AsyncIterable<Record<string, any>>) {
-      if (subagents.handle(msg, session.activeTurnId, send)) continue
+      if (session.abort.signal.aborted) break
+      if (!session.activeTurnId && msg.type === 'system' && msg.subtype === 'init') session.lifecycle.reset()
+      if (msg.type === 'result' && session.stoppingTurnId === session.activeTurnId) session.lifecycle.reset()
+      const finalResult = session.lifecycle.observe(msg)
+      const childFrame = subagents.handle(msg, session.activeTurnId, send)
+      if (finalResult) completeStreamingTurn(session, finalResult, send)
+      if (childFrame) continue
       switch (msg.type) {
         case 'system':
           if (msg.subtype === 'init') {
@@ -529,6 +573,7 @@ async function consumeStream(session: StreamSession, q: any, send: SendFn): Prom
             }
             // A new turn is beginning — mint its id and tell the renderer to open
             // an assistant bubble for it. (init repeats per turn; same session_id.)
+            if (session.activeTurnId) break // A background continuation keeps the same bubble.
             const tid = `at${turnSeq++}`
             session.activeTurnId = tid
             send('agent:turn-start', {
@@ -592,40 +637,7 @@ async function consumeStream(session: StreamSession, q: any, send: SendFn): Prom
           break
         }
 
-        case 'result': {
-          const id = session.activeTurnId
-          const terminalSend = session.send || send
-          const aborted = session.stoppingTurnId === id || (!!msg.subtype && msg.subtype !== 'success')
-          // Measured even without an open turn, so the base stays in step.
-          const measured = measureTurn(msg, session.usageBase)
-          session.usageBase = measured.base
-          // Publish terminal events only after this slot is free. A queue can
-          // start the next turn immediately; keep both events on this turn's sink.
-          session.activeTurnId = null
-          session.stoppingTurnId = undefined
-          if (id) {
-            terminalSend('agent:result', {
-              id,
-              chatId,
-              sessionId: msg.session_id,
-              isError: !!msg.is_error,
-              subtype: msg.subtype,
-              costUsd: msg.total_cost_usd,
-              durationMs: msg.duration_ms,
-              numTurns: msg.num_turns,
-              resultText: msg.result,
-              usage: msg.usage,
-              turn: measured.turn,
-              model: session.resolvedModel,
-              ...claudeContext(session.contextUsage, msg.modelUsage, session.resolvedModel),
-              fastMode: fastModeOf(msg)
-            })
-            // A non-"success" subtype means the turn was interrupted/stopped, not
-            // a real failure — surface it as a (graceful) "done", not an error.
-            terminalSend('agent:done', { id, aborted })
-          }
-          break
-        }
+        case 'result': break // The lifecycle publishes only the final root result.
       }
     }
     // Input generator ended (session torn down) — finalize any open turn.
@@ -753,6 +765,7 @@ function runRemoteTurn(
     const { id, prompt, cwd, resume, model, effort, permissionMode, thinking, contextNote } = payload
     const allowedTools = permissionsFor(payload)
     const subagents = new ClaudeSubagents()
+    const lifecycle = createClaudeTurnLifecycle()
     const client = getSshClient(payload.remote!)
     if (!client) {
       send('agent:error', { id, message: 'Conexão SSH não encontrada (reconecte o servidor).' })
@@ -841,7 +854,7 @@ function runRemoteTurn(
         turn.abort.signal.addEventListener('abort', onAbort, { once: true })
 
         // Kick off the turn with the user's message (stdin stays open for
-        // control responses; we EOF it once the result arrives).
+        // control responses and native subagent continuations).
         writeLine({
           type: 'user',
           session_id: '',
@@ -921,8 +934,40 @@ function runRemoteTurn(
           })
         }
 
+        const complete = (msg: Record<string, any>): void => {
+          sawResult = true
+          const measured = measureTurn(msg, usageBase)
+          usageBase = measured.base
+          send('agent:result', {
+            id,
+            sessionId: msg.session_id,
+            isError: !!msg.is_error,
+            subtype: msg.subtype,
+            costUsd: msg.total_cost_usd,
+            durationMs: msg.duration_ms,
+            numTurns: msg.num_turns,
+            resultText: msg.result,
+            usage: msg.usage,
+            turn: measured.turn,
+            model: resolvedModel,
+            fastMode: fastModeOf(msg)
+          })
+          // Surface auth/usage errors (e.g. remote not logged in) clearly.
+          if (msg.is_error && msg.result) send('agent:error', { id, message: msg.result })
+          // Turn complete — EOF stdin so the remote CLI exits cleanly.
+          try {
+            stream.end()
+          } catch {
+            /* already closed */
+          }
+        }
+
         const handle = (msg: Record<string, any>): void => {
-          if (subagents.handle(msg, id, send)) return
+          if (finished || turn.abort.signal.aborted) return
+          const finalResult = lifecycle.observe(msg)
+          const childFrame = subagents.handle(msg, id, send)
+          if (finalResult) complete(finalResult)
+          if (childFrame) return
           switch (msg.type) {
             case 'control_request':
               handleControl(msg)
@@ -985,33 +1030,7 @@ function runRemoteTurn(
               }
               break
             }
-            case 'result': {
-              const measured = measureTurn(msg, usageBase)
-              usageBase = measured.base
-              send('agent:result', {
-                id,
-                sessionId: msg.session_id,
-                isError: !!msg.is_error,
-                subtype: msg.subtype,
-                costUsd: msg.total_cost_usd,
-                durationMs: msg.duration_ms,
-                numTurns: msg.num_turns,
-                resultText: msg.result,
-                usage: msg.usage,
-                turn: measured.turn,
-                model: resolvedModel,
-                fastMode: fastModeOf(msg)
-              })
-              // Surface auth/usage errors (e.g. remote not logged in) clearly.
-              if (msg.is_error && msg.result) send('agent:error', { id, message: msg.result })
-              // Turn complete — EOF stdin so the remote CLI exits cleanly.
-              try {
-                stream.end()
-              } catch {
-                /* already closed */
-              }
-              break
-            }
+            case 'result': break
           }
         }
 
@@ -1027,7 +1046,6 @@ function runRemoteTurn(
             if (!line) continue
             try {
               const ev = JSON.parse(line)
-              if (ev.type === 'result') sawResult = true
               handle(ev)
             } catch {
               /* non-JSON (banner / log line) — ignore */
@@ -1038,7 +1056,7 @@ function runRemoteTurn(
         stream.on('close', (code: number) => {
           turn.abort.signal.removeEventListener('abort', onAbort)
           if (turn.abort.signal.aborted) return finish({ aborted: true })
-          if (!sawResult && code) {
+          if (!sawResult) {
             send('agent:error', {
               id,
               message:
@@ -1507,12 +1525,37 @@ export function registerClaudeAgentHandlers(): void {
     let usageBase = usageBaseFor(resume)
     let resolvedModel: string | undefined
     const subagents = new ClaudeSubagents()
+    const lifecycle = createClaudeTurnLifecycle()
+    const input = makeInputPump()
+    input.push(userMsg(fullPrompt, undefined, payload.images))
+    const complete = (msg: Record<string, any>): void => {
+      const measured = measureTurn(msg, usageBase)
+      usageBase = measured.base
+      send('agent:result', {
+        id,
+        sessionId: msg.session_id,
+        isError: !!msg.is_error,
+        subtype: msg.subtype,
+        costUsd: msg.total_cost_usd,
+        durationMs: msg.duration_ms,
+        numTurns: msg.num_turns,
+        resultText: msg.result,
+        usage: msg.usage,
+        turn: measured.turn,
+        model: resolvedModel,
+        fastMode: fastModeOf(msg)
+      })
+    }
+    let sawFinalResult = false
     try {
-      async function* imagePrompt() { yield userMsg(fullPrompt, undefined, payload.images) }
-      const q = sdk.query({ prompt: payload.images?.length ? imagePrompt() : fullPrompt, options })
+      const q = sdk.query({ prompt: input.gen, options })
 
       for await (const msg of q as AsyncIterable<Record<string, any>>) {
-        if (subagents.handle(msg, id, send)) continue
+        if (abort.signal.aborted) break
+        const finalResult = lifecycle.observe(msg)
+        const childFrame = subagents.handle(msg, id, send)
+        if (finalResult) { complete(finalResult); sawFinalResult = true; break }
+        if (childFrame) continue
         switch (msg.type) {
           case 'system':
             if (msg.subtype === 'init') {
@@ -1579,28 +1622,11 @@ export function registerClaudeAgentHandlers(): void {
             break
           }
 
-          case 'result': {
-            const measured = measureTurn(msg, usageBase)
-            usageBase = measured.base
-            send('agent:result', {
-              id,
-              sessionId: msg.session_id,
-              isError: !!msg.is_error,
-              subtype: msg.subtype,
-              costUsd: msg.total_cost_usd,
-              durationMs: msg.duration_ms,
-              numTurns: msg.num_turns,
-              resultText: msg.result,
-              usage: msg.usage,
-              turn: measured.turn,
-              model: resolvedModel,
-              fastMode: fastModeOf(msg)
-            })
-            break
-          }
+          case 'result': break
         }
       }
-      send('agent:done', { id })
+      if (!sawFinalResult && !abort.signal.aborted) throw new Error('O Claude encerrou a resposta antes de concluir a mensagem.')
+      send('agent:done', { id, ...(abort.signal.aborted ? { aborted: true } : {}) })
     } catch (err) {
       if (abort.signal.aborted) {
         send('agent:done', { id, aborted: true })
@@ -1608,6 +1634,7 @@ export function registerClaudeAgentHandlers(): void {
         send('agent:error', { id, message: (err as Error)?.message || String(err) })
       }
     } finally {
+      input.end()
       subagents.close(send)
       turns.delete(id)
     }

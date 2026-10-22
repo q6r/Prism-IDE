@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use prism_protocol::providers::ProfileRefParams;
 use prism_protocol::chats::{
     methods, AppendKind, ArchiveParams, BindWorkspaceParams, BusyProfiles, ChatDelta, ChatDocParams, ChatDocsParams, ChatIdParams, ChatPatch, ChatRef,
-    ChatRuntime, ChatRuntimeUpdate, ChatUpsert, ChatsDeltaBatch, ChatsSnapshot, ChatsWritten, ConfigureParams, FastReport,
+    ChatRuntime, ChatRuntimeUpdate, ChatUpsert, ChatsDeltaBatch, ChatsSnapshot, ChatsWritten, ChangeWorkingDirectoryParams, ConfigureParams, FastReport,
     PermissionDecision, PermissionParams, QuestionParams, ReassignProfileParams, Reassigned, RenameParams, SendParams, SendResult,
     SteerParams, SetTaskParams, TurnAppend, TurnMetrics, TurnSegment, TurnUpsert,
 };
@@ -358,6 +358,7 @@ impl Engine {
             methods::QUEUE => self.queue(value, user),
             methods::CONFIRM_ACCOUNT => self.confirm_account(params(value)?),
             methods::BIND_WORKSPACE => self.bind_workspace(params(value)?),
+            methods::CHANGE_WORKING_DIRECTORY => self.change_working_directory(params(value)?),
             methods::RENAME => self.rename(params(value)?),
             methods::ARCHIVE => self.archive(params(value)?),
             methods::SET_TASK => self.set_task(params(value)?),
@@ -668,7 +669,7 @@ impl Engine {
         }
         self.edit(&p.chat_id, |doc| {
             let has_turns = doc.get("turns").and_then(Value::as_array).is_some_and(|t| !t.is_empty());
-            if has_turns && !truthy(doc.get("workspaceNeedsBinding")) {
+            if truthy(doc.get("cwdPinned")) || has_turns && !truthy(doc.get("workspaceNeedsBinding")) {
                 return;
             }
             doc.insert("cwd".into(), Value::String(p.cwd.clone()));
@@ -692,6 +693,40 @@ impl Engine {
                 }
                 doc.insert("selection".into(), Value::Object(selection));
             }
+        })?;
+        ok()
+    }
+
+    fn change_working_directory(&mut self, p: ChangeWorkingDirectoryParams) -> Result<Value, HostError> {
+        if self.running(&p.chat_id) || self.native_descendants_busy(&p.chat_id) {
+            return Err(busy("Pare a tarefa antes de trocar a pasta."));
+        }
+        let doc = self.store.document(kinds::CHATS, &p.chat_id).map_err(store_error)?.ok_or_else(not_found)?;
+        if doc.get("nativeAgent").is_some_and(Value::is_object) {
+            return Err(invalid("Troque a pasta na conversa principal, não no subagente."));
+        }
+        if doc.get("pendingTurnId").and_then(Value::as_str).is_some_and(|id| !id.is_empty()) {
+            return Err(busy("Pare a tarefa antes de trocar a pasta."));
+        }
+        if p.cwd.trim().is_empty() || p.cwd.contains('\0') {
+            return Err(invalid("Informe o caminho absoluto de uma pasta."));
+        }
+        if doc.get("remoteId").and_then(Value::as_str).is_some() {
+            if !p.cwd.starts_with('/') { return Err(invalid("Informe o caminho absoluto da pasta no servidor SSH.")); }
+        } else {
+            let path = std::path::Path::new(&p.cwd);
+            if !path.is_absolute() { return Err(invalid("Informe o caminho absoluto de uma pasta.")); }
+            std::fs::read_dir(path).map_err(|_| invalid("Não foi possível acessar esta pasta. Verifique o caminho e as permissões."))?;
+        }
+        self.edit(&p.chat_id, |doc| {
+            if doc.get("cwd").and_then(Value::as_str) != Some(p.cwd.as_str()) {
+                doc.remove("resume");
+                doc.remove("lastRunId");
+                doc.insert("cwd".into(), Value::String(p.cwd));
+                doc.insert("updatedAt".into(), json!(crate::now_ms()));
+            }
+            doc.insert("cwdPinned".into(), Value::Bool(true));
+            doc.insert("workspaceNeedsBinding".into(), Value::Bool(false));
         })?;
         ok()
     }

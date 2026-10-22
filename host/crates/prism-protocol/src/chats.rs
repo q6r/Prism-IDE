@@ -53,6 +53,9 @@ pub mod methods {
     pub const CONFIRM_ACCOUNT: &str = "confirmAccount";
     /// `BindWorkspaceParams` → `OkResult` (`busy` while running).
     pub const BIND_WORKSPACE: &str = "bindWorkspace";
+    /// `ChangeWorkingDirectoryParams` → `OkResult`; preserves history and route,
+    /// resets the native resume only when cwd changes; `busy` while running.
+    pub const CHANGE_WORKING_DIRECTORY: &str = "changeWorkingDirectory";
     /// `RenameParams` → `OkResult`.
     pub const RENAME: &str = "rename";
     /// `ArchiveParams` → `OkResult` (archiving is `busy` while running).
@@ -327,6 +330,16 @@ pub struct BindWorkspaceParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub model: Option<String>,
+}
+
+/// Changes only the folder of an existing chat (chats.working-directory@1).
+/// SSH retains its existing target; its directory is checked by the window.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChangeWorkingDirectoryParams {
+    pub chat_id: String,
+    pub cwd: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

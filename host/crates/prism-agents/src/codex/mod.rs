@@ -15,6 +15,7 @@ pub mod queries;
 pub mod server;
 pub mod session;
 mod subagents;
+mod lifecycle;
 
 use std::future::Future;
 use std::path::Path;

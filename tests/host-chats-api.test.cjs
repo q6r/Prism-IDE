@@ -319,6 +319,7 @@ test('each command calls chats.<method> with the right params', async () => {
     [() => t.api.configure('c', sel), 'chats.configure', { chatId: 'c', selection: sel }],
     [() => t.api.confirmAccount('c'), 'chats.confirmAccount', { chatId: 'c' }],
     [() => t.api.bindWorkspace({ chatId: 'c', cwd: '/x' }), 'chats.bindWorkspace', { chatId: 'c', cwd: '/x' }],
+    [() => t.api.changeWorkingDirectory({ chatId: 'c', cwd: '/next' }), 'chats.changeWorkingDirectory', { chatId: 'c', cwd: '/next' }],
     [() => t.api.rename('c', 'T'), 'chats.rename', { chatId: 'c', title: 'T' }],
     [() => t.api.archive('c', true), 'chats.archive', { chatId: 'c', archived: true }],
     [() => t.api.setTask('c', 'k'), 'chats.setTask', { chatId: 'c', taskId: 'k' }],

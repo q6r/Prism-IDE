@@ -404,6 +404,194 @@ impl Fixture {
 
 /* ---------------- Sessions (tests/native-codex.test.cjs) ---------------- */
 
+fn spawn_waiting_child(server: &Fake) {
+    server.notify("item/completed", json!({"threadId":"thread-0","turnId":"native-1","item":{
+        "id":"spawn","type":"collabAgentToolCall","tool":"spawnAgent","status":"completed",
+        "receiverThreadIds":["child"],"agentsStates":{"child":{"status":"running"}}
+    }}));
+    server.notify("turn/started", json!({"threadId":"child","turn":{"id":"child-turn"}}));
+    server.notify("turn/completed", json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
+}
+
+fn idle_metadata_responder() -> Responder {
+    let base = turn_responder();
+    Arc::new(move |method, params, index| if method == "thread/read" {
+        Some(json!({"thread":{"id":params["threadId"],"status":{"type":"idle"}}}))
+    } else { base(method, params, index) })
+}
+
+#[tokio::test]
+async fn child_completion_automatically_resumes_the_same_user_task_once() {
+    let f = Fixture::with(idle_metadata_responder());
+    let server = f.started("task", json!({})).await;
+    spawn_waiting_child(&server);
+    eventually("child running", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "running")).await;
+    assert!(f.sessions.busy("chat")); assert!(f.sink.kinds("done").is_empty());
+    assert!(f.send("duplicate", json!({"resume":"thread-0"})).await.is_err());
+    server.notify("turn/completed", json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    server.notify("turn/completed", json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    eventually("automatic continuation", || server.calls("turn/start").len() == 2).await;
+    let starts = server.calls("turn/start");
+    for key in ["cwd","model","approvalPolicy","sandboxPolicy","effort","serviceTier"] {
+        assert_eq!(starts[1]["params"][key], starts[0]["params"][key], "{key}");
+    }
+    assert!(starts[1]["params"]["input"][0]["text"].as_str().unwrap().contains("subagentes concluíram"));
+    server.notify("item/agentMessage/delta",json!({"threadId":"thread-0","turnId":"native-2","itemId":"answer","delta":"Resultado consolidado"}));
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-2","status":"completed"}}));
+    eventually("task done", || !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+    assert_eq!(f.sink.kinds("done")[0]["id"],"task");
+    assert!(f.sink.kinds("segment").iter().any(|e| e["segment"]["text"] == "Resultado consolidado"));
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert_eq!(server.calls("turn/start").len(),2);
+}
+
+#[tokio::test]
+async fn child_metadata_recovers_missing_completion_and_updates_its_projection() {
+    let f = Fixture::with(idle_metadata_responder());
+    let server = f.started("task",json!({})).await;
+    // Native spawn proves the child was running, even if all child stream
+    // notifications were missed by this CLI's subscription.
+    server.notify("item/completed",json!({"threadId":"thread-0","turnId":"native-1","item":{
+        "id":"spawn","type":"collabAgentToolCall","tool":"spawnAgent","status":"completed",
+        "receiverThreadIds":["child"],"agentsStates":{"child":{"status":"running"}}
+    }}));
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
+    eventually("recovered completion and continuation", || server.calls("turn/start").len() == 2 && f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "child" && e["agent"]["status"] == "completed")).await;
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-2","status":"completed"}}));
+    eventually("root finished", || !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+}
+
+#[tokio::test]
+async fn native_continuation_wins_and_stale_root_start_cannot_replace_its_turn_id() {
+    let f = Fixture::with(idle_metadata_responder());
+    let server = f.started("task",json!({})).await;
+    spawn_waiting_child(&server);
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    server.notify("turn/started",json!({"threadId":"thread-0","turn":{"id":"native-auto"}}));
+    server.notify("turn/started",json!({"threadId":"thread-0","turn":{"id":"native-1"}}));
+    server.notify("item/agentMessage/delta",json!({"threadId":"thread-0","turnId":"native-auto","itemId":"answer","delta":"Resultado atual"}));
+    server.request(450,"item/commandExecution/requestApproval",json!({"threadId":"thread-0","turnId":"native-auto","command":"npm test"}));
+    eventually("current delta and approval", || f.sink.kinds("segment").iter().any(|e| e["segment"]["text"] == "Resultado atual") && !f.sink.of("agent:permission").is_empty()).await;
+    assert_eq!(server.calls("turn/start").len(),1);
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-auto","status":"completed"}}));
+    eventually("native finish", || !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+}
+
+#[tokio::test]
+async fn root_fatal_notifications_finish_a_task_while_waiting_for_subagents() {
+    for method in ["thread/closed","thread/status/changed"] {
+        let f = Fixture::new();
+        let server = f.started("task",json!({})).await;
+        spawn_waiting_child(&server);
+        server.notify(method,json!({"threadId":"thread-0","status":{"type":"systemError"}}));
+        eventually("root fatal error", || f.sink.kinds("error").len() == 1 && !f.sessions.busy("chat")).await;
+        assert!(f.sink.kinds("done").is_empty());
+        eventually("child stopped", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "child" && e["agent"]["status"] == "stopped")).await;
+    }
+}
+
+#[tokio::test]
+async fn cancelling_a_root_yield_stops_children_and_never_starts_a_continuation() {
+    let f = Fixture::with(idle_metadata_responder());
+    let server = f.started("task",json!({})).await;
+    spawn_waiting_child(&server);
+    eventually("root waiting", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "running")).await;
+    f.sessions.abort(OWNER,"chat");
+    eventually("aborted", || f.sink.kinds("done").iter().any(|e| e["aborted"] == true)).await;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert_eq!(server.calls("turn/start").len(),1);
+    assert!(f.sink.kinds("error").is_empty());
+}
+
+#[tokio::test]
+async fn native_root_winning_the_fallback_rpc_race_is_not_reported_as_an_error() {
+    let base = turn_responder();
+    let fallback = Arc::new(AtomicBool::new(false));
+    let active = Arc::new(AtomicBool::new(false));
+    let wait = Arc::clone(&fallback); let state = Arc::clone(&active);
+    let f = Fixture::with(Arc::new(move |method,params,index| {
+        if method == "thread/read" { return Some(json!({"thread":{"id":params["threadId"],"status":{"type":if state.load(Ordering::SeqCst) {"active"} else {"idle"}}}})); }
+        if method == "turn/start" && wait.load(Ordering::SeqCst) { return None; }
+        base(method,params,index)
+    }));
+    let server = f.started("task",json!({})).await;
+    fallback.store(true,Ordering::SeqCst);
+    spawn_waiting_child(&server);
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    eventually("fallback attempt",|| server.calls("turn/start").len() == 2).await;
+    active.store(true,Ordering::SeqCst);
+    server.notify("turn/started",json!({"threadId":"thread-0","turn":{"id":"native-race"}}));
+    let request = server.calls("turn/start").pop().unwrap();
+    server.send(json!({"id":request["id"],"error":{"code":-32600,"message":"thread already active"}}));
+    eventually("race metadata",|| server.calls("thread/read").len() >= 2).await;
+    assert!(f.sessions.busy("chat")); assert!(f.sink.kinds("error").is_empty());
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-race","status":"completed"}}));
+    eventually("native race completes",|| !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+}
+
+#[tokio::test]
+async fn fallback_completion_before_its_rpc_ack_does_not_reactivate_the_finished_task() {
+    let base = turn_responder();
+    let fallback = Arc::new(AtomicBool::new(false)); let wait = Arc::clone(&fallback);
+    let f = Fixture::with(Arc::new(move |method,params,index| {
+        if method == "thread/read" { return Some(json!({"thread":{"id":params["threadId"],"status":{"type":"idle"}}})); }
+        if method == "turn/start" && wait.load(Ordering::SeqCst) { return None; }
+        base(method,params,index)
+    }));
+    let server = f.started("task",json!({})).await;
+    fallback.store(true,Ordering::SeqCst);
+    spawn_waiting_child(&server);
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    eventually("fallback attempt",|| server.calls("turn/start").len() == 2).await;
+    let request = server.calls("turn/start").pop().unwrap();
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"fast-fallback","status":"completed"}}));
+    eventually("finished before ack",|| !f.sessions.busy("chat")).await;
+    server.send(json!({"id":request["id"],"result":{"turn":{"id":"fast-fallback"}}}));
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!f.sessions.busy("chat"));assert_eq!(f.sink.kinds("done").len(),1);
+    assert_eq!(server.calls("turn/start").len(),2);
+}
+
+#[tokio::test]
+async fn stale_child_metadata_cannot_revive_a_native_completion_that_arrived_during_the_read() {
+    let base = turn_responder();
+    let f = Fixture::with(Arc::new(move |method,params,index| {
+        if method == "thread/read" {
+            if params["threadId"] == "child" { return None; }
+            return Some(json!({"thread":{"id":params["threadId"],"status":{"type":"idle"}}}));
+        }
+        base(method,params,index)
+    }));
+    let server = f.started("task",json!({})).await;
+    spawn_waiting_child(&server);
+    eventually("child metadata read",|| server.calls("thread/read").iter().any(|c| c["params"]["threadId"] == "child")).await;
+    let read = server.calls("thread/read").into_iter().find(|c| c["params"]["threadId"] == "child").unwrap();
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    eventually("native child completion",|| f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "child" && e["agent"]["status"] == "completed")).await;
+    server.send(json!({"id":read["id"],"result":{"thread":{"id":"child","status":{"type":"active"}}}}));
+    eventually("continuation despite stale active metadata",|| server.calls("turn/start").len() == 2).await;
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-2","status":"completed"}}));
+    eventually("finished once",|| !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+}
+
+#[tokio::test]
+async fn recovered_root_active_metadata_accepts_output_when_turn_started_was_missed() {
+    let f = Fixture::new();let server = f.started("task",json!({})).await;
+    spawn_waiting_child(&server);
+    server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"child-turn","status":"completed"}}));
+    server.notify("thread/status/changed",json!({"threadId":"thread-0","status":{"type":"active"}}));
+    server.notify("item/agentMessage/delta",json!({"threadId":"thread-0","turnId":"native-missed-start","itemId":"answer","delta":"Retomado automaticamente"}));
+    eventually("recovered continuation delta",|| f.sink.kinds("segment").iter().any(|e| e["segment"]["text"] == "Retomado automaticamente")).await;
+    server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-missed-start","status":"completed"}}));
+    eventually("recovered root finished",|| !f.sessions.busy("chat")).await;
+    assert_eq!(f.sink.kinds("done").len(),1);
+}
+
 #[tokio::test]
 async fn subagents_keep_native_parent_edges_and_original_sink_after_root_completion() {
     let f = Fixture::new();
@@ -424,11 +612,19 @@ async fn subagents_keep_native_parent_edges_and_original_sink_after_root_complet
     eventually("nested edge", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "nested" && e["agent"]["parentId"] == "child")).await;
     assert!(!f.sink.kinds("segment").iter().any(|e| e["segment"]["text"] == "Analisando…"));
     server.notify("turn/completed", json!({"threadId":"thread-0", "turn":{"id":"native-1","status":"completed"}}));
-    eventually("parent done", || !f.sessions.busy("chat")).await;
+    server.notify("item/agentMessage/delta", json!({"threadId":"child", "turnId":"child-turn", "itemId":"reply", "delta":" concluído"}));
+    server.notify("turn/completed", json!({"threadId":"child", "turn":{"id":"child-turn", "status":"completed"}}));
+    server.notify("turn/started", json!({"threadId":"nested", "turn":{"id":"nested-turn"}}));
+    server.notify("turn/completed", json!({"threadId":"nested", "turn":{"id":"nested-turn", "status":"completed"}}));
+    eventually("children done while root task waits", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "nested" && e["agent"]["status"] == "completed")).await;
+    assert!(f.sessions.busy("chat"), "yield is not the end of the user task");
+    assert!(f.sink.kinds("done").is_empty());
+    server.notify("turn/started", json!({"threadId":"thread-0", "turn":{"id":"native-continuation"}}));
+    server.notify("turn/completed", json!({"threadId":"thread-0", "turn":{"id":"native-continuation","status":"completed"}}));
+    eventually("parent consumed results", || !f.sessions.busy("chat")).await;
     let next_sink = Arc::new(Sink::default());
     f.sessions.send(OWNER, next_sink.clone(), payload("root-second", json!({"resume":"thread-0"})), None).await.unwrap();
     eventually("next turn", || server.calls("turn/start").len() == 2).await;
-    server.notify("item/agentMessage/delta", json!({"threadId":"child", "turnId":"child-turn", "itemId":"reply", "delta":" concluído"}));
     server.notify("turn/completed", json!({"threadId":"child", "turn":{"id":"child-turn", "status":"completed"}}));
     eventually("child done", || f.sink.kinds("subagent").iter().any(|e| e["agent"]["id"] == "child" && e["agent"]["status"] == "completed")).await;
     assert!(f.sink.kinds("subagent").iter().any(|e| e["id"] == "root-first" && e["agent"]["segment"]["text"] == "Analisando… concluído"));
@@ -476,6 +672,8 @@ async fn direct_subagent_messages_steer_the_child_then_start_its_next_turn_witho
     assert_eq!(server.calls("turn/start").len(), 1);
     server.notify("turn/completed", json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
     server.notify("turn/completed", json!({"threadId":"child","turn":{"id":"child-live","status":"completed"}}));
+    server.notify("turn/started", json!({"threadId":"thread-0","turn":{"id":"native-continuation"}}));
+    server.notify("turn/completed", json!({"threadId":"thread-0","turn":{"id":"native-continuation","status":"completed"}}));
     eventually("parent and child idle", || !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["status"] == "completed")).await;
     let next_sink: Arc<Sink> = Arc::default();
     f.sessions.send(OWNER, next_sink.clone(), payload("root-second", json!({"resume":"thread-0"})), None).await.unwrap();
@@ -526,7 +724,8 @@ async fn subagent_pending_approvals_and_questions_survive_root_completion() {
     server.notify("turn/started", json!({"threadId":"child","turn":{"id":"child-live"}}));
     server.request(61,"item/commandExecution/requestApproval",json!({"threadId":"child","turnId":"child-live","itemId":"cmd","command":"npm test"}));
     server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
-    eventually("parent done and child approval", || !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["permission"].is_object())).await;
+    eventually("parent waiting and child approval", || f.sessions.busy("chat") && f.sink.kinds("subagent").iter().any(|e| e["agent"]["permission"].is_object())).await;
+    assert!(f.sink.kinds("done").is_empty());
     let permission = f.sink.kinds("subagent").into_iter().find(|e| e["agent"]["permission"].is_object()).unwrap()["agent"]["permission"].clone();
     let request_id = permission["permId"].as_str().unwrap();
     f.sessions.permission(OTHER,"chat",request_id,"allow");
@@ -559,7 +758,7 @@ async fn direct_subagent_messages_claim_once_resume_only_the_closed_child_and_ke
     let sessions = f.sessions.clone();
     let send = tokio::spawn(async move { sessions.message_subagent(OWNER,"chat","root-first","child","Continue".into(),vec![]).await });
     eventually("child turn/start",|| server.calls("turn/start").len() == 2).await;
-    assert_eq!(server.calls("thread/resume")[0]["params"],json!({"threadId":"child"}));
+    assert_eq!(server.calls("thread/resume").last().unwrap()["params"],json!({"threadId":"child"}));
     assert!(f.sessions.message_subagent(OWNER,"chat","root-first","child","Duplicada".into(),vec![]).await.unwrap_err().contains("já está sendo enviada"));
     server.notify("turn/started",json!({"threadId":"child","turn":{"id":"fast"}}));
     server.notify("turn/completed",json!({"threadId":"child","turn":{"id":"fast","status":"completed"}}));
@@ -580,7 +779,8 @@ async fn subagent_parallel_approval_and_question_queues_preserve_each_head_while
     for request in [71,72] { server.request(request,"item/commandExecution/requestApproval",json!({"threadId":"child","turnId":"live","command":format!("command-{request}")})); }
     for request in [73,74] { server.request(request,"item/tool/requestUserInput",json!({"threadId":"child","turnId":"live","questions":[{"id":"q","question":format!("Pergunta {request}"),"options":[]}]})); }
     server.notify("turn/completed",json!({"threadId":"thread-0","turn":{"id":"native-1","status":"completed"}}));
-    eventually("root done and first question",|| !f.sink.kinds("done").is_empty() && f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:73")).await;
+    eventually("root waiting and first question",|| f.sessions.busy("chat") && f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:73")).await;
+    assert!(f.sink.kinds("done").is_empty());
     let permissions: Vec<Value> = f.sink.kinds("subagent").iter().filter_map(|e| e["agent"]["permission"].as_object().map(|p| json!(p))).collect();
     assert_eq!(permissions.len(),1); assert_eq!(permissions[0]["permId"],"codex:chat:71");
     assert!(!f.sink.kinds("subagent").iter().any(|e| e["agent"]["question"]["dialogId"] == "codex:chat:74"));

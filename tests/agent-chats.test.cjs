@@ -19,11 +19,14 @@ const claudeSel = (over = {}) => ({ provider: 'claude', profileId: 'ambient-clau
 const mkChat = (id, over = {}) => ({ id, title: 't', createdAt: 1, updatedAt: 1, turns: [], selection: claudeSel(), cwd: 'C:\\w', ...over })
 const fastModel = (id = 'opus') => ({ id, efforts: [], fast: { id: 'fast' } })
 
-function env({ memory, activeTask } = {}) {
-  const calls = { claude: [], codex: [], toasts: [], deleted: [] }
+function env({ memory, activeTask, save, readDir, platform = 'win32' } = {}) {
+  const calls = { claude: [], codex: [], toasts: [], deleted: [], saved: [], directories: [] }
   global.localStorage = { getItem: (k) => memory && k === 'prism.picker.memory.v2' ? JSON.stringify(memory) : null, setItem() {} }
   global.window = { prism: {
-    chats: { save: async () => true, delete: async (id) => { calls.deleted.push(id); return true }, list: async () => [], flush: () => ({ ok: true }) },
+    chats: { save: async (chat) => { calls.saved.push(chat); return save ? save(chat) : true }, delete: async (id) => { calls.deleted.push(id); return true }, list: async () => [], flush: () => ({ ok: true }) },
+    app: { info: async () => ({ platform }) },
+    fs: { readDir: async (cwd) => { calls.directories.push(['local', cwd]); return readDir ? readDir(cwd) : [] } },
+    ssh: { fs: { readDir: async (id, cwd) => { calls.directories.push([id, cwd]); return readDir ? readDir(cwd) : [] } } },
     providers: { list: async () => [] },
     claude: { agentSend: (p) => calls.claude.push(p) },
     codex: { send: (p) => calls.codex.push(p) }
@@ -52,6 +55,94 @@ const seed = (e, list, extra = {}) => e.chats.setState({ chats: list, ...extra }
 const withEnv = (opts, body) => async () => { const e = env(opts); try { await body(e) } finally { e.restore() } }
 const setCatalog = (e, models, provider = 'claude', profile = 'ambient-claude') =>
   e.catalog.useModelCatalog.setState({ entries: { [e.catalog.catalogKey(provider, profile)]: { models, loading: false } } })
+
+test('changeWorkingDirectory preserves Claude/Codex history and selection, changes just the addressed chat and resets native resume', withEnv({}, async e => {
+  for (const provider of ['claude', 'codex']) {
+    const chat = mkChat(provider, { selection: claudeSel({ provider, profileId: `ambient-${provider}` }), turns: [{ id: 'u', role: 'user', text: 'Keep this' }],
+      draft: 'draft', resume: { route: `${provider}:ambient-${provider}`, sessionId: 'old' }, lastRunId: 'old-run' })
+    const other = mkChat('other', { cwd: 'C:\\other' })
+    seed(e, [chat, other])
+    await e.S().changeWorkingDirectory(provider, 'D:\\new-project')
+    const changed = e.S().chats[0]
+    assert.equal(changed.cwd, 'D:\\new-project'); assert.equal(changed.cwdPinned, true)
+    assert.equal(changed.resume, undefined); assert.equal(changed.lastRunId, undefined)
+    assert.equal(changed.turns, chat.turns); assert.equal(changed.selection, chat.selection); assert.equal(changed.draft, 'draft')
+    assert.equal(e.S().chats[1], other)
+    e.S().bindWorkspace(provider, 'C:\\explorer')
+    assert.equal(e.S().chats[0].cwd, 'D:\\new-project')
+    assert.equal(e.S().send(provider, 'Continue'), true)
+    const payload = provider === 'codex' ? e.calls.codex.at(-1) : e.calls.claude.at(-1)
+    assert.equal(payload.cwd, 'D:\\new-project'); assert.equal(payload.resume, undefined)
+    assert.match(payload.prompt, /Keep this/); assert.match(payload.prompt, /Pasta de trabalho atual.*D:\\new-project/)
+  }
+}))
+
+test('changeWorkingDirectory pins the same folder without dropping a valid resume', withEnv({}, async e => {
+  const chat = mkChat('same', { resume: { route: 'claude:ambient-claude', sessionId: 'keep' } })
+  seed(e, [chat])
+  await e.S().changeWorkingDirectory('same', chat.cwd)
+  assert.equal(e.S().chats[0].resume, chat.resume); assert.equal(e.S().chats[0].cwdPinned, true)
+}))
+
+test('changeWorkingDirectory rejects invalid, missing and inaccessible folders before mutating state', async () => {
+  for (const [path, message] of [['relative', /absoluto/], ['C:\\missing', /não existe/], ['C:\\denied', /permissão/]]) {
+    const e = env({ readDir: async cwd => { throw new Error(cwd.includes('missing') ? 'ENOENT' : 'EACCES') } })
+    const chat = mkChat('a', { resume: { route: 'claude:ambient-claude', sessionId: 'keep' } }); seed(e, [chat])
+    await assert.rejects(e.S().changeWorkingDirectory('a', path), message)
+    assert.equal(e.S().chats[0], chat)
+  }
+})
+
+test('changeWorkingDirectory persistence failure leaves cwd, history and resume intact', withEnv({ save: async () => { throw new Error('disk full') } }, async e => {
+  const chat = mkChat('a', { resume: { route: 'claude:ambient-claude', sessionId: 'keep' } }); seed(e, [chat])
+  await assert.rejects(e.S().changeWorkingDirectory('a', 'D:\\new'), /disk full/)
+  assert.equal(e.S().chats[0], chat)
+}))
+
+test('changeWorkingDirectory reserves only its chat while validation and save are in flight', async () => {
+  let release; const pending = new Promise(resolve => { release = resolve })
+  const e = env({ readDir: () => pending }); const chat = mkChat('a'); seed(e, [chat, mkChat('b')])
+  const changing = e.S().changeWorkingDirectory('a', 'D:\\new')
+  assert.equal(e.S().send('a', 'blocked'), false)
+  e.S().bindWorkspace('a', 'C:\\old'); e.S().rename('a', 'blocked')
+  assert.equal(e.S().chats[0], chat)
+  assert.equal(e.S().send('b', 'still allowed'), true)
+  await assert.rejects(e.S().remove('a'), /troca de pasta/)
+  await assert.rejects(e.S().changeWorkingDirectory('a', 'E:\\other'), /Pare a tarefa/)
+  e.S().draft('a', 'new draft while checking')
+  release([]); await changing
+  assert.equal(e.S().chats[0].draft, 'new draft while checking'); assert.equal(e.S().chats[0].cwd, 'D:\\new')
+})
+
+test('changeWorkingDirectory refuses running roots and native children', withEnv({}, async e => {
+  seed(e, [mkChat('root')], { runtime: { root: { busy: true } } })
+  await assert.rejects(e.S().changeWorkingDirectory('root', 'D:\\new'), /Pare a tarefa/)
+  seed(e, [mkChat('root'), mkChat('child', { nativeAgent: { rootChatId: 'root', status: 'running' } })], { runtime: {} })
+  await assert.rejects(e.S().changeWorkingDirectory('root', 'D:\\new'), /subagentes/)
+  await assert.rejects(e.S().changeWorkingDirectory('child', 'D:\\new'), /principal/)
+  seed(e, [mkChat('root'), mkChat('child', { nativeAgent: { rootChatId: 'root', status: 'completed' } })], { runtime: {}, subagentSending: { child: true } })
+  await assert.rejects(e.S().changeWorkingDirectory('root', 'D:\\new'), /subagentes/)
+}))
+
+test('a pending directory change prevents a completed native child from starting an old-session turn', async () => {
+  let release; const pending = new Promise(resolve => { release = resolve })
+  const e = env({ readDir: () => pending })
+  seed(e, [mkChat('root'), mkChat('child', { nativeAgent: { rootChatId: 'root', status: 'completed' } })])
+  const change = e.S().changeWorkingDirectory('root', 'D:\\new')
+  assert.equal(await e.S().messageSubagent('child', 'cannot race'), false)
+  release([]); await change
+})
+
+test('changeWorkingDirectory validates SSH on the current matching connection and retains the target', withEnv({}, async e => {
+  const target = { host: 'srv', port: 22, username: 'u' }
+  const chat = mkChat('remote', { remoteId: 'old-connection', remoteTarget: target }); seed(e, [chat])
+  e.useStore.setState({ remote: { id: 'new-connection', ...target } })
+  await e.S().changeWorkingDirectory('remote', '/srv/new')
+  assert.deepEqual(e.calls.directories, [['new-connection', '/srv/new']])
+  assert.equal(e.S().chats[0].remoteId, chat.remoteId); assert.equal(e.S().chats[0].remoteTarget, target)
+  e.useStore.setState({ remote: { id: 'other', ...target, host: 'different' } })
+  await assert.rejects(e.S().changeWorkingDirectory('remote', '/srv/other'), /Reconecte/)
+}))
 
 test('send returns true only when accepted and never touches drafts', withEnv({}, (e) => {
   seed(e, [mkChat('a', { draft: 'D', contextDraft: 'C' })])

@@ -18,6 +18,7 @@ function fixture(){
  const usage=load('src/shared/providerUsage.ts')
  const module=load('src/main/ipc/claudeAgent.ts',{
   './claudeSubagents':load('src/main/ipc/claudeSubagents.ts'),
+  './claudeTurnLifecycle':load('src/main/ipc/claudeTurnLifecycle.ts'),
   '../../shared/providerUsage':usage,
   electron:{ipcMain:{on:(key,fn)=>handlers[key]=fn,handle:(key,fn)=>handlers[key]=fn},app:{on:(name,fn)=>appEvents[name]=fn}},
   child_process:{spawn:()=>{throw Error('No CLI allowed')},execSync:()=>Buffer.from('C:\\fake\\claude.exe')},
@@ -79,6 +80,8 @@ test('Claude child messages are explicitly forwarded to the live parent using th
  assert.deepEqual(JSON.parse(input.message.content.split('\n\n').at(-1)),{to:'real-native-target',message:payload.text})
  assert.ok(f.journal.some(event=>event.id==='origin-turn'&&event.segment?.kind==='user'&&event.segment.text.includes('SendMessage')))
  assert.equal(f.events.some(event=>event.channel==='agent:subagent'&&event.payload.agent.segment?.kind==='user'),false,'a parent ack is not a native child receipt')
+ first.q.emit({type:'result',subtype:'success',session_id:'native'});await tick()
+ first.q.emit({type:'system',subtype:'task_notification',task_id:'real-native-target',status:'completed'})
  first.q.emit({type:'result',subtype:'success',session_id:'native'});await tick()
  assert.throws(()=>f.handlers['agent:subagent-message']({sender:f.owner},payload),/principal está parado/)
  await f.send('current-parent-turn','native');await first.prompt.next()

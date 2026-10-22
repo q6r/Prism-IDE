@@ -29,7 +29,7 @@ pub mod remote;
 /// majors refuse each other (`version_mismatch`).
 pub const PROTOCOL_MAJOR: u32 = 1;
 /// Bumped on additive changes; differences surface as `capabilities`.
-pub const PROTOCOL_MINOR: u32 = 0;
+pub const PROTOCOL_MINOR: u32 = 1;
 pub const JSONRPC: &str = "2.0";
 
 /// Method names. Domains added by later tickets follow `<domain>.<verb>`.

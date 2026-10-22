@@ -111,12 +111,15 @@ pub fn continuation_prompt(chat: &Value, prompt: &str) -> (String, Option<String
     }
     let turns = chat.get("turns").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
     let history = bounded_transcript(turns, HISTORY_BUDGET);
+    let workspace = if truthy(chat.get("cwdPinned")) {
+        format!("Pasta de trabalho atual desta conversa: {}. Use esta pasta nas próximas ações; caminhos antigos no histórico são apenas contexto.\n\n", chat.get("cwd").and_then(Value::as_str).unwrap_or_default())
+    } else { String::new() };
     if history.is_empty() {
-        return (prompt.to_string(), None);
+        return (format!("{workspace}{prompt}"), None);
     }
     (
         format!(
-            "Continue esta conversa usando o histórico abaixo como contexto. As ferramentas anteriores já foram executadas; não repita ações só porque aparecem no histórico.\n\n<historico>\n{history}\n</historico>\n\nNova mensagem do usuário:\n{prompt}"
+            "Continue esta conversa usando o histórico abaixo como contexto. As ferramentas anteriores já foram executadas; não repita ações só porque aparecem no histórico.\n\n<historico>\n{history}\n</historico>\n\n{workspace}Nova mensagem do usuário:\n{prompt}"
         ),
         None,
     )

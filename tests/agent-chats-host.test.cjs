@@ -27,6 +27,34 @@ const snapshot = (chats, runtime = {}, rev = 1) => ({ rev, chats, runtime })
 const fastModel = (id = 'opus') => ({ id, efforts: [], fast: { id: 'fast' } })
 const CAPS = ['chats@1', 'claude@1', 'codex@1']
 const HISTORY_CAPS = [...CAPS, 'chats.history@1']
+const DIRECTORY_CAPS = [...CAPS, 'chats.working-directory@1']
+
+test('host directory change sends only atomic metadata command; history stubs and drafts stay intact until ordered delta', async () => {
+  const e = env({ caps: DIRECTORY_CAPS })
+  const chat = stub('c', { draft: 'keep', resume: { route: ROUTE, sessionId: 'old' } })
+  await e.boot(snapshot([chat]))
+  await e.S().changeWorkingDirectory('c', 'D:\\new')
+  assert.deepEqual(e.hostCalls('changeWorkingDirectory'), [['changeWorkingDirectory', { chatId: 'c', cwd: 'D:\\new' }]])
+  assert.equal(e.hostCalls('put').length, 0)
+  assert.equal(e.S().chats[0].cwd, chat.cwd)
+  e.follow.deltas([{ op: 'patch', chatId: 'c', patch: { cwd: 'D:\\new', cwdPinned: true, resume: null, lastRunId: null } }], 2)
+  assert.equal(e.S().chats[0].cwd, 'D:\\new'); assert.equal(e.S().chats[0].historyPending, true)
+  assert.equal(e.S().chats[0].draft, 'keep')
+})
+
+test('host directory change uses authoritative busy refusal even when the window appears idle', async () => {
+  const e = env({ caps: DIRECTORY_CAPS, reply: { changeWorkingDirectory: () => ({ ok: false, code: 'busy', error: 'Pare a tarefa no host.' }) } })
+  const chat = mkChat('c', { resume: { route: ROUTE, sessionId: 'old' } }); await e.boot(snapshot([chat]))
+  await assert.rejects(e.S().changeWorkingDirectory('c', 'D:\\new'), /no host/)
+  assert.equal(e.S().chats[0].cwd, chat.cwd); assert.deepEqual(e.S().chats[0].resume, chat.resume)
+  assert.equal(e.hostCalls('put').length, 0)
+})
+
+test('host directory change requires the additive capability and never saves a stub as fallback', async () => {
+  const e = env(); await e.boot(snapshot([stub('c')]))
+  await assert.rejects(e.S().changeWorkingDirectory('c', 'D:\\new'), /Atualize o host/)
+  assert.equal(e.hostCalls('put').length, 0); assert.equal(e.hostCalls('changeWorkingDirectory').length, 0)
+})
 const stub = (id, over = {}) => mkChat(id, { historyPending: true, historyTurnCount: 20, ...over })
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 const SILENT = 'O host do Prism não respondeu. Tentando de novo…'
@@ -60,7 +88,7 @@ function env(options = {}) {
     const fn = o.reply[name]
     return Promise.resolve(fn ? fn(...args) : name === 'send' ? { ok: true, turnId: 'T-host' } : { ok: true })
   }
-  const hostApi = Object.fromEntries(['create', 'put', 'configure', 'confirmAccount', 'bindWorkspace', 'rename', 'archive', 'setTask', 'remove', 'send', 'stop', 'steer', 'queue', 'respondPermission', 'respondQuestion', 'loadHistory']
+  const hostApi = Object.fromEntries(['create', 'put', 'configure', 'confirmAccount', 'bindWorkspace', 'changeWorkingDirectory', 'rename', 'archive', 'setTask', 'remove', 'send', 'stop', 'steer', 'queue', 'respondPermission', 'respondQuestion', 'loadHistory']
     .map((n) => [n, cmd(n)]))
   hostApi.follow = (onSnapshot, onDeltas, onState) => { calls.follow++; follow.snap = onSnapshot; follow.deltas = onDeltas; follow.progress = onState; return () => {} }
   hostApi.list = async () => snapshot([], {})

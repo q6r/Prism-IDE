@@ -410,6 +410,27 @@ for (const viaHost of [true, false]) {
   const label = viaHost ? 'host' : 'ipc'
   const chatsOf = (f) => (viaHost ? f.hostState.chats : f.agentStore.store.chats)
 
+  test(`${label}: trocar pasta impede reimportação e refresh de reativar a sessão antiga`, async t => {
+    const f = fixture(t, { host: viaHost })
+    const temporary = path.dirname(f.userData), sessionId = '01a11cdf-3b3f-78c0-8495-8a15b080e54d'
+    setNativeSession(f.dbFile, { harnessId: 'codex', sessionId, profileId: 'account-1', workspace: temporary })
+    makeRollout(f.profileHome, sessionId)
+    await f.api.importTraycer(request(f.root, { profileIds: [], copyCredentials: false }))
+    const chat = chatsOf(f).find(c => c.id === f.importedChat)
+    assert.equal(chat.resume.sessionId, sessionId)
+    Object.assign(chat, { cwd: path.join(temporary, 'new-project'), cwdPinned: true, workspaceNeedsBinding: false })
+    delete chat.resume; delete chat.lastRunId
+    await f.api.importTraycer(request(f.root, { profileIds: [], copyCredentials: false }))
+    let current = chatsOf(f).find(c => c.id === f.importedChat)
+    assert.equal(current.resume, undefined); assert.equal(current.cwdPinned, true); assert.equal(current.cwd, chat.cwd)
+    addTraycerMessage(f.dbFile, 'chat-1', 'new-source-turn', 'Novidade da origem')
+    const refreshed = await f.api.reimportTraycerChat(f.importedChat)
+    assert.equal(refreshed.updated, 1)
+    current = chatsOf(f).find(c => c.id === f.importedChat)
+    assert.equal(current.resume, undefined); assert.equal(current.cwdPinned, true); assert.equal(current.cwd, chat.cwd)
+    assert.equal(current.turns.at(-1).segments[0].text, 'Novidade da origem')
+  })
+
   test(`${label}: reimportTraycerChat atualiza o histórico de um chat ainda não mexido no Prism`, async (t) => {
     const f = fixture(t, { host: viaHost })
     await f.api.importTraycer(request(f.root, { profileIds: [] }))

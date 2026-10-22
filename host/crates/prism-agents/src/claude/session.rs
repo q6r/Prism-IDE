@@ -1,7 +1,7 @@
 //! One live chat session: a Claude Code process with streaming input. Its
 //! stdout becomes the `agent:*` events the renderer has always consumed
 //! (port of `consumeStream` and `canUseTool` in src/main/ipc/claudeAgent.ts).
-//! `system/init` marks each turn's start and `result` its end.
+//! Root results may yield to background agents before the final idle boundary.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,6 +51,7 @@ pub(crate) struct State {
     pub permissions_key: String,
     pub session_id: Option<String>,
     pub active_turn: Option<String>,
+    pub(super) lifecycle: super::lifecycle::TurnLifecycle,
     pub model: String,
     pub emit: Emitter,
     subagents: super::subagents::Subagents,
@@ -155,6 +156,7 @@ impl Session {
             permissions_key: s.permissions_key,
             session_id: None,
             active_turn: s.active_turn,
+            lifecycle: super::lifecycle::TurnLifecycle::default(),
             model: s.model,
             emit: s.emit,
             subagents: super::subagents::Subagents::default(),
@@ -401,6 +403,12 @@ fn translate(st: &mut State, key: &str, msg: &Value, shared: &Shared) -> Events 
     let mut out: Events = Vec::new();
     let (child_frame, children) = st.subagents.route(msg, st.active_turn.as_deref());
     out.extend(children.into_iter().map(|payload| ("agent:subagent", payload)));
+    // Observe task edges even when the subagent router owns their display.
+    let final_result = if st.active_turn.is_some() {
+        if kind == "result" && st.aborted && msg.get("parent_tool_use_id").and_then(Value::as_str).is_none() { st.lifecycle.reset(); Some(msg.clone()) }
+        else { st.lifecycle.observe(msg) }
+    } else { None };
+    if let Some(result) = final_result { out.extend(complete_turn(st, key, &result, shared)); }
     if child_frame { return out; }
     let id = || st.active_turn.clone().map(Value::String);
     match kind {
@@ -484,55 +492,62 @@ fn translate(st: &mut State, key: &str, msg: &Value, shared: &Shared) -> Events 
                 }
             }
         }
-        "result" => {
-            let is_error = truthy(msg.get("is_error"));
-            st.last_error = is_error.then(|| {
-                if subtype == "success" {
-                    msg.get("result").and_then(Value::as_str).unwrap_or("").to_string()
-                } else {
-                    msg.get("errors").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>().join("; ")
-                }
-            });
-            // Measured even without an open turn, so the base stays in step.
-            let (turn, next) = claude_turn_usage(msg, st.usage_base);
-            if let (Some(next), Some(sid)) = (next, text(msg.get("session_id"))) {
-                shared.totals.lock().unwrap().insert(sid.to_string(), next);
-            }
-            st.usage_base = next;
-            let auth = std::mem::take(&mut st.auth_failed);
-            if let Some(id) = st.active_turn.take() {
-                out.push((
-                    "agent:result",
-                    object(vec![
-                        ("id", Some(id.clone().into())),
-                        ("chatId", Some(key.into())),
-                        ("sessionId", field(msg, "session_id")),
-                        ("isError", Some(is_error.into())),
-                        ("subtype", field(msg, "subtype")),
-                        ("costUsd", field(msg, "total_cost_usd")),
-                        ("durationMs", field(msg, "duration_ms")),
-                        ("numTurns", field(msg, "num_turns")),
-                        ("resultText", field(msg, "result")),
-                        ("usage", field(msg, "usage")),
-                        ("contextTokens", st.context_usage.as_ref().map(|usage| json!(["input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens"].iter().filter_map(|key| usage.get(key).and_then(Value::as_u64)).sum::<u64>()))),
-                        ("contextWindow", msg.get("modelUsage").and_then(|models| models.get(st.resolved_model.as_deref().unwrap_or(&st.model))).and_then(|model| model.get("contextWindow")).cloned()),
-                        ("turn", turn),
-                        ("model", st.resolved_model.clone().map(Value::String)),
-                        ("fastMode", fast_mode(msg)),
-                        // The login is gone: the UI offers to sign in again.
-                        ("code", (is_error && auth).then(|| "cli_auth".into())),
-                    ]),
-                ));
-                // A subtype other than success means the turn was interrupted, not failed.
-                let aborted = std::mem::take(&mut st.aborted) || (truthy(msg.get("subtype")) && msg.get("subtype").and_then(Value::as_str) != Some("success"));
-                out.push(("agent:done", json!({"id": id, "aborted": aborted})));
-            }
-        }
+        "result" => {} // Only complete_turn publishes the final result.
+
         _ => {
             if !matches!(kind, "system" | "rate_limit_event" | "stream_event" | "tool_progress" | "auth_status" | "active_goal" | "autocompact_state") {
                 tracing::debug!(chat = %key, kind, "claude: mensagem desconhecida ignorada");
             }
         }
+    }
+    out
+}
+
+/// Completes exactly one assistant turn, after the native background loop.
+fn complete_turn(st: &mut State, key: &str, msg: &Value, shared: &Shared) -> Events {
+    let subtype = msg.get("subtype").and_then(Value::as_str).unwrap_or("");
+    let mut out = Vec::new();
+    let is_error = truthy(msg.get("is_error"));
+    st.last_error = is_error.then(|| {
+        if subtype == "success" {
+            msg.get("result").and_then(Value::as_str).unwrap_or("").to_string()
+        } else {
+            msg.get("errors").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>().join("; ")
+        }
+    });
+    // Measured even without an open turn, so the base stays in step.
+    let (turn, next) = claude_turn_usage(msg, st.usage_base);
+    if let (Some(next), Some(sid)) = (next, text(msg.get("session_id"))) {
+        shared.totals.lock().unwrap().insert(sid.to_string(), next);
+    }
+    st.usage_base = next;
+    let auth = std::mem::take(&mut st.auth_failed);
+    if let Some(id) = st.active_turn.take() {
+        out.push((
+            "agent:result",
+            object(vec![
+                ("id", Some(id.clone().into())),
+                ("chatId", Some(key.into())),
+                ("sessionId", field(msg, "session_id")),
+                ("isError", Some(is_error.into())),
+                ("subtype", field(msg, "subtype")),
+                ("costUsd", field(msg, "total_cost_usd")),
+                ("durationMs", field(msg, "duration_ms")),
+                ("numTurns", field(msg, "num_turns")),
+                ("resultText", field(msg, "result")),
+                ("usage", field(msg, "usage")),
+                ("contextTokens", st.context_usage.as_ref().map(|usage| json!(["input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens"].iter().filter_map(|key| usage.get(key).and_then(Value::as_u64)).sum::<u64>()))),
+                ("contextWindow", msg.get("modelUsage").and_then(|models| models.get(st.resolved_model.as_deref().unwrap_or(&st.model))).and_then(|model| model.get("contextWindow")).cloned()),
+                ("turn", turn),
+                ("model", st.resolved_model.clone().map(Value::String)),
+                ("fastMode", fast_mode(msg)),
+                // The login is gone: the UI offers to sign in again.
+                ("code", (is_error && auth).then(|| "cli_auth".into())),
+            ]),
+        ));
+        // A subtype other than success means the turn was interrupted, not failed.
+        let aborted = std::mem::take(&mut st.aborted) || (truthy(msg.get("subtype")) && msg.get("subtype").and_then(Value::as_str) != Some("success"));
+        out.push(("agent:done", json!({"id": id, "aborted": aborted})));
     }
     out
 }

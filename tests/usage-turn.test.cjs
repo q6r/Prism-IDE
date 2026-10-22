@@ -109,6 +109,7 @@ function fixture(){
  const usage=load('src/shared/providerUsage.ts')
  const module=load('src/main/ipc/claudeAgent.ts',{
   './claudeSubagents':load('src/main/ipc/claudeSubagents.ts'),
+  './claudeTurnLifecycle':load('src/main/ipc/claudeTurnLifecycle.ts'),
   '../../shared/providerUsage':usage,
   electron:{ipcMain:{on:(key,fn)=>handlers[key]=fn,handle:()=>{}},app:{on:(name,fn)=>appEvents[name]=fn}},
   child_process:{spawn:()=>{throw Error('No CLI allowed')},execSync:()=>Buffer.from('C:\\fake\\claude.exe')},
@@ -175,6 +176,7 @@ function codexFixture(){
  const repo={beginRun:(chat,id)=>journal.push({chat:chat.id,id,kind:'begin'}),appendEvent:(chat,id,event)=>journal.push({chat,id,...event})}
  const module=load('src/main/ipc/nativeCodex.ts',{
   './codexSubagents':load('src/main/ipc/codexSubagents.ts'),
+  '../codexTurnLifecycle':load('src/main/codexTurnLifecycle.ts'),
   '../../shared/providerUsage':pu,
   electron:{ipcMain:{on:(name,fn)=>handlers[name]=fn,handle:()=>{}},app:{on:(name,fn)=>appEvents[name]=fn}},
   './agentCommands':{cachedCodexSkills:()=>null,codexSkillInputs:realCommands.codexSkillInputs},

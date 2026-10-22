@@ -64,6 +64,8 @@ interface AgentChatsState {
   configure: (id: string, selection: AgentSelection) => void
   confirmAccount: (id: string) => void
   bindWorkspace: (id: string, cwd: string, remoteId?: string) => void
+  /** Changes this chat's folder and preserves its transcript and selected provider. */
+  changeWorkingDirectory: (id: string, cwd: string) => Promise<void>
   draft: (id: string, text: string) => void
   contextDraft: (id: string, text: string) => void
   rename: (id: string, title: string) => void
@@ -112,6 +114,13 @@ let hostCaps: readonly string[] = []
 /** Chats created here that the host has not stored yet: a snapshot meanwhile keeps them. */
 const creating = new Set<string>()
 const historyRequests = new Map<string, Promise<boolean>>()
+/** Reserve a chat while validating/persisting its new folder. */
+const changingDirectories = new Set<string>()
+function directoryBusy(id: string): boolean {
+  const state = useAgentChats.getState()
+  return !!state.runtime[id]?.busy || state.chats.some(chat => chat.nativeAgent?.rootChatId === id
+    && (!!state.subagentSending[chat.id] || !!state.runtime[chat.id]?.busy || subagentActive(chat.nativeAgent.status)))
+}
 let historyEpoch = 0
 const historyVisits = new Map<string, number>()
 let historyVisit = 0
@@ -363,15 +372,22 @@ function turnEnded(chatId: string, turnId: string): void {
 /* ---------- Turns this window runs (IPC mode, and the IPC chats of host mode) ---------- */
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const saveChains = new Map<string, Promise<boolean>>()
 function save(chat: UnifiedChat): Promise<boolean> {
   if (chat.historyPending) return Promise.reject(new Error('Aguarde o histórico desta conversa carregar antes de salvá-la.'))
-  if (!onHost()) return window.prism.chats.save(chat)
-  return window.prism.chats.host.put(withoutDrafts(chat)).then((r) => {
-    if (!r.ok) throw new Error(r.error)
+  if (onHost()) return window.prism.chats.host.put(withoutDrafts(chat)).then(reply => {
+    if (!reply.ok) throw new Error(reply.error)
     return true
   })
+  const previous = saveChains.get(chat.id)
+  const write = (): Promise<boolean> => window.prism.chats.save(chat)
+  const pending = previous ? previous.catch(() => false).then(write) : write()
+  saveChains.set(chat.id, pending)
+  void pending.finally(() => { if (saveChains.get(chat.id) === pending) saveChains.delete(chat.id) }).catch(() => {})
+  return pending
 }
 function persist(id: string): void {
+  if (changingDirectories.has(id)) return
   if (useAgentChats.getState().chats.find(chat => chat.id === id)?.historyPending) return
   // A fixed maximum interval, not a trailing debounce: continuous token output
   // must never postpone saving the prompt and visible transcript indefinitely.
@@ -699,6 +715,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
     if (imported?.taskId) { useAgentTasks.getState().activate(imported.taskId); get().select(imported.id) }
   },
   reimportFromTraycer: async (id) => {
+    if (changingDirectories.has(id)) return
     const chat = get().chats.find((c) => c.id === id)
     if (!chat?.traycerSource) return
     const toast = useStore.getState().addToast
@@ -747,6 +764,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
     void get().loadHistory(id)
   },
   configure: (id, selection) => {
+    if (changingDirectories.has(id)) return
     const run = get().runtime[id]
     // The active run keeps its own route; this selection also applies to the queue.
     // Claude's Fast report describes the previous route; a new one starts unknown.
@@ -761,13 +779,14 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       resume: routeKey(c.selection) === routeKey(selection) ? c.resume : undefined }))
   },
   confirmAccount: (id) => {
-    if (get().runtime[id]?.busy) return
+    if (get().runtime[id]?.busy || changingDirectories.has(id)) return
     if (onHost()) hostCommand(window.prism.chats.host.confirmAccount(id))
     else editChat(id, (c) => ({ ...c, accountNeedsSelection: false }))
   },
   draft: (id, text) => onHost() ? setDraft(id, { draft: text }) : editChat(id, c => ({...c,draft:text})),
   contextDraft: (id, text) => onHost() ? setDraft(id, { contextDraft: text }) : editChat(id, c => ({...c,contextDraft:text})),
   rename: (id, title) => {
+    if (changingDirectories.has(id)) return
     if (!title.trim()) return
     // A chat running here is saved whole by this window: edit its own copy.
     if (onHost() && !runsHere(id)) hostCommand(window.prism.chats.host.rename(id, title.trim().slice(0, 100)))
@@ -775,12 +794,13 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
   },
   // Archiving waits for the run to stop; bringing a chat back never has to (as in Traycer).
   archive: (id, archived) => {
+    if (changingDirectories.has(id)) return
     if (archived && get().runtime[id]?.busy) return
     if (onHost() && !runsHere(id)) hostCommand(window.prism.chats.host.archive(id, archived))
     else editChat(id, (c) => ({ ...c, archived: archived || undefined }))
   },
   bindWorkspace: (id, cwd, remoteId) => {
-    if (get().runtime[id]?.busy) return
+    if (get().runtime[id]?.busy || changingDirectories.has(id) || get().chats.find(c => c.id === id)?.cwdPinned) return
     if (onHost()) {
       hostCommand(window.prism.chats.host.bindWorkspace({ chatId: id, cwd, remoteId, remoteTarget: remoteId ? remoteTargetNow() : undefined, model: useStore.getState().settings.model }))
       return
@@ -789,7 +809,54 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
       remoteTarget: remoteId ? remoteTargetNow() : undefined, resume: undefined,
       selection: remoteId ? { ...c.selection, provider: 'claude', profileId: 'ambient-claude', model: useStore.getState().settings.model } : c.selection })
   },
+  changeWorkingDirectory: async (id, cwd) => {
+    const chat = get().chats.find(c => c.id === id)
+    if (!chat) throw new Error('Esta conversa não existe mais.')
+    if (chat.nativeAgent) throw new Error('Troque a pasta na conversa principal, não no subagente.')
+    if (directoryBusy(id) || changingDirectories.has(id)) throw new Error('Pare a tarefa e os subagentes antes de trocar a pasta.')
+    if (!cwd.trim() || cwd.includes('\0')) throw new Error('Informe o caminho absoluto de uma pasta.')
+    changingDirectories.add(id)
+    clearTimeout(saveTimers.get(id)); saveTimers.delete(id)
+    try {
+      if (chat.remoteId) {
+        if (!cwd.startsWith('/')) throw new Error('Informe o caminho absoluto da pasta no servidor SSH.')
+        if (!sameRemoteTarget(chat.remoteTarget, remoteTargetNow())) throw new Error('Reconecte o servidor desta conversa antes de trocar a pasta.')
+        await window.prism.ssh.fs.readDir(useStore.getState().remote!.id, cwd)
+        if (!sameRemoteTarget(chat.remoteTarget, remoteTargetNow())) throw new Error('A conexão SSH mudou. Reconecte o servidor desta conversa.')
+      } else if (!onHost()) {
+        const platform = (await window.prism.app.info()).platform
+        const absolute = platform === 'win32' ? /^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+(?:[\\/]|$))/.test(cwd) : cwd.startsWith('/')
+        if (!absolute) throw new Error('Informe o caminho absoluto de uma pasta.')
+        await window.prism.fs.readDir(cwd)
+      }
+      if (directoryBusy(id)) throw new Error('Pare a tarefa e os subagentes antes de trocar a pasta.')
+      if (onHost()) {
+        if (!hostCaps.includes('chats.working-directory@1')) throw new Error('Atualize o host do Prism para trocar a pasta desta conversa.')
+        // Let earlier local saves finish before the atomic metadata command.
+        await saveChains.get(id)
+        const reply = await window.prism.chats.host.changeWorkingDirectory({ chatId: id, cwd })
+        if (!reply.ok) throw new Error(reply.error)
+      } else {
+        const current = get().chats.find(c => c.id === id)
+        if (!current || current.historyPending) throw new Error('Aguarde o histórico desta conversa carregar antes de trocar a pasta.')
+        const patch = { cwd, cwdPinned: true, workspaceNeedsBinding: false,
+          ...(current.cwd !== cwd ? { resume: undefined, lastRunId: undefined, updatedAt: Date.now() } : {}) }
+        if (!await save({ ...current, ...patch })) throw new Error('Não foi possível salvar a nova pasta da conversa.')
+        set(s => ({ chats: s.chats.map(c => c.id === id ? { ...c, ...patch } : c) }))
+      }
+    } catch (error) {
+      const message = (error as Error).message || 'Não foi possível trocar a pasta da conversa.'
+      if (/ENOENT|ENOTDIR/.test(message)) throw new Error('Esta pasta não existe ou não é um diretório.')
+      if (/EACCES|EPERM|permission denied/i.test(message)) throw new Error('Sem permissão para acessar esta pasta.')
+      throw error
+    } finally {
+      changingDirectories.delete(id)
+      // Composer drafts may have changed while validation was in flight.
+      if (!onHost()) persist(id)
+    }
+  },
   remove: async (id) => {
+    if (changingDirectories.has(id)) throw new Error('Aguarde a troca de pasta terminar.')
     if (get().runtime[id]?.busy) throw new Error('Pare a tarefa antes de excluir o chat.')
     clearTimeout(saveTimers.get(id)); saveTimers.delete(id)
     get().clearAttachments(id)
@@ -812,7 +879,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
   messageSubagent: async (id, text) => {
     const chat = get().chats.find(c => c.id === id)
     const native = chat?.nativeAgent
-    if (!chat || chat.historyPending || !native || !text.trim() || get().subagentSending[id]) return false
+    if (!chat || chat.historyPending || !native || !text.trim() || get().subagentSending[id] || changingDirectories.has(native.rootChatId)) return false
     const admittedTurn = get().runtime[id]?.turnId ?? native.turnId ?? chat.turns.at(-1)?.id
     set(s => ({ subagentSending: { ...s.subagentSending, [id]: true } }))
     try {
@@ -842,6 +909,7 @@ export const useAgentChats = create<AgentChatsState>((set, get) => ({
     } finally { set(s => ({ subagentSending: { ...s.subagentSending, [id]: false } })) }
   },
   send: (id, text, context, images, onRefused) => {
+    if (changingDirectories.has(id)) return false
     const chat = stableLocalImages(id)
     if (!chat || chat.nativeAgent || (!text.trim() && !images?.length) || get().runtime[id]?.busy) return false
     const referenced = resolveImageReferences(chat, text, images)

@@ -1,6 +1,7 @@
 import type { AgentSelection, SteerMessage, SubagentMessageResult, UnifiedChat } from '../../agents'
 import type { HostCallErrorCode, HostStatus } from '../client'
 import type { BindWorkspaceParams } from '../generated/BindWorkspaceParams'
+import type { ChangeWorkingDirectoryParams } from '../generated/ChangeWorkingDirectoryParams'
 import type { ChatDelta } from '../generated/ChatDelta'
 import type { ChatsDeltaBatch } from '../generated/ChatsDeltaBatch'
 import type { ChatsSnapshot } from '../generated/ChatsSnapshot'
@@ -54,6 +55,8 @@ export interface HostChatsApi {
   configure(chatId: string, selection: AgentSelection): Promise<ChatsReply>
   confirmAccount(chatId: string): Promise<ChatsReply>
   bindWorkspace(params: BindWorkspaceParams): Promise<ChatsReply>
+  /** Atomically changes cwd without replacing history or changing the provider. */
+  changeWorkingDirectory(params: ChangeWorkingDirectoryParams): Promise<ChatsReply>
   rename(chatId: string, title: string): Promise<ChatsReply>
   archive(chatId: string, archived: boolean): Promise<ChatsReply>
   /** Allowed while the chat runs; no `taskId` takes the chat out of its task. */
@@ -187,6 +190,7 @@ export function createHostChats(client: ChatsHostClient): HostChatsApi {
     configure: (chatId, selection) => command('configure', { chatId, selection }),
     confirmAccount: (chatId) => command('confirmAccount', { chatId }),
     bindWorkspace: (params) => command('bindWorkspace', params),
+    changeWorkingDirectory: (params) => command('changeWorkingDirectory', params),
     rename: (chatId, title) => command('rename', { chatId, title }),
     archive: (chatId, archived) => command('archive', { chatId, archived }),
     setTask: (chatId, taskId) => command('setTask', taskId ? { chatId, taskId } : { chatId }),

@@ -28,8 +28,13 @@ test('Codex child threads stream separately, keep nested links and retain their 
  assert.equal(f.events.filter(e=>e.payload.kind==='segment'&&e.payload.segment?.text?.includes('Analisando')).length,0,'child text never enters the parent reply')
  s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
  s.message('item/agentMessage/delta',{threadId:'child',turnId:'child-turn',itemId:'reply',delta:' concluído'})
- await f.send('second',{resume:'thread-0'})
  s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ s.message('turn/started',{threadId:'nested',turn:{id:'nested-turn'}})
+ s.message('turn/completed',{threadId:'nested',turn:{id:'nested-turn',status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.kind==='done').length,0,'root remains busy until it consumes descendant results')
+ s.message('turn/started',{threadId:'thread-0',turn:{id:'native-continuation'}})
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-continuation',status:'completed'}})
+ await f.send('second',{resume:'thread-0'})
  const terminal=f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child').at(-1).payload
  assert.equal(terminal.id,'first');assert.equal(terminal.agent.status,'completed')
  assert.ok(f.journal.some(e=>e.kind==='subagent'&&e.id==='first'&&e.agent.segment?.text==='Analisando os arquivos… concluído'))
@@ -158,7 +163,7 @@ test('Codex reopens only the closed child and never revives a child completed be
   return request(method,params)
  }
  await f.handlers['codex:subagent-message']({sender:f.owner},{rootChatId:'chat',rootTurnId:'first',agentId:'child',text:'Continue'})
- assert.deepEqual(s.calls.find(c=>c.method==='thread/resume').params,{threadId:'child'})
+ assert.deepEqual(s.calls.filter(c=>c.method==='thread/resume').at(-1).params,{threadId:'child'})
  assert.equal(f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child').at(-1).payload.agent.status,'completed')
  assert.equal(s.calls.filter(c=>c.method==='thread/start').length,1)
 })
@@ -197,6 +202,7 @@ function fixture(){
  const module=load('src/main/ipc/nativeCodex.ts',{
   '../../shared/providerUsage':usage,
   './codexSubagents':load('src/main/ipc/codexSubagents.ts'),
+  '../codexTurnLifecycle':load('src/main/codexTurnLifecycle.ts'),
   electron:{ipcMain:{on:(name,fn)=>handlers[name]=fn,handle:(name,fn)=>handlers[name]=fn},app:{on:(name,fn)=>{appEvents[name]=fn;(appHandlers[name]||=[]).push(fn)}},BrowserWindow:{getAllWindows:()=>windows}},
   './agentCommands':{cachedCodexSkills:(profileId,cwd)=>{skillState.calls.push({profileId,cwd});return skillState.cache},codexSkillInputs:realCommands.codexSkillInputs},
   '../codexServer':{CodexServer:Server},'../providers':{agentStore:repo,getProfile:(provider,id)=>{if(provider!=='codex'||id==='missing')throw Error('Invalid profile');return{id}}}
@@ -339,4 +345,133 @@ test('native stop escalates if the process never completes interruption', async 
  assert.equal(f.events.filter(e=>e.payload.kind==='done').at(-1).payload.aborted,true)
  assert.equal(f.events.filter(e=>e.payload.kind==='error').length,0)
  await f.send('next');assert.equal(f.servers.length,2)
+})
+
+function spawnWaitingChild(s) {
+ s.message('item/completed',{threadId:'thread-0',turnId:'native-2',item:{id:'spawn',type:'collabAgentToolCall',tool:'spawnAgent',status:'completed',receiverThreadIds:['child'],agentsStates:{child:{status:'running'}}}})
+ s.message('turn/started',{threadId:'child',turn:{id:'child-turn'}})
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
+}
+
+test('Codex resumes once after child completion without an extra user message and preserves run settings', async ctx => {
+ ctx.mock.timers.enable({apis:['setTimeout']})
+ const f=fixture();await f.send('task');const s=f.servers[0],request=s.request.bind(s)
+ s.request=async(method,params)=>method==='thread/read'?(s.calls.push({method,params}),{thread:{id:params.threadId,status:{type:'idle'}}}):request(method,params)
+ spawnWaitingChild(s)
+ assert.equal(f.events.filter(e=>e.payload.kind==='done').length,0)
+ await f.send('busy');assert.ok(f.events.some(e=>e.payload.id==='busy'&&e.payload.kind==='error'))
+ s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ ctx.mock.timers.tick(1001);await tick()
+ const calls=s.calls.filter(c=>c.method==='turn/start');assert.equal(calls.length,2)
+ const continuation=calls[1]
+ for(const key of ['cwd','model','approvalPolicy','sandboxPolicy','effort','serviceTier']) assert.deepEqual(continuation.params[key],calls[0].params[key])
+ assert.match(continuation.params.input[0].text,/subagentes concluíram/)
+ const id=`native-${s.calls.indexOf(continuation)+1}`
+ s.message('item/completed',{threadId:'thread-0',turnId:id,item:{id:'answer',type:'agentMessage',text:'Resultado consolidado'}})
+ s.message('turn/completed',{threadId:'thread-0',turn:{id,status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
+ assert.ok(f.journal.some(e=>e.id==='task'&&e.segment?.text==='Resultado consolidado'))
+ ctx.mock.timers.tick(5000);await tick();assert.equal(s.calls.filter(c=>c.method==='turn/start').length,2)
+})
+
+test('Codex prefers native automatic continuation and cancellation while waiting stops the whole task', async ctx => {
+ ctx.mock.timers.enable({apis:['setTimeout']})
+ const f=fixture();await f.send('task');const s=f.servers[0]
+ spawnWaitingChild(s)
+ s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ s.message('turn/started',{threadId:'thread-0',turn:{id:'native-auto'}})
+ ctx.mock.timers.tick(1001);await tick();assert.equal(s.calls.filter(c=>c.method==='turn/start').length,1)
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-auto',status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
+ await f.send('next',{resume:'thread-0'})
+ s.message('thread/started',{thread:{id:'child2',source:{subAgent:{thread_spawn:{parent_thread_id:'thread-0'}}}}})
+ const native=s.calls.filter(c=>c.method==='turn/start').at(-1),id=`native-${s.calls.indexOf(native)+1}`
+ s.message('turn/completed',{threadId:'thread-0',turn:{id,status:'completed'}})
+ f.handlers['codex:abort']({sender:f.owner},'chat');assert.equal(s.closed,true)
+ ctx.mock.timers.tick(5000);await tick()
+ assert.equal(f.events.filter(e=>e.payload.id==='next'&&e.payload.kind==='done'&&e.payload.aborted).length,1)
+ assert.equal(s.calls.filter(c=>c.method==='turn/start').length,2)
+})
+
+test('Codex recovers missing child notifications from metadata without treating initial idle as completion', async ctx => {
+ ctx.mock.timers.enable({apis:['setTimeout']})
+ const f=fixture();await f.send('task');const s=f.servers[0],request=s.request.bind(s)
+ s.request=async(method,params)=>method==='thread/read'?(s.calls.push({method,params}),{thread:{id:params.threadId,status:{type:'idle'}}}):request(method,params)
+ s.message('thread/started',{thread:{id:'child',parentThreadId:'thread-0',status:{type:'idle'}}})
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-2',status:'completed'}})
+ ctx.mock.timers.tick(1001);await tick();assert.equal(s.calls.filter(c=>c.method==='turn/start').length,1)
+ assert.equal(f.events.filter(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child'&&e.payload.agent.status==='completed').length,0)
+ s.message('thread/status/changed',{threadId:'child',status:{type:'active'}})
+ ctx.mock.timers.tick(1001);await tick();assert.equal(s.calls.filter(c=>c.method==='turn/start').length,2)
+ assert.ok(f.events.some(e=>e.payload.kind==='subagent'&&e.payload.agent.id==='child'&&e.payload.agent.status==='completed'))
+ s.close()
+})
+
+test('native root start winning the fallback RPC race remains active without duplicate continuation', async ctx => {
+ ctx.mock.timers.enable({apis:['setTimeout']})
+ const f=fixture();await f.send('task');const s=f.servers[0],request=s.request.bind(s)
+ let nativeActive=false
+ s.request=async(method,params)=>{
+  if(method==='thread/read'){s.calls.push({method,params});return{thread:{id:params.threadId,status:{type:nativeActive?'active':'idle'}}}}
+  if(method==='turn/start') {s.calls.push({method,params});nativeActive=true;s.message('turn/started',{threadId:'thread-0',turn:{id:'native-race'}});throw Error('thread already active')}
+  return request(method,params)
+ }
+ spawnWaitingChild(s);s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ ctx.mock.timers.tick(1001);await tick();assert.equal(s.closed,undefined)
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='error').length,0)
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-race',status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
+ ctx.mock.timers.tick(5000);await tick();assert.equal(s.calls.filter(c=>c.method==='turn/start').length,2)
+})
+
+test('late duplicate root start cannot replace the new root turn used by deltas and approvals', async () => {
+ const f=fixture();await f.send('task');const s=f.servers[0]
+ spawnWaitingChild(s);s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ s.message('turn/started',{threadId:'thread-0',turn:{id:'native-next'}})
+ s.message('turn/started',{threadId:'thread-0',turn:{id:'native-2'}})
+ s.message('item/agentMessage/delta',{threadId:'thread-0',turnId:'native-next',itemId:'answer',delta:'Resultado atual'})
+ assert.ok(f.events.some(e=>e.payload.segment?.text==='Resultado atual'))
+ s.message('item/commandExecution/requestApproval',{threadId:'thread-0',turnId:'native-next',command:'npm test'},400)
+ assert.ok(f.events.some(e=>e.channel==='agent:permission'&&e.payload.permId==='codex:chat:400'))
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-next',status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
+})
+
+for(const method of ['thread/closed','thread/status/changed']) test(`root ${method} ends a task waiting on children with an error`,async()=>{
+ const f=fixture();await f.send('task');const s=f.servers[0];spawnWaitingChild(s)
+ s.message(method,{threadId:'thread-0',status:{type:'systemError'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='error').length,1)
+ s.close()
+})
+
+test('stale child active metadata cannot revive a completion received while its read was pending',async ctx=>{
+ ctx.mock.timers.enable({apis:['setTimeout']})
+ const f=fixture();await f.send('task');const s=f.servers[0],request=s.request.bind(s)
+ s.request=async(method,params)=>{
+  if(method==='thread/read') {
+   s.calls.push({method,params})
+   if(params.threadId==='child') {
+    s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+    return{thread:{id:'child',status:{type:'active'}}}
+   }
+   return{thread:{id:params.threadId,status:{type:'idle'}}}
+  }
+  return request(method,params)
+ }
+ spawnWaitingChild(s);ctx.mock.timers.tick(1001);await tick()
+ assert.equal(s.calls.filter(c=>c.method==='turn/start').length,2,'real completion wins over old active metadata')
+ const start=s.calls.filter(c=>c.method==='turn/start').at(-1),id=`native-${s.calls.indexOf(start)+1}`
+ s.message('turn/completed',{threadId:'thread-0',turn:{id,status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
+})
+
+test('root active metadata recovers continuation deltas even when turn started was missed',async()=>{
+ const f=fixture();await f.send('task');const s=f.servers[0]
+ spawnWaitingChild(s);s.message('turn/completed',{threadId:'child',turn:{id:'child-turn',status:'completed'}})
+ s.message('thread/status/changed',{threadId:'thread-0',status:{type:'active'}})
+ s.message('item/agentMessage/delta',{threadId:'thread-0',turnId:'native-missed-start',itemId:'answer',delta:'Retomado automaticamente'})
+ assert.ok(f.events.some(e=>e.payload.segment?.text==='Retomado automaticamente'))
+ s.message('turn/completed',{threadId:'thread-0',turn:{id:'native-missed-start',status:'completed'}})
+ assert.equal(f.events.filter(e=>e.payload.id==='task'&&e.payload.kind==='done').length,1)
 })

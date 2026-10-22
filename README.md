@@ -16,6 +16,7 @@ Prism é uma aplicação desktop independente feita com Electron, React, TypeScr
 ## Recursos
 
 - **Conversas e projetos:** Claude Code e Codex no mesmo histórico, contas isoladas por perfil, rascunhos por chat, importação local do Traycer e várias tarefas em paralelo.
+- **Trocar pasta do chat:** permite escolher outro diretório de trabalho para Claude ou Codex preservando a conversa, pelo menu de ações do chat. A troca fica disponível quando o agente e seus subagentes estão parados.
 - **Execução dos agentes:** aprovações, perguntas interativas, anexos com referências `#image 1`, fila compartilhada de mensagens e acompanhamento de subagentes vinculados à conversa principal.
 - **Host local em Rust:** mantém as execuções e o histórico em SQLite, separado da janela Electron. Cada subagente pode ser acompanhado pela árvore e por seus cartões de tarefa, atividade e resultado.
 - **Mensagens para subagentes:** no Codex, o envio usa a conversa nativa do filho. No Claude, a instrução é encaminhada pelo principal com `SendMessage`, quando o filho possui um endereço nativo disponível. O recebimento no filho aparece quando a CLI o confirma.
@@ -47,6 +48,8 @@ Para usar os agentes, instale as CLIs oficiais conforme as instruções de [Clau
 Os seletores de modelo e permissões permanecem disponíveis durante uma execução. No Claude, modelo e permissões podem mudar no turno ativo; esforço e Fast valem para o próximo. No Codex, a configuração vale para o próximo turno, incluindo mensagens da fila. O esforço e os modelos disponíveis dependem do que a CLI da conta anuncia.
 
 No terminal, **Ctrl+C** interrompe o processo mesmo quando há texto selecionado. Use **Ctrl+Shift+C** para copiar a seleção.
+
+Quando o agente principal aguarda subagentes, a execução continua vinculada ao mesmo turno até ele retomar e concluir a resposta. Não é necessário enviar outra mensagem para avisar que o subagente terminou.
 
 ## Compilar e verificar
 

@@ -6,6 +6,7 @@ import { agentStore, getProfile } from '../providers'
 import { cachedCodexSkills, codexSkillInputs } from './agentCommands'
 import type { CodexSend, CodexEvent, SharedSegment, SteerMessage } from '../../shared/agents'
 import { CodexSubagents } from './codexSubagents'
+import { createCodexTurnLifecycle } from '../codexTurnLifecycle'
 
 /** Current app-server async questions belong to agentMessage, not a blocking RPC. */
 function asyncQuestions(value: unknown): { title: string; options?: string[] }[] | undefined {
@@ -43,6 +44,11 @@ export function nativeItem(item: any, complete: boolean): SharedSegment | undefi
 
 interface Session { server: CodexServer; owner: WebContents; signature: string; threadId?: string; active?: CodexSend; nativeTurnId?: string; segments: Map<string, SharedSegment>; requests: Map<string, number | string>; abortRequested?: boolean; failure?: string; grants: Map<string, unknown>; questionKeys: Map<string, {id:string;question:string}[]>
   subagents?: CodexSubagents
+  lifecycle?: ReturnType<typeof createCodexTurnLifecycle>
+  continuationTimer?: ReturnType<typeof setTimeout>
+  checkingContinuation?: boolean
+  subscribedChildren?: Set<string>
+  continuationParams?: Record<string, unknown>
   childRequests: Map<string, string>
   /** The thread total before the active turn (undefined until its first update; null when unknown). */
   turnBase?: CodexBreakdown | null
@@ -94,8 +100,81 @@ export function registerNativeCodexHandlers(): void {
   const finish = (s: Session, error?: string, aborted?: boolean): void => {
     if (!s.active) return
     emit(s, error ? { id: s.active.id, kind: 'error', message: error } : { id: s.active.id, kind: 'done', aborted })
-    s.active = undefined; s.nativeTurnId = undefined; s.abortRequested = false; s.turnBase = undefined
+    clearTimeout(s.continuationTimer)
+    s.continuationTimer = undefined
+    s.active = undefined; s.nativeTurnId = undefined; s.abortRequested = false; s.turnBase = undefined; s.lifecycle = undefined
     for (const key of s.requests.keys()) if (!s.childRequests.has(key)) { s.requests.delete(key); s.questionKeys.delete(key); s.grants.delete(key) }
+  }
+  const settle = (s: Session): void => {
+    const task = s.lifecycle
+    if (!task || !s.active || s.abortRequested || s.failure) return
+    if (task.canFinish) { finish(s, task.error, task.interrupted); if (task.error) s.server.close(); return }
+    for (const child of task.childThreads) {
+      if (s.subscribedChildren?.has(child)) continue
+      s.subscribedChildren?.add(child)
+      // Subscribe to child completion without changing its model or permissions.
+      void s.server.request('thread/resume', { threadId: child, excludeTurns: true }).catch(() => {})
+    }
+    if (s.checkingContinuation || s.continuationTimer || !task.pendingAgents.length && !task.needsContinuation) return
+    s.continuationTimer = setTimeout(() => {
+      s.continuationTimer = undefined
+      s.checkingContinuation = true
+      const activeId = s.active?.id
+      const current = (): boolean => !!activeId && s.active?.id === activeId && s.lifecycle === task && !s.abortRequested && !s.failure
+      void (async () => {
+        // A few CLI versions do not deliver descendant notifications to the
+        // root subscription. Metadata reads recover that state without turns.
+        for (const child of task.pendingAgents) {
+          const before = task.childState(child)
+          const response = await s.server.request('thread/read', { threadId: child, includeTurns: false }).catch(() => undefined)
+          if (!current()) return
+          // Native completion or a newer child turn wins over a stale read.
+          if (task.childState(child) !== before) continue
+          if (response?.thread?.status) {
+            const params = { threadId: child, status: response.thread.status }
+            task.observe('thread/status/changed', params)
+            s.subagents?.handle(s.threadId!, { id: activeId!, journal: !!s.active?.chat }, { method: 'thread/status/changed', params })
+            if (!task.pendingAgents.includes(child) && ['idle', 'systemError'].includes(response.thread.status.type)) {
+              // Publish the recovered terminal state to the same child card
+              // and release obsolete requests as a native completion would.
+              s.subagents?.handle(s.threadId!, { id: activeId!, journal: !!s.active?.chat }, { method: 'turn/completed', params: {
+                threadId: child, turn: { id: s.subagents.activeTurn(child), status: response.thread.status.type === 'idle' ? 'completed' : 'failed' }
+              } })
+              for (const [key, id] of s.childRequests) if (id === child) { s.childRequests.delete(key); s.requests.delete(key); s.grants.delete(key); s.questionKeys.delete(key) }
+            }
+          }
+        }
+        if (!current() || !task.needsContinuation) return
+        const response = await s.server.request('thread/read', { threadId: s.threadId, includeTurns: false })
+        if (!current()) return
+        if (response?.thread?.status) {
+          task.observe('thread/status/changed', { threadId: s.threadId, status: response.thread.status })
+          if (task.rootActive) s.nativeTurnId = task.rootTurnId
+        }
+        // Give a native automatic continuation priority. Only a real child
+        // completion followed by a confirmed idle root authorizes the fallback.
+        if (!task.needsContinuation || response?.thread?.status?.type !== 'idle') return
+        task.acknowledgeContinuation()
+        s.nativeTurnId = undefined
+        try {
+          const started = await s.server.request('turn/start', { ...s.continuationParams, threadId: s.threadId,
+            input: [{ type: 'text', text: 'Os subagentes concluíram suas tarefas. Consulte os resultados e continue o pedido original a partir deles; preserve as ações já concluídas.', text_elements: [] }] })
+          if (current() && task.rootActive && !task.rootTurnId && started?.turn?.id) {
+            task.observe('turn/started', { threadId: s.threadId, turn: started.turn })
+            s.nativeTurnId = started.turn.id
+            s.subagents?.rememberRootTurn(started.turn.id, { id: activeId!, journal: !!s.active?.chat })
+          }
+        } catch (err) {
+          if (!current()) return
+          // The native wake-up may win between the metadata read and start.
+          const state = await s.server.request('thread/read', { threadId: s.threadId, includeTurns: false }).catch(() => undefined)
+          if (current() && state?.thread?.status?.type !== 'active') throw err
+        }
+      })().catch((err) => {
+        if (current()) { s.failure = (err as Error).message; s.server.close() }
+      }).finally(() => { s.checkingContinuation = false; settle(s) })
+    }, task.needsContinuation ? 75 : 1000)
+    s.continuationTimer.unref()
   }
   const bind = (chatId: string, s: Session): void => {
     s.subagents = new CodexSubagents((origin, agent) => {
@@ -106,11 +185,18 @@ export function registerNativeCodexHandlers(): void {
     s.server.onClose = (err) => { s.subagents?.close(); finish(s, s.abortRequested ? undefined : s.failure || err.message, !!s.abortRequested); if (sessions.get(chatId) === s) sessions.delete(chatId) }
     s.server.onMessage = (msg) => {
       const p = msg.params || {}, active = s.active
+      // A root turn may yield while descendants continue. Keep the same Prism
+      // turn until a root continuation has actually consumed their results.
+      if (s.lifecycle && msg.id === undefined) {
+        const params = msg.method === 'turn/completed' && !p.turn?.id ? { ...p, turn: { ...p.turn, id: s.nativeTurnId } } : p
+        s.lifecycle.observe(msg.method, params)
+        if (p.threadId === s.threadId && ['turn/started', 'thread/status/changed'].includes(msg.method) && s.lifecycle.rootActive) s.nativeTurnId = s.lifecycle.rootTurnId
+      }
       if (s.subagents?.handle(s.threadId || '', active ? { id: active.id, journal: !!active.chat } : undefined, msg)) {
         if (['turn/completed', 'thread/closed'].includes(msg.method) && !s.subagents.activeTurn(p.threadId)) {
           for (const [key, child] of s.childRequests) if (child === p.threadId) { s.childRequests.delete(key); s.requests.delete(key); s.grants.delete(key); s.questionKeys.delete(key) }
         }
-        return
+        settle(s); return
       }
       const childOrigin = msg.id !== undefined ? s.subagents?.origin(p.threadId) : undefined
       const childRequest = !!childOrigin
@@ -140,7 +226,7 @@ export function registerNativeCodexHandlers(): void {
         return
       }
       if (!active) return
-      if (msg.method === 'turn/started') { s.nativeTurnId = p.turn.id; if (s.abortRequested) void s.server.request('turn/interrupt', { threadId: s.threadId, turnId: s.nativeTurnId }).catch(() => s.server.close()) }
+      if (msg.method === 'turn/started') { s.nativeTurnId = s.lifecycle?.rootTurnId; if (s.abortRequested) void s.server.request('turn/interrupt', { threadId: s.threadId, turnId: s.nativeTurnId }).catch(() => s.server.close()) }
       else if (msg.method === 'thread/tokenUsage/updated') emit(s, { id: active.id, kind: 'metrics', metrics: codexMetrics(p.tokenUsage, turnFromUpdate(s, p.tokenUsage)) })
       else if (msg.method === 'item/started' || msg.method === 'item/completed') {
         const segment = nativeItem(p.item, msg.method === 'item/completed')
@@ -149,7 +235,8 @@ export function registerNativeCodexHandlers(): void {
         const segment = s.segments.get(p.itemId) || { kind: msg.method.includes('reasoning') ? 'thinking' : 'text', text: '', toolId: p.itemId } as SharedSegment
         const next = segment.kind === 'tool' ? { ...segment, result: (segment.result || '') + p.delta } : { ...segment, text: (segment.text || '') + p.delta }
         s.segments.set(p.itemId, next); emit(s, { id: active.id, kind: 'segment', segment: next })
-      } else if (msg.method === 'turn/completed') finish(s, p.turn.status === 'failed' ? p.turn.error?.message || 'Falha no Codex.' : undefined, p.turn.status === 'interrupted')
+      } else if (msg.method === 'turn/completed' && s.abortRequested && (!p.turn?.id || p.turn.id === s.nativeTurnId)) finish(s, undefined, true)
+      settle(s)
     }
   }
   ipcMain.on('codex:send', async (e, payload: CodexSend) => {
@@ -169,7 +256,7 @@ export function registerNativeCodexHandlers(): void {
         const created = s
         e.sender.once('destroyed', () => { if (sessions.get(payload.chatId) === created) created.server.close() })
       }
-      s.active = payload; s.segments.clear(); s.abortRequested = false; s.turnBase = undefined
+      s.active = payload; s.segments.clear(); s.abortRequested = false; s.turnBase = undefined; s.subscribedChildren = new Set()
       accepted = true
       if (payload.chat) agentStore.beginRun(payload.chat, payload.id)
       await s.server.ready
@@ -188,17 +275,23 @@ export function registerNativeCodexHandlers(): void {
       }
       emit(s, { id: payload.id, kind: 'session', sessionId: s.threadId! })
       if (s.abortRequested) { finish(s, undefined, true); return }
+      s.lifecycle = createCodexTurnLifecycle(s.threadId!, s.subagents?.threadIds())
+      s.lifecycle.acknowledgeContinuation()
       const sandboxPolicy = full ? { type: 'dangerFullAccess' } : write ? { type: 'workspaceWrite', writableRoots: [payload.cwd], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false } : { type: 'readOnly' }
       // `$skill` tokens the `/` menu listed also go as structured skill items,
       // as Codex's own composer sends them; the text stays as typed. No
       // listing cached yet: text only, never a wait.
       const skills = codexSkillInputs(payload.prompt, cachedCodexSkills(payload.selection.profileId, payload.cwd) ?? [])
-      const response = await s.server.request('turn/start', { threadId: s.threadId, input: [{ type: 'text', text: payload.prompt, text_elements: [] }, ...(payload.images || []).map(image => ({ type: 'image', url: `data:${image.mime};base64,${image.data}` })), ...skills], cwd: payload.cwd,
-        approvalPolicy, sandboxPolicy, ...(payload.selection.model ? { model: payload.selection.model } : {}), effort: payload.selection.effort, serviceTier })
+      s.continuationParams = { cwd: payload.cwd, approvalPolicy, sandboxPolicy, ...(payload.selection.model ? { model: payload.selection.model } : {}), effort: payload.selection.effort, serviceTier }
+      const response = await s.server.request('turn/start', { ...s.continuationParams, threadId: s.threadId, input: [{ type: 'text', text: payload.prompt, text_elements: [] }, ...(payload.images || []).map(image => ({ type: 'image', url: `data:${image.mime};base64,${image.data}` })), ...skills] })
       if (s.active?.id === payload.id) {
-        s.nativeTurnId = response.turn.id
+        // A very short turn may finish, or a native continuation may start,
+        // before the start acknowledgement arrives.
+        if (s.lifecycle?.rootActive && !s.lifecycle.rootTurnId) s.lifecycle.observe('turn/started', { threadId: s.threadId, turn: response.turn })
+        s.nativeTurnId = s.lifecycle?.rootTurnId
         s.subagents?.rememberRootTurn(response.turn.id, { id: payload.id, journal: !!payload.chat })
         if (s.abortRequested) await s.server.request('turn/interrupt', { threadId: s.threadId, turnId: s.nativeTurnId })
+        settle(s)
       }
     } catch (err) {
       if (s?.active?.id === payload.id) { s.failure = (err as Error).message; s.server.close() }
@@ -241,6 +334,7 @@ export function registerNativeCodexHandlers(): void {
     const s = sessions.get(chatId)
     if (!s || s.owner.id !== e.sender.id || !s.active) return
     s.abortRequested = true
+    if (s.lifecycle && !s.lifecycle.rootActive) { s.server.close(); return }
     const turnId = s.active.id
     const timer = setTimeout(() => { if (s.active?.id === turnId && s.abortRequested) s.server.close() }, 2000)
     timer.unref()

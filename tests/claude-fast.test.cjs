@@ -18,6 +18,7 @@ function fixture(){
  const usage=load('src/shared/providerUsage.ts')
  const module=load('src/main/ipc/claudeAgent.ts',{
   './claudeSubagents':load('src/main/ipc/claudeSubagents.ts'),
+  './claudeTurnLifecycle':load('src/main/ipc/claudeTurnLifecycle.ts'),
   '../../shared/providerUsage':usage,
   electron:{ipcMain:{on:(key,fn)=>handlers[key]=fn,handle:()=>{}},app:{on:(name,fn)=>appEvents[name]=fn}},
   child_process:{spawn:()=>{throw Error('No CLI allowed')},execSync:()=>Buffer.from('C:\\fake\\claude.exe')},

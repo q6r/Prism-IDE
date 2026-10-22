@@ -302,7 +302,7 @@ export async function importTraycer(request: TraycerImportRequest): Promise<Tray
       Object.assign(existing, { taskId, parentChatId, readOnly: !!candidate.unsupportedHarness, sourceHarness: candidate.unsupportedHarness, archived: candidate.archived, traycerSource: ref })
       // Upgrade an already-imported chat to resume Traycer's native session, as
       // long as it was not continued in Prism and does not resume one already.
-      if (!existing.resume && !existing.readOnly && !continuedInPrism(existing) && existing.selection) {
+      if (!existing.cwdPinned && !existing.resume && !existing.readOnly && !continuedInPrism(existing) && existing.selection) {
         try {
           const r = prepareNativeResume({ root, epicId: candidate.epicId, chatId, provider: existing.selection.provider as Provider,
             selectionProfileId: existing.selection.profileId, workspaceNeedsBinding: !!existing.workspaceNeedsBinding, sources, copyCredentials: request.copyCredentials })

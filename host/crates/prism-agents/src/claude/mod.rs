@@ -7,6 +7,7 @@
 //! recorded from the SDK in `host/fixtures/claude/<cli version>/`.
 
 mod json;
+mod lifecycle;
 pub mod launch;
 mod meta;
 pub mod profiles;
@@ -190,6 +191,7 @@ impl ClaudeAgents {
                     && st.signature == signature && resume.is_some() && st.session_id.as_deref() == resume
                 {
                     st.active_turn = Some(p.id.clone());
+                    st.lifecycle.reset();
                     st.emit = emit.clone();
                     let mut system = json!({"id": p.id});
                     if let Some(sid) = &st.session_id {

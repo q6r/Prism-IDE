@@ -26,7 +26,7 @@ export default function AgentWorkspace({ compact = false }: { compact?: boolean 
   const chatCount = useAgentChats((s) => s.chats.length)
   const chat = useAgentChats(useShallow((s) => {
     const c = s.chats.find((x) => x.id === s.activeId)
-    return c ? { id: c.id, started: c.turns.length > 0 || (c.historyTurnCount ?? 0) > 0, cwd: c.cwd, remoteId: c.remoteId, child: !!c.parentChatId } : null
+    return c ? { id: c.id, started: c.turns.length > 0 || (c.historyTurnCount ?? 0) > 0, cwd: c.cwd, cwdPinned: c.cwdPinned, remoteId: c.remoteId, child: !!c.parentChatId } : null
   }))
   const tasksReady = useAgentTasks((s) => s.ready)
   const restoringChats = useAgentTasks((s) => s.restoringChats)
@@ -48,7 +48,7 @@ export default function AgentWorkspace({ compact = false }: { compact?: boolean 
   // An unstarted chat follows the open folder. A child agent keeps the
   // workspace it inherited from its parent unless it has none.
   useEffect(() => {
-    if (!chat || chat.started || !folderPath) return
+    if (!chat || chat.started || chat.cwdPinned || !folderPath) return
     if (chat.child ? !chat.cwd : chat.cwd !== folderPath || chat.remoteId !== remote?.id) useAgentChats.getState().bindWorkspace(chat.id, folderPath, remote?.id)
   }, [chat?.id, folderPath, remote?.id])
   useEffect(() => {

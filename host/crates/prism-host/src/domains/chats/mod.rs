@@ -252,6 +252,7 @@ const METHODS: &[&str] = &[
     methods::CONFIGURE,
     methods::CONFIRM_ACCOUNT,
     methods::BIND_WORKSPACE,
+    methods::CHANGE_WORKING_DIRECTORY,
     methods::RENAME,
     methods::ARCHIVE,
     methods::SET_TASK,
@@ -367,7 +368,7 @@ fn stopped() -> HostError {
 }
 
 impl Domain for ChatsDomain {
-    fn features(&self) -> &'static [&'static str] { &["chats.queue@1", "chats.subagents.message@1", "chats.history@1"] }
+    fn features(&self) -> &'static [&'static str] { &["chats.queue@1", "chats.subagents.message@1", "chats.history@1", "chats.working-directory@1"] }
     fn name(&self) -> &'static str {
         "chats"
     }

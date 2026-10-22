@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { Archive, ArchiveRestore, ChevronDown, Copy, CopyMinus, Download, History, MessagesSquare, MoreHorizontal, Pencil, Plus, RefreshCw, Search, SearchX, Trash2, Users } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, Copy, CopyMinus, Download, FolderOpen, History, MessagesSquare, MoreHorizontal, Pencil, Plus, RefreshCw, Search, SearchX, Trash2, Users } from 'lucide-react'
 import { useAgentChats } from '../../lib/agentChats'
 import { useAgentTasks } from '../../lib/agentTasks'
 import { useStore } from '../../store'
@@ -19,6 +19,7 @@ import {
   rollupStatus, rollupSummary, rollupWins, runStates, visibleChats, type AgentView, type ChatStatusKind
 } from '../agents-list/model'
 import '../../styles/agents-list.css'
+import AgentWorkingDirectoryDialog from './AgentWorkingDirectoryDialog'
 
 const WIDTH_KEY = 'prism.agents.sidebarWidth'
 const MIN_WIDTH = 200, MAX_WIDTH = 480, DEFAULT_WIDTH = 272
@@ -63,6 +64,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
   // The live rename, read by blur: Escape clears it before the input's blur can commit.
   const renameRef = useRef<{ id: string; value: string } | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [directoryChatId, setDirectoryChatId] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ chat: ChatRow; point: { x: number; y: number }; row: HTMLElement } | null>(null)
   const [traycerOpen, setTraycerOpen] = useState(false)
   const rootRef = useRef<HTMLElement>(null)
@@ -126,6 +128,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
   const rowMenuItems = (chat: ChatRow, busy: boolean): ReactNode => <>
     {!chat.nativeAgent ? <><DropdownMenuItem disabled={!ready} onSelect={() => newChild(chat)}><Plus />Novo agente filho</DropdownMenuItem>
     <DropdownMenuItem onSelect={() => startRename(chat)}><Pencil />Renomear</DropdownMenuItem>
+    <DropdownMenuItem disabled={busy} onSelect={() => setDirectoryChatId(chat.id)}><FolderOpen />Trocar pasta de trabalho</DropdownMenuItem>
     <DropdownMenuItem disabled={busy} onSelect={() => toggleArchive(chat)}>{chat.archived ? <ArchiveRestore /> : <Archive />}{chat.archived ? 'Desarquivar' : 'Arquivar'}</DropdownMenuItem></> : null}
     <DropdownMenuItem onSelect={() => copyId(chat)}><Copy />Copiar ID</DropdownMenuItem>
     {chat.fromTraycer ? <DropdownMenuItem disabled={busy} onSelect={() => void chats().reimportFromTraycer(chat.id)}><RefreshCw />Atualizar do Traycer</DropdownMenuItem> : null}
@@ -265,6 +268,7 @@ export default function AgentSidebar({ onNewChat }: { onNewChat: () => void }) {
       {rowMenuItems(menuChat, !!runs[menuChat.id])}
     </PointMenu> : null}
     {traycerOpen ? <TraycerBrowser onClose={() => setTraycerOpen(false)} onImport={() => { setTraycerOpen(false); useStore.getState().setTraycerImportOpen(true) }} /> : null}
+    {directoryChatId && <AgentWorkingDirectoryDialog key={directoryChatId} chatId={directoryChatId} onClose={() => setDirectoryChatId(null)} />}
     {deleting ? <ConfirmDialog title={`Excluir o agente "${deleting.title}"?`}
       description="Esta ação não pode ser desfeita. O histórico salvo no Prism será excluído; as sessões da CLI continuam no disco."
       detail={rows.some((c) => c.parentChatId === deleting.id) ? <p className="al-dialog-desc">Os agentes aninhados sob ele passam para a raiz da lista.</p> : null}

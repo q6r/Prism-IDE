@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { Activity, Code2, Ellipsis, MessageSquare, PanelRight, Plus, Smartphone, SmartphoneNfc, SquareTerminal } from 'lucide-react'
+import { Activity, Code2, Ellipsis, FolderOpen, MessageSquare, PanelRight, Plus, Smartphone, SmartphoneNfc, SquareTerminal } from 'lucide-react'
 import { useAgentChats } from '../../lib/agentChats'
 import { startRemoteControl, stopRemoteControl } from '../../lib/remoteControl'
 import { useStore } from '../../store'
 import { Badge, Button, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, Tooltip, cn } from '../ui'
 import '../../styles/chat.css'
+import AgentWorkingDirectoryDialog from './AgentWorkingDirectoryDialog'
 
 /** Chat header: title, remote badge and the workspace actions (40px Traycer header row). */
 export default function AgentHeader({ compact, monitorOpen, onToggleMonitor, onNewChat }: {
@@ -20,7 +22,8 @@ export default function AgentHeader({ compact, monitorOpen, onToggleMonitor, onN
   const activeCount = useAgentChats((s) => Object.values(s.runtime).filter(r => r.busy).length)
   const running = useAgentChats((s) => !!(chat && s.runtime[chat.id]?.busy))
   const shared = useStore((s) => !!chat && s.rcEnabledTabs.includes(chat.id))
-  return <header className={cn('ch-header', compact && 'compact')}>
+  const [directoryChatId, setDirectoryChatId] = useState<string | null>(null)
+  return <><header className={cn('ch-header', compact && 'compact')}>
     <div className="ch-header-title">
       <MessageSquare size={14} aria-hidden className="ch-header-icon" />
       <span className="ch-header-name" title={chat?.title || 'Conversas'}>{chat?.title || 'Conversas'}</span>
@@ -59,6 +62,7 @@ export default function AgentHeader({ compact, monitorOpen, onToggleMonitor, onN
       {chat && !chat.nativeAgent ? <DropdownMenu align="end" label="Ações do chat" className="ch-header-menu"
         trigger={<Button variant="muted" size="icon-sm" aria-label="Mais ações do chat"><Ellipsis aria-hidden /></Button>}>
         <DropdownMenuLabel>Chat</DropdownMenuLabel>
+        <DropdownMenuItem disabled={running} onSelect={() => setDirectoryChatId(chat.id)}><FolderOpen aria-hidden />Trocar pasta de trabalho</DropdownMenuItem>
         <DropdownMenuItem disabled={!!chat.archived} onSelect={() => void startRemoteControl(chat.id)}>
           <Smartphone aria-hidden />{shared ? 'Mostrar QR do controle remoto' : 'Controle remoto'}
         </DropdownMenuItem>
@@ -71,4 +75,6 @@ export default function AgentHeader({ compact, monitorOpen, onToggleMonitor, onN
       </DropdownMenu> : null}
     </div>
   </header>
+    {directoryChatId && <AgentWorkingDirectoryDialog key={directoryChatId} chatId={directoryChatId} onClose={() => setDirectoryChatId(null)} />}
+  </>
 }

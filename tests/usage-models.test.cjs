@@ -144,6 +144,7 @@ function fixture(){
  const repo={beginRun:(chat,id)=>journal.push({kind:'begin',chat:chat.id,id}),appendEvent:(chat,id,event)=>journal.push({chat,id,...event})}
  const module=load('src/main/ipc/claudeAgent.ts',{
   './claudeSubagents':load('src/main/ipc/claudeSubagents.ts'),
+  './claudeTurnLifecycle':load('src/main/ipc/claudeTurnLifecycle.ts'),
   '../../shared/providerUsage':pu,
   electron:{ipcMain:{on:(key,fn)=>handlers[key]=fn,handle:()=>{}},app:{on:(name,fn)=>appEvents[name]=fn}},
   child_process:{spawn:()=>{throw Error('No CLI allowed')},execSync:()=>Buffer.from('C:\\fake\\claude.exe')},

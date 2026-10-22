@@ -66,6 +66,7 @@ impl Subagents {
     pub fn contains(&self, id: &str) -> bool {
         self.children.contains_key(id)
     }
+    pub fn thread_ids(&self) -> Vec<String> { self.children.keys().cloned().collect() }
     pub fn belongs_to(&self, id: &str, turn: &str) -> bool {
         self.children
             .get(id)
@@ -189,7 +190,7 @@ impl Subagents {
             let thread = &p["thread"];
             let source = &thread["source"]["subAgent"]["thread_spawn"];
             if let (Some(parent), Some(id)) =
-                (source["parent_thread_id"].as_str(), thread["id"].as_str())
+                (thread["parentThreadId"].as_str().or_else(|| source["parent_thread_id"].as_str()), thread["id"].as_str())
                 && self.discover(root, parent, id, origin)
             {
                 let child = self.children.get_mut(id).unwrap();
